@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+// src/pages/MisTickets.tsx
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { listTickets, type Ticket } from "../services/tickets";
 
@@ -14,6 +15,7 @@ const TITULOS: Ticket["title"][] = [
   "Cuentas",
   "Rinde Gastos",
   "Terreno",
+  "Otros",
 ];
 
 export default function MisTickets() {
@@ -28,10 +30,9 @@ export default function MisTickets() {
   // paginación simple
   const [limit, setLimit] = useState(10);
   const [page, setPage] = useState(0);
-
   const skip = useMemo(() => page * limit, [page, limit]);
 
-  async function cargar() {
+  const cargar = useCallback(async () => {
     if (!user?.nombreUsuario) {
       setError("Sesión no válida.");
       return;
@@ -53,12 +54,28 @@ export default function MisTickets() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [user?.nombreUsuario, estado, titulo, limit, skip]);
 
   useEffect(() => {
     cargar();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [estado, titulo, limit, page]);
+  }, [cargar]);
+
+  // Auto-refresh: foco de ventana, volver de background y polling ligero
+  useEffect(() => {
+    const onFocus = () => cargar();
+    const onVisible = () => {
+      if (!document.hidden) cargar();
+    };
+    const id = setInterval(() => cargar(), 8000); // 8s
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+      clearInterval(id);
+    };
+  }, [cargar]);
 
   function colorEstado(s: Ticket["state"]) {
     switch (s) {
@@ -72,7 +89,6 @@ export default function MisTickets() {
         return "bg-amber-600/20 text-amber-300 border-amber-600/40";
     }
   }
-
   function colorRiesgo(r: Ticket["risk"]) {
     switch (r) {
       case "alto":
@@ -221,7 +237,7 @@ export default function MisTickets() {
               className="rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition"
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <span className="rounded-lg px-2 py-1 text-xs bg-orange-600/20 text-orange-300 border border-orange-600/30">
                     {t.title}
                   </span>
@@ -247,9 +263,22 @@ export default function MisTickets() {
 
               <div className="mt-3 text-neutral-200">
                 <div className="font-semibold">{t.ticketId}</div>
-                <p className="text-sm text-neutral-300 mt-1 line-clamp-3">
+                <p className="text-sm text-neutral-300 mt-1 whitespace-pre-line">
                   {t.description}
                 </p>
+
+                {/* NUEVO: comentario y fecha de resolución */}
+                {t.comment && (
+                  <p className="mt-3 text-sm text-neutral-200">
+                    <span className="font-semibold">Comentario:</span>{" "}
+                    <span className="text-neutral-300">{t.comment}</span>
+                  </p>
+                )}
+                {t.resolucionTime && (
+                  <p className="mt-1 text-xs text-neutral-400">
+                    Resuelto: {new Date(t.resolucionTime).toLocaleString()}
+                  </p>
+                )}
               </div>
             </div>
           ))}
