@@ -54,3 +54,17 @@ export function listTickets(params: {
   const search = qs.toString() ? `?${qs.toString()}` : "";
   return httpJSON<ListResponse>("tickets", `/api/ticketvvp${search}`);
 }
+
+export function listPendingTicketsAdmin() {
+  return httpJSON<ListResponse>("tickets", "/api/admin/tickets/pendientes");
+}
+
+export function patchTicket(
+  ticketId: string,
+  payload: Partial<Pick<Ticket, "risk" | "state" | "comment">>
+) {
+  return httpJSON<TicketResponse>("tickets", `/api/ticketvvp/${ticketId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}

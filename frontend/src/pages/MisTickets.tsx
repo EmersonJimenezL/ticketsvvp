@@ -10,10 +10,10 @@ const ESTADOS: Ticket["state"][] = [
 ];
 const TITULOS: Ticket["title"][] = [
   "SAP",
-  "impresoras",
-  "cuentas",
-  "rindeGastos",
-  "terreno",
+  "Impresoras",
+  "Cuentas",
+  "Rinde Gastos",
+  "Terreno",
 ];
 
 export default function MisTickets() {

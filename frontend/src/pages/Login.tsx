@@ -1,9 +1,9 @@
-// src/pages/Login.tsx
 import { useState } from "react";
 import logo from "../assets/vivipra.png";
 import { useNavigate } from "react-router-dom";
 import { login as loginApi } from "../services/auth";
 import { useAuth } from "../auth/AuthContext";
+import { isTicketAdmin } from "../auth/isTicketAdmin";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -18,15 +18,19 @@ export default function Login() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
     if (!username || !pass) {
       setError("Completa usuario y contraseña.");
       return;
     }
+
     try {
       setLoading(true);
       const resp = await loginApi({ nombreUsuario: username, password: pass });
       login(resp.usuario);
-      navigate("/menu");
+
+      const dest = isTicketAdmin(resp.usuario) ? "/admin" : "/menu";
+      navigate(dest, { replace: true });
     } catch (err: any) {
       setError(err?.message || "Credenciales inválidas.");
     } finally {

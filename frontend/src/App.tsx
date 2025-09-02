@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Menu from "./pages/Menu";
 import NuevoTicket from "./pages/NuevoTicket";
 import MisTickets from "./pages/MisTickets";
+import Admin from "./pages/Admin";
 
 export default function App() {
   return (
@@ -28,6 +29,11 @@ export default function App() {
           {/* mis tickets */}
           <Route element={<RequireAuth />}>
             <Route path="/tickets" element={<MisTickets />} />
+          </Route>
+
+          {/* admin */}
+          <Route element={<RequireAuth />}>
+            <Route path="/admin" element={<Admin />} />
           </Route>
         </Routes>
       </BrowserRouter>
