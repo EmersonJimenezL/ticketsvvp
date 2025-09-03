@@ -1,5 +1,6 @@
 // src/pages/MisTickets.tsx
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { listTickets, type Ticket } from "../services/tickets";
 
@@ -20,6 +21,8 @@ const TITULOS: Ticket["title"][] = [
 
 export default function MisTickets() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
   const [items, setItems] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +69,7 @@ export default function MisTickets() {
     const onVisible = () => {
       if (!document.hidden) cargar();
     };
-    const id = setInterval(() => cargar(), 8000); // 8s
+    const id = setInterval(() => cargar(), 10000); // 10s
 
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisible);
@@ -138,6 +141,13 @@ export default function MisTickets() {
               type="button"
             >
               Actualizar
+            </button>
+            <button
+              onClick={() => navigate("/menu")}
+              className="rounded-xl border border-white/10 px-4 py-2 hover:bg-white/10"
+              type="button"
+            >
+              Volver al menú
             </button>
           </div>
         </div>
@@ -267,7 +277,7 @@ export default function MisTickets() {
                   {t.description}
                 </p>
 
-                {/* NUEVO: comentario y fecha de resolución */}
+                {/* comentario y fecha de resolución */}
                 {t.comment && (
                   <p className="mt-3 text-sm text-neutral-200">
                     <span className="font-semibold">Comentario:</span>{" "}
