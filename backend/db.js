@@ -76,3 +76,64 @@ ticketSchema.index({ ticketId: 1 }, { unique: true });
 const Ticket = mongoose.model("TicketVVP", ticketSchema);
 
 module.exports = Ticket;
+
+// --- Activos & Histórico ---
+// Requiere que arriba ya exista: const mongoose = require("mongoose");
+const { Schema } = require("mongoose");
+
+const CATEGORIAS_ACTIVO = [
+  "computadoras",
+  "impresoras",
+  "celulares",
+  "cuentas",
+  "licencias",
+];
+
+const ActivoSchema = new Schema(
+  {
+    categoria: { type: String, enum: CATEGORIAS_ACTIVO, required: true },
+    marca: { type: String, required: true },
+    modelo: { type: String, required: true },
+    numeroSerie: { type: String, required: true, unique: true, index: true },
+    asignadoPara: { type: String, default: "" }, // sin asignar = empty
+    asignadoPor: { type: String, default: "" },
+    fechaCompra: { type: Date, required: true },
+    fechaAsignacion: { type: Date }, // opcional si aún no se asigna
+  },
+  { timestamps: true }
+);
+
+const HistoricoSchema = new Schema(
+  {
+    activoId: {
+      type: Schema.Types.ObjectId,
+      ref: "Activo",
+      required: true,
+      unique: true,
+    },
+    // se pide "exactamente lo mismo" que Activo, pero con 'asignadoPara' como historial:
+    categoria: { type: String, enum: CATEGORIAS_ACTIVO, required: true },
+    marca: { type: String, required: true },
+    modelo: { type: String, required: true },
+    numeroSerie: { type: String, required: true },
+    asignadoPor: { type: String, default: "" },
+    fechaCompra: { type: Date, required: true },
+
+    // historial de asignaciones: [{ nombre, fecha }]
+    asignadoPara: [
+      {
+        nombre: { type: String, required: true },
+        fecha: { type: Date, required: true },
+        _id: false,
+      },
+    ],
+    ultimaAsignacion: { type: Date },
+  },
+  { timestamps: true }
+);
+
+// Mantener compatibilidad con el export por defecto (Ticket) y añadir propiedades:
+module.exports.Activo =
+  mongoose.models.Activo || mongoose.model("Activo", ActivoSchema);
+module.exports.Historico =
+  mongoose.models.Historico || mongoose.model("Historico", HistoricoSchema);

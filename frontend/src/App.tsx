@@ -7,6 +7,7 @@ import Menu from "./pages/Menu";
 import NuevoTicket from "./pages/NuevoTicket";
 import MisTickets from "./pages/MisTickets";
 import Admin from "./pages/Admin";
+import GestionActivos from "./pages/GestionActivos"; // nueva ruta
 
 export default function App() {
   return (
@@ -14,10 +15,12 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+
           {/* protegidas */}
           <Route element={<RequireAuth />}>
             <Route path="/menu" element={<Menu />} />
           </Route>
+
           {/* fallback */}
           <Route path="*" element={<Login />} />
 
@@ -34,6 +37,11 @@ export default function App() {
           {/* admin */}
           <Route element={<RequireAuth />}>
             <Route path="/admin" element={<Admin />} />
+          </Route>
+
+          {/* gestión de activos */}
+          <Route element={<RequireAuth />}>
+            <Route path="/admin/gestion-activos" element={<GestionActivos />} />
           </Route>
         </Routes>
       </BrowserRouter>

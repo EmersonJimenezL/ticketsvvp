@@ -1,4 +1,3 @@
-// src/pages/Admin.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listTickets, patchTicket, type Ticket } from "../services/tickets";
@@ -201,6 +200,13 @@ export default function Admin() {
                 {error}
               </div>
             )}
+            <button
+              type="button"
+              onClick={() => navigate("/admin/gestion-activos")}
+              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
+            >
+              Gestión de Activos
+            </button>
             <button
               type="button"
               onClick={handleLogout}

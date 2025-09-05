@@ -150,3 +150,206 @@ connectDB()
     console.error("Error conectando a MongoDB:", e.message);
     process.exit(1);
   });
+
+// ***********************************************************************************
+// ***********************************************************************************
+// ***********************************************************************************
+
+// --- Activos API ---
+const { Activo, Historico } = require("./db");
+
+// helper: parseo simple de fecha (YYYY-MM-DD)
+function parseDate(d) {
+  if (!d) return null;
+  const dt = new Date(d);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+// LISTAR con filtros
+app.get("/api/activos", async (req, res) => {
+  try {
+    const {
+      categoria,
+      marca,
+      usuario, // asignadoPara
+      sinAsignar, // 'true' para sólo sin asignación
+      fechaCompraDesde,
+      fechaCompraHasta,
+      fechaAsignacionDesde,
+      fechaAsignacionHasta,
+    } = req.query;
+
+    const q = {};
+    if (categoria) q.categoria = categoria;
+    if (marca) q.marca = { $regex: marca, $options: "i" };
+    if (usuario) q.asignadoPara = { $regex: usuario, $options: "i" };
+
+    if (sinAsignar === "true") {
+      q.$or = [{ asignadoPara: { $exists: false } }, { asignadoPara: "" }];
+    }
+
+    const fCompraD = parseDate(fechaCompraDesde);
+    const fCompraH = parseDate(fechaCompraHasta);
+    if (fCompraD || fCompraH) {
+      q.fechaCompra = {};
+      if (fCompraD) q.fechaCompra.$gte = fCompraD;
+      if (fCompraH) q.fechaCompra.$lte = fCompraH;
+    }
+
+    const fAsigD = parseDate(fechaAsignacionDesde);
+    const fAsigH = parseDate(fechaAsignacionHasta);
+    if (fAsigD || fAsigH) {
+      q.fechaAsignacion = {};
+      if (fAsigD) q.fechaAsignacion.$gte = fAsigD;
+      if (fAsigH) q.fechaAsignacion.$lte = fAsigH;
+    }
+
+    const items = await Activo.find(q).sort({ createdAt: -1 }).lean();
+    res.json({ ok: true, data: items });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// CREAR activo (se puede sin asignación)
+app.post("/api/activos", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const doc = await Activo.create(body);
+
+    // crear documento histórico (uno por activo) con metadatos base
+    await Historico.findOneAndUpdate(
+      { activoId: doc._id },
+      {
+        $setOnInsert: {
+          activoId: doc._id,
+          categoria: doc.categoria,
+          marca: doc.marca,
+          modelo: doc.modelo,
+          numeroSerie: doc.numeroSerie,
+          asignadoPor: doc.asignadoPor || "",
+          fechaCompra: doc.fechaCompra,
+          asignadoPara: [],
+          ultimaAsignacion: null,
+        },
+      },
+      { upsert: true, new: true }
+    );
+
+    res.status(201).json({ ok: true, data: doc });
+  } catch (err) {
+    const code = /duplicate key/i.test(err.message) ? 409 : 500;
+    res.status(code).json({ ok: false, error: err.message });
+  }
+});
+
+// LEER uno
+app.get("/api/activos/:id", async (req, res) => {
+  try {
+    const doc = await Activo.findById(req.params.id).lean();
+    if (!doc)
+      return res.status(404).json({ ok: false, error: "No encontrado" });
+    res.json({ ok: true, data: doc });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ACTUALIZAR (datos del activo)
+app.patch("/api/activos/:id", async (req, res) => {
+  try {
+    const doc = await Activo.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+    if (!doc)
+      return res.status(404).json({ ok: false, error: "No encontrado" });
+
+    // mantener metadatos básicos sincronizados en histórico
+    await Historico.findOneAndUpdate(
+      { activoId: doc._id },
+      {
+        $set: {
+          categoria: doc.categoria,
+          marca: doc.marca,
+          modelo: doc.modelo,
+          numeroSerie: doc.numeroSerie,
+          fechaCompra: doc.fechaCompra,
+        },
+      },
+      { upsert: true }
+    );
+
+    res.json({ ok: true, data: doc });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ELIMINAR
+app.delete("/api/activos/:id", async (req, res) => {
+  try {
+    const del = await Activo.findByIdAndDelete(req.params.id);
+    if (!del)
+      return res.status(404).json({ ok: false, error: "No encontrado" });
+    // opcional: borrar histórico asociado
+    await Historico.findOneAndDelete({ activoId: del._id });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ASIGNAR / REASIGNAR (versión sin conflicto)
+app.post("/api/activos/:id/asignar", async (req, res) => {
+  try {
+    const { asignadoPara, asignadoPor, fechaAsignacion } = req.body || {};
+    if (!asignadoPara || !asignadoPor) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "Faltan campos: asignadoPara, asignadoPor" });
+    }
+    const fecha = fechaAsignacion ? new Date(fechaAsignacion) : new Date();
+
+    const activo = await Activo.findByIdAndUpdate(
+      req.params.id,
+      { asignadoPara, asignadoPor, fechaAsignacion: fecha },
+      { new: true, runValidators: true }
+    );
+    if (!activo)
+      return res.status(404).json({ ok: false, error: "No encontrado" });
+
+    await Historico.findOneAndUpdate(
+      { activoId: activo._id },
+      {
+        $setOnInsert: { activoId: activo._id }, // <-- nada de asignadoPara aquí
+        $set: {
+          categoria: activo.categoria,
+          marca: activo.marca,
+          modelo: activo.modelo,
+          numeroSerie: activo.numeroSerie,
+          asignadoPor,
+          fechaCompra: activo.fechaCompra,
+          ultimaAsignacion: fecha,
+        },
+        $push: { asignadoPara: { nombre: asignadoPara, fecha } }, // <-- OK
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json({ ok: true, data: activo });
+  } catch (err) {
+    console.error("Error en asignar:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// HISTÓRICO por activo
+app.get("/api/activos/:id/historico", async (req, res) => {
+  try {
+    const h = await Historico.findOne({ activoId: req.params.id }).lean();
+    if (!h) return res.json({ ok: true, data: { asignadoPara: [] } });
+    res.json({ ok: true, data: h });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
