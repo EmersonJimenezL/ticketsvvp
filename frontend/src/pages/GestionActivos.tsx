@@ -30,26 +30,33 @@ const CATEGORIAS: CategoriaActivo[] = [
   "licencias",
 ];
 
+// helper: sumar días (para construir rangos [día, día+1))
+function addDays(dateStr: string, days: number) {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + days);
+  const yy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
 type Filtros = {
   categoria: "" | CategoriaActivo;
   marca: string;
   usuario: string;
   sinAsignar: boolean;
-  fechaCompraDesde: string;
-  fechaCompraHasta: string;
-  fechaAsignacionDesde: string;
-  fechaAsignacionHasta: string;
+  compradoEl: string; // YYYY-MM-DD
+  asignadoEl: string; // YYYY-MM-DD
 };
 
 const INIT_FILTROS: Filtros = {
   categoria: "",
   marca: "",
   usuario: "",
-  sinAsignar: true,
-  fechaCompraDesde: "",
-  fechaCompraHasta: "",
-  fechaAsignacionDesde: "",
-  fechaAsignacionHasta: "",
+  sinAsignar: false,
+  compradoEl: "",
+  asignadoEl: "",
 };
 
 type FormActivo = {
@@ -104,10 +111,18 @@ export default function GestionActivos() {
         marca: filtros.marca || undefined,
         usuario: filtros.usuario || undefined,
         sinAsignar: filtros.sinAsignar ? "true" : undefined,
-        fechaCompraDesde: filtros.fechaCompraDesde || undefined,
-        fechaCompraHasta: filtros.fechaCompraHasta || undefined,
-        fechaAsignacionDesde: filtros.fechaAsignacionDesde || undefined,
-        fechaAsignacionHasta: filtros.fechaAsignacionHasta || undefined,
+        ...(filtros.compradoEl
+          ? {
+              fechaCompraDesde: filtros.compradoEl,
+              fechaCompraHasta: addDays(filtros.compradoEl, 1),
+            }
+          : {}),
+        ...(filtros.asignadoEl
+          ? {
+              fechaAsignacionDesde: filtros.asignadoEl,
+              fechaAsignacionHasta: addDays(filtros.asignadoEl, 1),
+            }
+          : {}),
       });
       setItems(data);
     } catch (e: any) {
@@ -317,43 +332,27 @@ export default function GestionActivos() {
               <span>Sólo sin asignación</span>
             </label>
 
-            <input
-              type="date"
-              className={INPUT}
-              value={filtros.fechaCompraDesde}
-              onChange={(e) =>
-                onChangeFiltro("fechaCompraDesde", e.target.value)
-              }
-              title="Compra desde"
-            />
-            <input
-              type="date"
-              className={INPUT}
-              value={filtros.fechaCompraHasta}
-              onChange={(e) =>
-                onChangeFiltro("fechaCompraHasta", e.target.value)
-              }
-              title="Compra hasta"
-            />
+            <label className="text-xs text-neutral-300 flex flex-col gap-1">
+              <span>Comprado el</span>
+              <input
+                type="date"
+                className={INPUT}
+                value={filtros.compradoEl}
+                onChange={(e) => onChangeFiltro("compradoEl", e.target.value)}
+                aria-label="Comprado el"
+              />
+            </label>
 
-            <input
-              type="date"
-              className={INPUT}
-              value={filtros.fechaAsignacionDesde}
-              onChange={(e) =>
-                onChangeFiltro("fechaAsignacionDesde", e.target.value)
-              }
-              title="Asignación desde"
-            />
-            <input
-              type="date"
-              className={INPUT}
-              value={filtros.fechaAsignacionHasta}
-              onChange={(e) =>
-                onChangeFiltro("fechaAsignacionHasta", e.target.value)
-              }
-              title="Asignación hasta"
-            />
+            <label className="text-xs text-neutral-300 flex flex-col gap-1">
+              <span>Asignado el</span>
+              <input
+                type="date"
+                className={INPUT}
+                value={filtros.asignadoEl}
+                onChange={(e) => onChangeFiltro("asignadoEl", e.target.value)}
+                aria-label="Asignado el"
+              />
+            </label>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
