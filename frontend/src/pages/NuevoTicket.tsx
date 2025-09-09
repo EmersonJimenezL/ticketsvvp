@@ -106,18 +106,20 @@ export default function NuevoTicket() {
           onSubmit={onSubmit}
           className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.5)] space-y-5"
         >
-          {/* Área */}
-          <div className="space-y-2">
-            <label className="text-sm text-neutral-300">Área</label>
+          {/* Categoría */}
+          <div className="space-y-2 text-center">
+            <label className="text-lg text-neutral-300 mb-44">
+              <strong>Categoría</strong>
+            </label>
             <select
-              className="w-full rounded-xl bg-neutral-900/70 px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              className="w-full rounded-xl mt-5 bg-neutral-900/70 px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
               value={title ?? ""}
               onChange={(e) =>
                 setTitle(e.target.value as TicketPayload["title"])
               }
             >
               <option value="" disabled>
-                Selecciona un área
+                Seleccione una categoría
               </option>
               {TITLES.map((t) => (
                 <option key={t} value={t}>
@@ -128,11 +130,13 @@ export default function NuevoTicket() {
           </div>
 
           {/* Descripción */}
-          <div className="space-y-2">
-            <label className="text-sm text-neutral-300">Descripción</label>
+          <div className="space-y-2 text-center">
+            <label className="text-lg text-neutral-300">
+              <strong>Descripción</strong>
+            </label>
             <textarea
               rows={5}
-              className="w-full rounded-xl bg-neutral-900/70 px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              className="w-full rounded-xl mt-5 bg-neutral-900/70 px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe el problema o solicitud con el mayor detalle posible."
