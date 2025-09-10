@@ -1,5 +1,5 @@
 // src/pages/NuevoTicket.tsx
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { createTicket } from "../services/tickets";
@@ -36,11 +36,14 @@ export default function NuevoTicket() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setCreatedId(null);
+    // Evitar envíos múltiples por doble click o Enter repetido
+    if (loading || submittingRef.current) return;
 
     if (!title || !description.trim()) {
       setError("Selecciona un área (title) y escribe una descripción.");
@@ -63,14 +66,18 @@ export default function NuevoTicket() {
     };
 
     try {
+      submittingRef.current = true;
       setLoading(true);
       const resp = await createTicket(payload);
       if (!resp.ok) throw new Error(resp.error || "Error al crear el ticket");
       setCreatedId(ticketId);
+      // Redirigir a MisTickets tras crear exitosamente
+      navigate("/tickets");
     } catch (err: any) {
       setError(err?.message || "No se pudo crear el ticket");
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
   }
 
