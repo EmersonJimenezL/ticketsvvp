@@ -61,7 +61,7 @@ const Activo = mongoose.models.Activo || mongoose.model("Activo", activoSchema);
  * ========================= */
 const licenciaSchema = new Schema(
   {
-    proveedor: { type: String, trim: true },
+    proveedor: { type: String, enum: ["SAP", "Office"], required: true },
     cuenta: { type: String, trim: true },
     tipoLicencia: {
       type: String,
@@ -93,7 +93,7 @@ const historicoSchema = new Schema(
     movimientos: [
       {
         usuario: { type: String, trim: true },
-        accion: { type: String, trim: true }, // asignado | reasignado | desasignado
+        accion: { type: String, trim: true }, // asignado | reasignado
         fecha: { type: Date, default: Date.now },
         observacion: { type: String, trim: true },
         por: { type: String, trim: true },

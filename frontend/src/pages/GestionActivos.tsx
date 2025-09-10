@@ -19,6 +19,7 @@ type Activo = {
 
 type Licencia = {
   _id?: string;
+  proveedor?: "SAP" | "Office";
   cuenta?: string;
   tipoLicencia?: string;
   fechaCompra?: string; // ISO
@@ -48,6 +49,9 @@ const OPCIONES_TIPO_LIC = [
   "logística",
   "acceso directo",
 ];
+
+// Proveedores disponibles para licencias
+const OPCIONES_PROVEEDOR = ["SAP", "Office"] as const;
 
 export default function GestionInventario() {
   const navigate = useNavigate();
@@ -131,10 +135,11 @@ export default function GestionInventario() {
         const j2 = await rActLic.json();
         if (j2?.ok && Array.isArray(j2.data)) {
           const mapped: Licencia[] = j2.data.map((a: any) => {
-            const est = a?.licencia?.estado;
-            const disponibleBool = est ? est !== "asignada" : true;
+            // const est = a?.licencia?.estado;
+            // const disponibleBool = est ? est !== "asignada" : true;
             return {
               _id: a?._id,
+              proveedor: a?.licencia?.proveedor,
               cuenta: a?.licencia?.cuenta,
               tipoLicencia: a?.licencia?.tipoLicencia,
               fechaCompra: a?.fechaCompra,
@@ -342,6 +347,7 @@ export default function GestionInventario() {
     if (l.activoId) return; // filas mapeadas desde activos: no editable aquí
     setEditLicId(l._id || null);
     setLicForm({
+      proveedor: l.proveedor || undefined,
       cuenta: l.cuenta || "",
       tipoLicencia: l.tipoLicencia || "",
       fechaCompra: (l.fechaCompra || "").slice(0, 10),
@@ -356,6 +362,7 @@ export default function GestionInventario() {
       setLoading(true);
       setError(null);
       const payload: any = {
+        proveedor: licForm.proveedor,
         cuenta: licForm.cuenta,
         tipoLicencia: licForm.tipoLicencia,
         fechaCompra: licForm.fechaCompra,
@@ -364,6 +371,7 @@ export default function GestionInventario() {
       };
       if (!payload.fechaCompra) delete payload.fechaCompra;
       if (!payload.fechaAsignacion) delete payload.fechaAsignacion;
+      if (!payload.proveedor) delete payload.proveedor;
       const method = editLicId ? "PATCH" : "POST";
       const url = editLicId
         ? `${API}/licencias/${editLicId}`
@@ -384,7 +392,7 @@ export default function GestionInventario() {
     }
   }
 
-  /* ===== Asignar / Reasignar / Desasignar ===== */
+  /* ===== Asignar / Reasignar ===== */
   const [showAssign, setShowAssign] = useState(false);
   const [assignCtx, setAssignCtx] = useState<{
     tipo: "activo" | "licencia";
@@ -441,27 +449,7 @@ export default function GestionInventario() {
     }
   }
 
-  async function desasignar(tipo: "activo" | "licencia", id: string) {
-    try {
-      setLoading(true);
-      setError(null);
-      const url =
-        tipo === "activo" ? `${API}/activos/${id}` : `${API}/licencias/${id}`;
-      const r = await fetch(url, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ asignadoPara: "", fechaAsignacion: "" }),
-      });
-      const j = await r.json();
-      if (!j.ok) throw new Error(j.error || "No se pudo desasignar");
-      if (tipo === "activo") await fetchActivos();
-      else await fetchLicenciasMerged();
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Funcionalidad "Desasignar" eliminada segan requerimiento
 
   /* ===== Eliminar ===== */
   const [showDelete, setShowDelete] = useState(false);
@@ -879,16 +867,7 @@ export default function GestionInventario() {
                               >
                                 {a.asignadoPara ? "Reasignar" : "Asignar"}
                               </button>
-                              {a.asignadoPara && (
-                                <button
-                                  className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
-                                  onClick={() =>
-                                    desasignar("activo", String(a._id || ""))
-                                  }
-                                >
-                                  Desasignar
-                                </button>
-                              )}
+                              {/* Botón Desasignar removido */}
                               <button
                                 className="rounded-lg border border-red-500/40 px-3 py-1 hover:bg-red-500/20 transition"
                                 onClick={() =>
@@ -938,6 +917,7 @@ export default function GestionInventario() {
                     <thead className="bg-neutral-900/70 sticky top-0 z-10 backdrop-blur">
                       <tr>
                         <th className="text-left px-4 py-3">Cuenta</th>
+                        <th className="text-left px-4 py-3">Proveedor</th>
                         <th className="text-left px-4 py-3">Tipo licencia</th>
                         <th className="text-left px-4 py-3">Compra</th>
                         <th className="text-left px-4 py-3">Asignado a</th>
@@ -970,6 +950,9 @@ export default function GestionInventario() {
                           >
                             <td className="px-4 py-2 whitespace-nowrap">
                               {l.cuenta || "-"}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              {l.proveedor || "-"}
                             </td>
                             <td className="px-4 py-2 whitespace-nowrap">
                               {l.tipoLicencia || "-"}
@@ -1014,19 +997,7 @@ export default function GestionInventario() {
                                     >
                                       {l.asignadoPara ? "Reasignar" : "Asignar"}
                                     </button>
-                                    {l.asignadoPara && (
-                                      <button
-                                        className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
-                                        onClick={() =>
-                                          desasignar(
-                                            "licencia",
-                                            String(l._id || "")
-                                          )
-                                        }
-                                      >
-                                        Desasignar
-                                      </button>
-                                    )}
+                                    {/* Botón Desasignar removido */}
                                     <button
                                       className="rounded-lg border border-red-500/40 px-3 py-1 hover:bg-red-500/20 transition"
                                       onClick={() =>
@@ -1061,7 +1032,7 @@ export default function GestionInventario() {
                         <tr>
                           <td
                             className="px-4 py-6 text-center text-neutral-300"
-                            colSpan={6}
+                            colSpan={7}
                           >
                             Sin resultados
                           </td>
@@ -1126,6 +1097,7 @@ export default function GestionInventario() {
                   ))}
                 </select>
               </div>
+              {/* Selector de Proveedor eliminado del formulario de Activos */}
 
               <div>
                 <label className="block text-sm text-neutral-300">
@@ -1139,6 +1111,7 @@ export default function GestionInventario() {
                   }
                 />
               </div>
+              {/* Selector de Proveedor eliminado del formulario de Activos */}
 
               <div>
                 <label className="block text-sm text-neutral-300">
@@ -1282,6 +1255,23 @@ export default function GestionInventario() {
                   {OPCIONES_TIPO_LIC.map((t) => (
                     <option key={t} value={t}>
                       {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-neutral-300">Proveedor *</label>
+                <select
+                  className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                  value={licForm.proveedor || ""}
+                  onChange={(e) =>
+                    setLicForm((f) => ({ ...f, proveedor: e.target.value as any }))
+                  }
+                >
+                  <option value="">Seleccione</option>
+                  {OPCIONES_PROVEEDOR.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
                     </option>
                   ))}
                 </select>

@@ -31,7 +31,7 @@ function assertActivoCreate(b) {
   return missing.length ? `Faltan campos: ${missing.join(", ")}` : null;
 }
 function assertLicenciaCreate(b) {
-  const req = ["tipoLicencia", "fechaCompra", "cuenta"];
+  const req = ["proveedor", "tipoLicencia", "fechaCompra", "cuenta"];
   const missing = req.filter((k) => b?.[k] == null || b[k] === "");
   return missing.length ? `Faltan campos: ${missing.join(", ")}` : null;
 }
@@ -97,11 +97,8 @@ app.patch("/api/activos/:id", async (req, res) => {
     // Detectar cambio de asignación
     const prev = before.asignadoPara || "";
     const next = doc.asignadoPara || "";
-    if (prev !== next) {
-      let accion = "reasignado";
-      if (!prev && next) accion = "asignado";
-      if (prev && !next) accion = "desasignado";
-
+    if (prev !== next && next) {
+      const accion = !prev ? "asignado" : "reasignado";
       await pushMovimiento({
         tipo: "activo",
         refId: doc._id,
@@ -220,11 +217,8 @@ app.patch("/api/licencias/:id", async (req, res) => {
     // Cambio de asignación
     const prev = before.asignadoPara || "";
     const next = doc.asignadoPara || "";
-    if (prev !== next) {
-      let accion = "reasignado";
-      if (!prev && next) accion = "asignado";
-      if (prev && !next) accion = "desasignado";
-
+    if (prev !== next && next) {
+      const accion = !prev ? "asignado" : "reasignado";
       await pushMovimiento({
         tipo: "licencia",
         refId: doc._id,
