@@ -1,20 +1,13 @@
-// src/db.js
-// Modelo Mongoose para la colección **ticketvvp** dentro de la BD **vvp**.
-// IMPORTANTE: aquí SOLO definimos el modelo. La CONEXIÓN a Mongo va en server.js.
-
+// backend/db.js
 const mongoose = require("mongoose");
+const { Schema, Types } = mongoose;
 
-/**
- * Esquema del ticket:
- * - Se fuerza la colección a "ticketvvp" para evitar la pluralización automática.
- * - Si más adelante no quieres aceptar campos fuera de este esquema, deja strict (por defecto true).
- */
-const ticketSchema = new mongoose.Schema(
+/* =========================
+ * TICKETS (se mantiene igual)
+ * ========================= */
+const ticketSchema = new Schema(
   {
-    // Identificador propio del ticket (distinto del _id de Mongo).
     ticketId: { type: String, required: true, unique: true },
-
-    // Área o sistema afectado (controlado por enumeración).
     title: {
       type: String,
       required: true,
@@ -27,113 +20,101 @@ const ticketSchema = new mongoose.Schema(
         "Otros",
       ],
     },
-
-    // Descripción del problema o solicitud.
     description: { type: String, required: true, trim: true },
-
-    // Datos mínimos del solicitante.
     userId: { type: String, required: true },
     userName: { type: String, required: true },
-
-    // Nivel de riesgo percibido.
-    risk: {
-      type: String,
-      required: true,
-      enum: ["alto", "medio", "bajo"],
-      default: "bajo",
-    },
-
-    // Estado del ticket en el flujo.
+    risk: { type: String, enum: ["alto", "medio", "bajo"], default: "bajo" },
     state: {
       type: String,
-      required: true,
       enum: ["recibido", "enProceso", "resuelto", "conDificultades"],
       default: "recibido",
     },
-
-    // Marca de tiempo inicial (además del _id, útil para reportes simples).
-    ticketTime: { type: Date, default: Date.now },
-
-    // Se completa cuando state pasa a "resuelto".
-    resolucionTime: { type: Date, default: Date.now },
-
-    // Comentario libre.
     comment: { type: String, trim: true },
+    ticketTime: { type: Date },
+    resolucionTime: { type: Date },
   },
-  {
-    // Fuerza el uso de la colección exacta (evita "tickets" o "ticketvvps").
-    collection: "ticketvvp",
-
-    // Opcional: si quieres createdAt/updatedAt automáticos, descomenta:
-    // timestamps: true,
-  }
+  // Forzar colección para alinear con la existente en Mongo
+  { timestamps: true, collection: "ticketvvp" }
 );
+const Ticket = mongoose.models.Ticket || mongoose.model("Ticket", ticketSchema);
 
-// Índice único explícito por si en producción desactivas autoIndex.
-ticketSchema.index({ ticketId: 1 }, { unique: true });
-
-// Nombre del modelo puede ser cualquiera; la colección ya está fija arriba.
-const Ticket = mongoose.model("TicketVVP", ticketSchema);
-
-module.exports = Ticket;
-
-// --- Activos & Histórico ---
-// Requiere que arriba ya exista: const mongoose = require("mongoose");
-const { Schema } = require("mongoose");
-
-const CATEGORIAS_ACTIVO = [
-  "computadoras",
-  "impresoras",
-  "celulares",
-  "cuentas",
-  "licencias",
-];
-
-const ActivoSchema = new Schema(
+/* =========================
+ * ACTIVOS (según nueva especificación)
+ * ========================= */
+const activoSchema = new Schema(
   {
-    categoria: { type: String, enum: CATEGORIAS_ACTIVO, required: true },
-    marca: { type: String, required: true },
-    modelo: { type: String, required: true },
-    numeroSerie: { type: String, required: true, unique: true, index: true },
-    asignadoPara: { type: String, default: "" }, // sin asignar = empty
-    asignadoPor: { type: String, default: "" },
-    fechaCompra: { type: Date, required: true },
-    fechaAsignacion: { type: Date }, // opcional si aún no se asigna
+    categoria: { type: String, trim: true },
+    marca: { type: String, trim: true },
+    modelo: { type: String, trim: true },
+    numeroSerie: { type: String, trim: true, index: true },
+    fechaCompra: { type: Date },
+
+    asignadoPara: { type: String, trim: true },
+    fechaAsignacion: { type: Date },
   },
   { timestamps: true }
 );
+const Activo = mongoose.models.Activo || mongoose.model("Activo", activoSchema);
 
-const HistoricoSchema = new Schema(
+/* =========================
+ * LICENCIAS (según nueva especificación)
+ * ========================= */
+const licenciaSchema = new Schema(
   {
-    activoId: {
-      type: Schema.Types.ObjectId,
-      ref: "Activo",
-      required: true,
-      unique: true,
+    proveedor: { type: String, trim: true },
+    cuenta: { type: String, trim: true },
+    tipoLicencia: {
+      type: String,
+      trim: true,
+      enum: ["profesional", "CRM limitado", "logística", "acceso directo"],
     },
-    // se pide "exactamente lo mismo" que Activo, pero con 'asignadoPara' como historial:
-    categoria: { type: String, enum: CATEGORIAS_ACTIVO, required: true },
-    marca: { type: String, required: true },
-    modelo: { type: String, required: true },
-    numeroSerie: { type: String, required: true },
-    asignadoPor: { type: String, default: "" },
-    fechaCompra: { type: Date, required: true },
+    fechaCompra: { type: Date },
 
-    // historial de asignaciones: [{ nombre, fecha }]
-    asignadoPara: [
+    asignadoPara: { type: String, trim: true },
+    fechaAsignacion: { type: Date },
+  },
+  { timestamps: true }
+);
+const Licencia =
+  mongoose.models.Licencia || mongoose.model("Licencia", licenciaSchema);
+
+/* =========================
+ * HISTÓRICOS (un doc por recurso, array de movimientos)
+ * ========================= */
+const historicoSchema = new Schema(
+  {
+    // "activo" o "licencia"
+    tipo: { type: String, required: true, enum: ["activo", "licencia"] },
+    refId: { type: Types.ObjectId, required: true, index: true },
+    // compatibilidad: permitir índice legado activoId_1 para evitar null
+    activoId: { type: Types.ObjectId, index: true },
+
+    // lista cronológica de asignaciones
+    movimientos: [
       {
-        nombre: { type: String, required: true },
-        fecha: { type: Date, required: true },
-        _id: false,
+        usuario: { type: String, trim: true },
+        accion: { type: String, trim: true }, // asignado | reasignado | desasignado
+        fecha: { type: Date, default: Date.now },
+        observacion: { type: String, trim: true },
+        por: { type: String, trim: true },
+        desde: { type: String, trim: true },
+        hasta: { type: String, trim: true },
       },
     ],
-    ultimaAsignacion: { type: Date },
   },
   { timestamps: true }
 );
+historicoSchema.index({ tipo: 1, refId: 1 }, { unique: true });
 
-// Mantener compatibilidad con el export por defecto (Ticket) y añadir propiedades:
-module.exports.Activo =
-  mongoose.models.Activo || mongoose.model("Activo", ActivoSchema);
-module.exports.Historico =
-  mongoose.models.Historico || mongoose.model("Historico", HistoricoSchema);
+const Historico =
+  mongoose.models.Historico || mongoose.model("Historico", historicoSchema);
+
+/* =========================
+ * EXPORTS
+ * ========================= */
+module.exports = {
+  Ticket,
+  Activo,
+  Licencia,
+  Historico,
+};

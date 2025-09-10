@@ -43,14 +43,20 @@ export default function Admin() {
 
   useEffect(() => {
     (async () => {
-      setError(null);
-      const r = await listTickets({ limit: 500 });
-      if (r.ok && Array.isArray(r.data)) {
-        setItems(r.data);
-      } else {
-        setError(r.error || "No se pudieron cargar los tickets.");
+      try {
+        setError(null);
+        // Traer todos y filtrar pendientes en el cliente
+        const r = await listTickets({ limit: 500 });
+        if (r.ok && Array.isArray(r.data)) {
+          setItems(r.data);
+        } else {
+          setError(r.error || "No se pudieron cargar los tickets.");
+        }
+      } catch (e: any) {
+        setError(e?.message || "Error al obtener tickets.");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
   }, []);
 
