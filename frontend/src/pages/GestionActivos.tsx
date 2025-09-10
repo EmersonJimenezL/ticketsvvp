@@ -1,5 +1,7 @@
 // src/pages/GestionInventario.tsx
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 
 /* ===== Tipos ===== */
 type Activo = {
@@ -48,6 +50,8 @@ const OPCIONES_TIPO_LIC = [
 ];
 
 export default function GestionInventario() {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   /* ===== pestaña: activos | licencias ===== */
   const [tab, setTab] = useState<"activos" | "licencias">("activos");
 
@@ -525,6 +529,23 @@ export default function GestionInventario() {
             </p>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => navigate(-1)}
+              className="rounded-xl border border-white/10 px-4 py-2 hover:bg-white/10 transition"
+              type="button"
+            >
+              Volver
+            </button>
+            <button
+              onClick={() => {
+                logout();
+                navigate("/login", { replace: true });
+              }}
+              className="rounded-xl border border-white/10 px-4 py-2 hover:bg-white/10 transition"
+              type="button"
+            >
+              Cerrar sesión
+            </button>
             {tab === "activos" && (
               <button
                 onClick={openCreate}

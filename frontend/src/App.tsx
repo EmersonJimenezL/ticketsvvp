@@ -7,6 +7,7 @@ import Menu from "./pages/Menu";
 import NuevoTicket from "./pages/NuevoTicket";
 import MisTickets from "./pages/MisTickets";
 import Admin from "./pages/Admin";
+import AdminHome from "./pages/AdminHome";
 import GestionActivos from "./pages/GestionActivos"; // nueva ruta
 
 export default function App() {
@@ -36,7 +37,8 @@ export default function App() {
 
           {/* admin */}
           <Route element={<RequireAuth />}>
-            <Route path="/admin" element={<Admin />} />
+            <Route path="/admin" element={<AdminHome />} />
+            <Route path="/admin/tickets" element={<Admin />} />
           </Route>
 
           {/* gestión de activos */}

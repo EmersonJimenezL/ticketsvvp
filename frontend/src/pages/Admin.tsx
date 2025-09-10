@@ -198,7 +198,7 @@ export default function Admin() {
       <div className="relative w-full max-w-6xl mx-auto">
         <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex items-center justify-between">
           <h2 className="text-2xl font-extrabold tracking-tight">
-            Panel de Administración
+            Gestion de tickets
           </h2>
           <div className="flex items-center gap-3">
             {error && (
@@ -207,11 +207,11 @@ export default function Admin() {
               </div>
             )}
             <button
-              type="button"
-              onClick={() => navigate("/admin/gestion-activos")}
+              onClick={() => navigate(-1)}
               className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
+              type="button"
             >
-              Gestión de Activos
+              Volver
             </button>
             <button
               type="button"
