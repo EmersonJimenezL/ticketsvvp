@@ -277,6 +277,20 @@ export default function MisTickets() {
                   {t.description}
                 </p>
 
+                {/* Imágenes adjuntas */}
+                {Array.isArray(t.images) && t.images.length > 0 && (
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {t.images.map((src: string, i: number) => (
+                      <img
+                        key={i}
+                        src={src}
+                        alt={`img-${i}`}
+                        className="h-28 w-full object-cover rounded-md border border-white/10"
+                      />
+                    ))}
+                  </div>
+                )}
+
                 {/* comentario y fecha de resolución */}
                 {t.comment && (
                   <p className="mt-3 text-sm text-neutral-200">

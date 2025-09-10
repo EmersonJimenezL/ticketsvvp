@@ -33,10 +33,29 @@ export default function NuevoTicket() {
   const [title, setTitle] = useState<TicketPayload["title"] | null>(null);
   const [risk, setRisk] = useState<TicketPayload["risk"]>("bajo");
   const [description, setDescription] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const submittingRef = useRef(false);
+
+  function onFilesSelected(files: FileList | null) {
+    if (!files) return;
+    const arr = Array.from(files).slice(0, 5); // máx 5 imágenes
+    const readers = arr.map(
+      (f) =>
+        new Promise<string>((resolve, reject) => {
+          if (!f.type.startsWith("image/")) return resolve("");
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+          reader.readAsDataURL(f);
+        })
+    );
+    Promise.all(readers)
+      .then((vals) => setImages(vals.filter(Boolean)))
+      .catch(() => setError("No se pudieron procesar las imágenes"));
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,6 +82,7 @@ export default function NuevoTicket() {
       userName: user.primerNombre || user.nombreUsuario,
       risk,
       state: "recibido",
+      images: images.length ? images : undefined,
     };
 
     try {
@@ -148,6 +168,32 @@ export default function NuevoTicket() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe el problema o solicitud con el mayor detalle posible."
             />
+          </div>
+
+          {/* Imágenes (opcional) */}
+          <div className="space-y-2 text-center">
+            <label className="text-lg text-neutral-300">
+              <strong>Adjuntar imágenes</strong> <span className="text-sm text-neutral-400">(opcional, máx. 5)</span>
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => onFilesSelected(e.target.files)}
+              className="w-full rounded-xl mt-2 bg-neutral-900/70 px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+            />
+            {!!images.length && (
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {images.map((src, i) => (
+                  <img
+                    key={i}
+                    src={src}
+                    alt={`adjunto-${i}`}
+                    className="h-24 w-full object-cover rounded-lg border border-white/10"
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Riesgo */}

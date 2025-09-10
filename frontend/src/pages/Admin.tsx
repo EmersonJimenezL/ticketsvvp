@@ -248,6 +248,18 @@ export default function Admin() {
                   <p className="mt-1 text-sm text-neutral-300 line-clamp-3">
                     {t.description}
                   </p>
+                  {Array.isArray(t.images) && t.images.length > 0 && (
+                    <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {t.images.map((src, i) => (
+                        <img
+                          key={i}
+                          src={src}
+                          alt={`img-${i}`}
+                          className="h-24 w-full object-cover rounded-lg border border-white/10"
+                        />
+                      ))}
+                    </div>
+                  )}
                   <p className="mt-1 text-xs text-neutral-400">
                     {t.userName} ·{" "}
                     {t.ticketTime

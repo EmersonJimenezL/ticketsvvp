@@ -8,7 +8,8 @@ const { Activo, Licencia, Historico, Ticket } = require("./db");
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json({ limit: "2mb" }));
+// Aumentar límite para permitir imágenes en base64 en tickets
+app.use(express.json({ limit: "10mb" }));
 
 /* ===== Mongo ===== */
 async function connectDB() {
@@ -311,6 +312,14 @@ app.post("/api/ticketvvp", async (req, res) => {
         .status(400)
         .json({ ok: false, error: `Faltan campos: ${missing.join(", ")}` });
 
+    // Sanitizar imágenes si vienen: solo data URLs de imagen, máx 5
+    let images = [];
+    if (Array.isArray(b.images)) {
+      images = b.images
+        .filter((x) => typeof x === "string" && x.startsWith("data:image/"))
+        .slice(0, 5);
+    }
+
     const payload = {
       ticketId: b.ticketId,
       title: b.title,
@@ -319,6 +328,7 @@ app.post("/api/ticketvvp", async (req, res) => {
       userName: b.userName,
       risk: b.risk,
       state: b.state,
+      images,
       ticketTime: b.ticketTime ? new Date(b.ticketTime) : new Date(),
     };
     const doc = await Ticket.create(payload);

@@ -18,6 +18,7 @@ export type Ticket = {
   ticketTime?: Date;
   resolucionTime?: Date;
   comment?: string;
+  images?: string[]; // data URLs de imágenes opcionales
 };
 
 // Para crear un ticket no pedimos campos automáticos como ticketTime/resolucionTime

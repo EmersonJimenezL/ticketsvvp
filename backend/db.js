@@ -30,6 +30,8 @@ const ticketSchema = new Schema(
       default: "recibido",
     },
     comment: { type: String, trim: true },
+    // Imágenes adjuntas en formato data URL (base64). Opcional.
+    images: { type: [String], default: [] },
     ticketTime: { type: Date },
     resolucionTime: { type: Date },
   },
