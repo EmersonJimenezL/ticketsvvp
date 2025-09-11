@@ -125,15 +125,15 @@ export default function Modelos() {
         />
       </div>
 
-      <div className="relative mx-auto max-w-6xl">
-        <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex items-center justify-between">
+      <div className="relative mx-auto w-full">
+        <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex flex-wrap items-start md:items-end justify-between gap-4 gap-y-3">
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight">Modelos</h1>
             <p className="text-neutral-300 text-sm">
               Especificaciones técnicas por modelo. Total: {total}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {error && (
               <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded px-3 py-1.5">
                 {error}

@@ -22,19 +22,13 @@ export default function AdminHome() {
         />
       </div>
 
-      <div className="relative mx-auto max-w-4xl">
+      <div className="relative mx-auto max-w-5xl">
         <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex items-center justify-between">
           <h1 className="text-2xl font-extrabold tracking-tight">
             Centro de Administración
           </h1>
+          <p className="text-neutral-300 text-sm">Elige un módulo para continuar</p>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate(-1)}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
-              type="button"
-            >
-              Volver
-            </button>
             <button
               onClick={() => {
                 logout();
@@ -48,34 +42,71 @@ export default function AdminHome() {
           </div>
         </div>
 
-        <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="mt-10 flex flex-wrap justify-center gap-6">
+          {/* Card Tickets */}
           <button
             type="button"
             onClick={() => navigate("/admin/tickets")}
-            className="rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition p-10 text-center backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+            className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/10 to-white/[0.04] p-8 text-left backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition hover:border-white/20 hover:from-white/15 hover:to-white/[0.08] w-full sm:w-[22rem]"
           >
-            <div className="text-2xl font-bold">Gestionar Tickets</div>
-            <div className="text-neutral-300 mt-1">
-              Ver y actualizar pendientes
+            <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-500/10 blur-2xl group-hover:bg-orange-500/20 transition" />
+            <div className="flex items-center gap-3">
+              <div className="grid h-12 w-12 place-items-center rounded-xl bg-orange-600/20 border border-orange-600/30 text-orange-300 text-xl">
+                🎫
+              </div>
+              <div>
+                <div className="text-xl font-bold">Gestionar Tickets</div>
+                <div className="text-neutral-300 text-sm">Ver y actualizar pendientes</div>
+              </div>
+            </div>
+            <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-300">
+              <span>Ir al módulo</span>
+              <span className="transition group-hover:translate-x-0.5">→</span>
             </div>
           </button>
 
+          {/* Card Activos */}
           <button
             type="button"
             onClick={() => navigate("/admin/gestion-activos")}
-            className="rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition p-10 text-center backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+            className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/10 to-white/[0.04] p-8 text-left backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition hover:border-white/20 hover:from-white/15 hover:to-white/[0.08] w-full sm:w-[22rem]"
           >
-            <div className="text-2xl font-bold">Gestionar Activos</div>
-            <div className="text-neutral-300 mt-1">Activos y licencias</div>
+            <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-500/10 blur-2xl group-hover:bg-orange-500/20 transition" />
+            <div className="flex items-center gap-3">
+              <div className="grid h-12 w-12 place-items-center rounded-xl bg-orange-600/20 border border-orange-600/30 text-orange-300 text-xl">
+                🧰
+              </div>
+              <div>
+                <div className="text-xl font-bold">Gestionar Activos</div>
+                <div className="text-neutral-300 text-sm">Activos y licencias</div>
+              </div>
+            </div>
+            <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-300">
+              <span>Ir al módulo</span>
+              <span className="transition group-hover:translate-x-0.5">→</span>
+            </div>
           </button>
 
+          {/* Card Modelos */}
           <button
             type="button"
             onClick={() => navigate("/admin/modelos")}
-            className="rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition p-10 text-center backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+            className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/10 to-white/[0.04] p-8 text-left backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition hover:border-white/20 hover:from-white/15 hover:to-white/[0.08] w-full sm:w-[22rem]"
           >
-            <div className="text-2xl font-bold">Gestionar Modelos</div>
-            <div className="text-neutral-300 mt-1">Especificaciones técnicas</div>
+            <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-500/10 blur-2xl group-hover:bg-orange-500/20 transition" />
+            <div className="flex items-center gap-3">
+              <div className="grid h-12 w-12 place-items-center rounded-xl bg-orange-600/20 border border-orange-600/30 text-orange-300 text-xl">
+                🧩
+              </div>
+              <div>
+                <div className="text-xl font-bold">Gestionar Modelos</div>
+                <div className="text-neutral-300 text-sm">Especificaciones técnicas</div>
+              </div>
+            </div>
+            <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-300">
+              <span>Ir al módulo</span>
+              <span className="transition group-hover:translate-x-0.5">→</span>
+            </div>
           </button>
         </div>
       </div>

@@ -578,22 +578,6 @@ export default function GestionInventario() {
             >
               Cerrar sesión
             </button>
-            <button
-              type="button"
-              onClick={() => navigate("/admin/modelos")}
-              className="inline-flex items-center gap-1 rounded-lg bg-orange-600/90 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-500 transition"
-            >
-              <span>＋</span>
-              <span>Nuevo modelo</span>
-            </button>
-            <button
-              type="button"
-              onClick={fetchEspecificaciones}
-              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-neutral-100 hover:bg-white/10 transition"
-            >
-              <span>↻</span>
-              <span>Actualizar modelos</span>
-            </button>
             {tab === "activos" && (
               <button
                 onClick={openCreate}
