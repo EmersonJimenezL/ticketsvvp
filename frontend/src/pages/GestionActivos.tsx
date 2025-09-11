@@ -1466,7 +1466,7 @@ export default function GestionInventario() {
                       className="rounded-lg border border-white/10 p-3 bg-white/5"
                     >
                       <div className="text-sm">
-                        <span className="font-medium">{m.accion}</span> por{" "}
+                        <span className="font-medium">{m.accion}</span> para{" "}
                         <span className="font-medium">{m.usuario || "-"}</span>
                       </div>
                       <div className="text-xs text-neutral-300">

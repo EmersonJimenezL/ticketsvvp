@@ -10,7 +10,7 @@ import {
 
 /** Ajusta aquí tus políticas de sesión */
 export const INACTIVITY_MS = 15 * 60 * 1000; // 15 minutos de inactividad
-export const ABS_MAX_SESSION_MS = 8 * 60 * 60 * 1000; // 8 horas de sesión absoluta
+export const ABS_MAX_SESSION_MS = Number.POSITIVE_INFINITY; // sin expiración absoluta; solo por inactividad
 
 type Usuario = {
   nombreUsuario: string;
@@ -39,6 +39,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const inactivityTimerRef = useRef<number | null>(null);
   const issuedAtRef = useRef<number | null>(null);
+  const userRef = useRef<Usuario | null>(null);
+
+  // Mantener referencia siempre actualizada al usuario para evitar cierres obsoletos
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const clearInactivityTimer = () => {
     if (inactivityTimerRef.current) {
@@ -72,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const touch = () => {
-    if (!user) return;
+    if (!userRef.current) return;
     // expira por tiempo absoluto aunque haya actividad
     if (
       issuedAtRef.current &&

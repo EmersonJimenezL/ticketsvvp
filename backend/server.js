@@ -174,10 +174,102 @@ app.get("/api/activos", async (req, res) => {
 // Crear LICENCIA
 app.post("/api/licencias", async (req, res) => {
   try {
-    const err = assertLicenciaCreate(req.body);
+    // Permitir crear una o muchas licencias (array)
+    const payload = req.body;
+
+    // Caso múltiple
+    if (Array.isArray(payload)) {
+      if (payload.length === 0) {
+        return res.status(400).json({ ok: false, error: "Sin elementos" });
+      }
+
+      // Validar requeridos por cada item
+      const errores = payload
+        .map((item, idx) => ({ idx, err: assertLicenciaCreate(item) }))
+        .filter((x) => x.err);
+      if (errores.length) {
+        const first = errores[0];
+        return res.status(400).json({
+          ok: false,
+          error: `Item ${first.idx}: ${first.err}`,
+        });
+      }
+
+      // Reglas: evitar duplicados dentro del mismo lote (cuenta + tipoLicencia)
+      const keys = payload.map(
+        (i) => `${String(i.cuenta)}||${String(i.tipoLicencia)}`
+      );
+      const dupInBatch = keys.find(
+        (k, i) => keys.indexOf(k) !== i
+      );
+      if (dupInBatch) {
+        return res.status(409).json({
+          ok: false,
+          error:
+            "Duplicado en el lote: misma cuenta y tipoLicencia repetidos.",
+        });
+      }
+
+      // Reglas: evitar duplicados ya existentes en BD
+      const orConds = payload.map((i) => ({
+        cuenta: i.cuenta,
+        tipoLicencia: i.tipoLicencia,
+      }));
+      const existing = await Licencia.find({ $or: orConds })
+        .select({ cuenta: 1, tipoLicencia: 1 })
+        .lean();
+      if (existing.length) {
+        const found = existing[0];
+        return res.status(409).json({
+          ok: false,
+          error: `Ya existe una licencia '${found.tipoLicencia}' para la cuenta '${found.cuenta}'.`,
+        });
+      }
+
+      // Crear en bloque
+      const created = await Licencia.insertMany(payload);
+
+      // Registrar historial para las que vengan asignadas
+      for (const [idx, doc] of created.entries()) {
+        const src = payload[idx] || {};
+        if (doc.asignadoPara) {
+          await pushMovimiento({
+            tipo: "licencia",
+            refId: doc._id,
+            movimiento: {
+              usuario: doc.asignadoPara,
+              accion: "asignado",
+              fecha: doc.fechaAsignacion || new Date(),
+              observacion: src._observacion || "",
+              por: src._por || "",
+              desde: "",
+              hasta: doc.asignadoPara,
+            },
+          });
+        }
+      }
+
+      return res.status(201).json({ ok: true, data: created });
+    }
+
+    // Caso único
+    const err = assertLicenciaCreate(payload);
     if (err) return res.status(400).json({ ok: false, error: err });
 
-    const doc = await Licencia.create(req.body);
+    // Regla de negocio: una cuenta no puede repetir el mismo tipo de licencia
+    const dup = await Licencia.findOne({
+      cuenta: payload.cuenta,
+      tipoLicencia: payload.tipoLicencia,
+    }).lean();
+    if (dup) {
+      return res.status(409).json({
+        ok: false,
+        error:
+          "La cuenta ya tiene una licencia de este tipo. No se permiten duplicados.",
+      });
+    }
+
+    const doc = await Licencia.create(payload);
 
     // Si viene asignadoPara al crear (opcional), registra historial
     if (doc.asignadoPara) {
@@ -188,8 +280,8 @@ app.post("/api/licencias", async (req, res) => {
           usuario: doc.asignadoPara,
           accion: "asignado",
           fecha: doc.fechaAsignacion || new Date(),
-          observacion: req.body._observacion || "",
-          por: req.body._por || "",
+          observacion: payload._observacion || "",
+          por: payload._por || "",
           desde: "",
           hasta: doc.asignadoPara,
         },
