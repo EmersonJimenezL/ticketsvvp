@@ -45,9 +45,9 @@ const OPCIONES_CATEGORIA = [
 ];
 const OPCIONES_TIPO_LIC = [
   "Profesional",
-  "CRM limitado",
+  "CRM limitada",
   "Logistica limitada",
-  "acceso directo",
+  "Acceso indirecto",
   "Financiera limitada",
 ];
 

@@ -70,9 +70,9 @@ const licenciaSchema = new Schema(
       trim: true,
       enum: [
         "Profesional",
-        "CRM limitado",
+        "CRM limitada",
         "Logistica limitada",
-        "acceso directo",
+        "Acceso indirecto",
         "Financiera limitada",
       ],
     },
