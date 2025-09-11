@@ -1187,12 +1187,18 @@ export default function GestionInventario() {
                     onChange={(e) => {
                       const value = e.target.value;
                       const spec = specs.find((s) => s.modelo === value);
-                      setForm((f) => ({
-                        ...f,
-                        modelo: value,
-                        marca: spec?.marca ?? f.marca,
-                        categoria: (f as any).categoria || spec?.categoria || (f as any).categoria,
-                      } as any));
+                      setForm(
+                        (f) =>
+                          ({
+                            ...f,
+                            modelo: value,
+                            marca: spec?.marca ?? f.marca,
+                            categoria:
+                              (f as any).categoria ||
+                              spec?.categoria ||
+                              (f as any).categoria,
+                          } as any)
+                      );
                     }}
                   >
                     <option value="">Seleccione un modelo</option>
@@ -1205,7 +1211,8 @@ export default function GestionInventario() {
                 )}
                 {!editId && specs.length === 0 && (
                   <p className="mt-1 text-xs text-amber-300">
-                    No hay modelos cargados. Use "Crear modelo" para agregar uno nuevo.
+                    No hay modelos cargados. Use "Crear modelo" para agregar uno
+                    nuevo.
                   </p>
                 )}
               </div>

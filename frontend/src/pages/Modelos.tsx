@@ -27,8 +27,24 @@ export default function Modelos() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<Especificacion>({ modelo: "" });
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Filtros
+  const [fCategoria, setFCategoria] = useState<string>("");
+  const [fMarca, setFMarca] = useState<string>("");
+  const [fModelo, setFModelo] = useState<string>("");
 
   const total = useMemo(() => items.length, [items]);
+  const filtered = useMemo(() => {
+    const cat = fCategoria.trim().toLowerCase();
+    const mar = fMarca.trim().toLowerCase();
+    const mod = fModelo.trim().toLowerCase();
+    return items.filter((m) => {
+      const okCat = cat ? (m.categoria || "").toLowerCase() === cat : true;
+      const okMarca = mar ? (m.marca || "").toLowerCase().includes(mar) : true;
+      const okModelo = mod ? (m.modelo || "").toLowerCase().includes(mod) : true;
+      return okCat && okMarca && okModelo;
+    });
+  }, [items, fCategoria, fMarca, fModelo]);
+  const filteredCount = filtered.length;
 
   const cargar = useCallback(async () => {
     try {
@@ -156,6 +172,70 @@ export default function Modelos() {
           </div>
         </div>
 
+        {/* Filtros */}
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-neutral-400">Categoría</span>
+            <select
+              value={fCategoria}
+              onChange={(e) => setFCategoria(e.target.value)}
+              className="rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="">Todas</option>
+              {[
+                "Notebook",
+                "PC",
+                "Monitor",
+                "Tablet",
+                "Impresora",
+                "Periférico",
+                "Otro",
+              ].map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-neutral-400">Marca</span>
+            <input
+              value={fMarca}
+              onChange={(e) => setFMarca(e.target.value)}
+              placeholder="Buscar marca"
+              className="rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1 md:col-span-2">
+            <span className="text-xs text-neutral-400">Modelo</span>
+            <input
+              value={fModelo}
+              onChange={(e) => setFModelo(e.target.value)}
+              placeholder="Buscar modelo"
+              className="rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+            />
+          </label>
+
+          <div className="md:col-span-4 flex items-center gap-2">
+            <span className="text-sm text-neutral-300">
+              Mostrando {filteredCount} de {total}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setFCategoria("");
+                setFMarca("");
+                setFModelo("");
+              }}
+              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
+            >
+              Limpiar
+            </button>
+          </div>
+        </div>
+
         {/* Lista */}
         <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md">
           <div className="overflow-x-auto">
@@ -189,14 +269,14 @@ export default function Modelos() {
                     </td>
                   </tr>
                 )}
-                {!loading && items.length === 0 && (
+                {!loading && filtered.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-4 py-6 text-neutral-300">
                       No hay modelos cargados.
                     </td>
                   </tr>
                 )}
-                {items.map((m) => (
+                {filtered.map((m) => (
                   <tr key={m._id || m.modelo} className="hover:bg-white/5">
                     <td className="px-4 py-3">{m.categoria || "-"}</td>
                     <td className="px-4 py-3">{m.marca || "-"}</td>
