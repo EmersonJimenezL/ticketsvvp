@@ -33,6 +33,20 @@ type Licencia = {
 
 const API = "/api";
 
+type Especificacion = {
+  _id?: string;
+  modelo: string;
+  categoria?: string;
+  marca?: string;
+  procesador?: string;
+  frecuenciaGhz?: string;
+  almacenamiento?: string;
+  ram?: string;
+  so?: string;
+  graficos?: string;
+  resolucion?: string;
+};
+
 /* Opciones estáticas (ajusta si ya tienes catálogo en DB) */
 const OPCIONES_CATEGORIA = [
   "Notebook",
@@ -65,6 +79,7 @@ export default function GestionInventario() {
   const [licencias, setLicencias] = useState<Licencia[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [specs, setSpecs] = useState<Especificacion[]>([]);
 
   /* ===== filtros comunes ===== */
   const [soloSinAsignacion, setSoloSinAsignacion] = useState(false);
@@ -109,6 +124,17 @@ export default function GestionInventario() {
 
   // Versión unificada: trae licencias reales y también las que están
   // guardadas como activos con categoria=licencias, y las normaliza.
+  const fetchEspecificaciones = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/especificaciones`);
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || "Error al listar especificaciones");
+      setSpecs(Array.isArray(j.data) ? j.data : []);
+    } catch (_) {
+      setSpecs([]);
+    }
+  }, []);
+
   const fetchLicenciasMerged = useCallback(async () => {
     const params = new URLSearchParams();
     if (cuenta) params.set("cuenta", cuenta);
@@ -186,7 +212,8 @@ export default function GestionInventario() {
 
   useEffect(() => {
     cargar();
-  }, [cargar]);
+    fetchEspecificaciones();
+  }, [cargar, fetchEspecificaciones]);
 
   /* ===== crear/editar activos (mismo flujo que tenías) ===== */
   const [showForm, setShowForm] = useState(false);
@@ -231,6 +258,11 @@ export default function GestionInventario() {
     try {
       setLoading(true);
       setError(null);
+      if (!editId && !form.modelo) {
+        throw new Error(
+          "Debes seleccionar un modelo existente en especificaciones."
+        );
+      }
       const payload: any = {
         categoria: form.categoria,
         marca: form.marca,
@@ -545,6 +577,22 @@ export default function GestionInventario() {
               type="button"
             >
               Cerrar sesión
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/admin/modelos")}
+              className="inline-flex items-center gap-1 rounded-lg bg-orange-600/90 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-500 transition"
+            >
+              <span>＋</span>
+              <span>Nuevo modelo</span>
+            </button>
+            <button
+              type="button"
+              onClick={fetchEspecificaciones}
+              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-neutral-100 hover:bg-white/10 transition"
+            >
+              <span>↻</span>
+              <span>Actualizar modelos</span>
             </button>
             {tab === "activos" && (
               <button
@@ -1140,13 +1188,42 @@ export default function GestionInventario() {
                 <label className="block text-sm text-neutral-300">
                   Modelo {!editId && <span className="text-orange-400">*</span>}
                 </label>
-                <input
-                  className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                  value={form.modelo || ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, modelo: e.target.value }))
-                  }
-                />
+                {editId ? (
+                  <input
+                    className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                    value={form.modelo || ""}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, modelo: e.target.value }))
+                    }
+                  />
+                ) : (
+                  <select
+                    className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                    value={form.modelo || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      const spec = specs.find((s) => s.modelo === value);
+                      setForm((f) => ({
+                        ...f,
+                        modelo: value,
+                        marca: spec?.marca ?? f.marca,
+                        categoria: (f as any).categoria || spec?.categoria || (f as any).categoria,
+                      } as any));
+                    }}
+                  >
+                    <option value="">Seleccione un modelo</option>
+                    {specs.map((s) => (
+                      <option key={s._id || s.modelo} value={s.modelo}>
+                        {s.modelo}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {!editId && specs.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-300">
+                    No hay modelos cargados. Use "Crear modelo" para agregar uno nuevo.
+                  </p>
+                )}
               </div>
 
               <div>

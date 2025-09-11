@@ -68,6 +68,15 @@ export default function AdminHome() {
             <div className="text-2xl font-bold">Gestionar Activos</div>
             <div className="text-neutral-300 mt-1">Activos y licencias</div>
           </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/admin/modelos")}
+            className="rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition p-10 text-center backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+          >
+            <div className="text-2xl font-bold">Gestionar Modelos</div>
+            <div className="text-neutral-300 mt-1">Especificaciones técnicas</div>
+          </button>
         </div>
       </div>
     </div>

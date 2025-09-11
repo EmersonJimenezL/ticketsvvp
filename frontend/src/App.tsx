@@ -9,6 +9,7 @@ import MisTickets from "./pages/MisTickets";
 import Admin from "./pages/Admin";
 import AdminHome from "./pages/AdminHome";
 import GestionActivos from "./pages/GestionActivos"; // nueva ruta
+import Modelos from "./pages/Modelos"; // especificaciones técnicas
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
           <Route element={<RequireAuth />}>
             <Route path="/admin" element={<AdminHome />} />
             <Route path="/admin/tickets" element={<Admin />} />
+            <Route path="/admin/modelos" element={<Modelos />} />
           </Route>
 
           {/* gestión de activos */}

@@ -126,3 +126,30 @@ module.exports = {
   Licencia,
   Historico,
 };
+
+/* =========================
+ * ESPECIFICACIONES TÉCNICAS POR MODELO
+ * ========================= */
+// Separamos las especificaciones por modelo para no repetir en cada activo.
+// Campos solicitados: modelo, procesador, frecuenciaGhz, almacenamiento, ram, so, graficos, resolucion
+const especModeloSchema = new Schema(
+  {
+    modelo: { type: String, required: true, unique: true, trim: true },
+    categoria: { type: String, trim: true },
+    marca: { type: String, trim: true },
+    procesador: { type: String, trim: true },
+    frecuenciaGhz: { type: String, trim: true },
+    almacenamiento: { type: String, trim: true },
+    ram: { type: String, trim: true },
+    so: { type: String, trim: true },
+    graficos: { type: String, trim: true },
+    resolucion: { type: String, trim: true },
+  },
+  { timestamps: true }
+);
+
+const EspecificacionModelo =
+  mongoose.models.EspecificacionModelo ||
+  mongoose.model("EspecificacionModelo", especModeloSchema);
+
+module.exports.EspecificacionModelo = EspecificacionModelo;

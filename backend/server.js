@@ -4,7 +4,13 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 
-const { Activo, Licencia, Historico, Ticket } = require("./db");
+const {
+  Activo,
+  Licencia,
+  Historico,
+  Ticket,
+  EspecificacionModelo,
+} = require("./db");
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -57,7 +63,35 @@ app.post("/api/activos", async (req, res) => {
     const err = assertActivoCreate(req.body);
     if (err) return res.status(400).json({ ok: false, error: err });
 
-    const doc = await Activo.create(req.body);
+    // Validar que el modelo exista en la colección de especificaciones técnicas
+    if (req.body?.modelo) {
+      const spec = await EspecificacionModelo.findOne({ modelo: req.body.modelo })
+        .select({ _id: 1 })
+        .lean();
+      if (!spec) {
+        return res.status(400).json({
+          ok: false,
+          error:
+            "El modelo no está registrado en especificaciones técnicas. Crea primero la especificación del modelo.",
+        });
+      }
+    }
+
+    // Si existe especificación, tomar la marca del modelo (si se conoce)
+    let payload = { ...req.body };
+    if (req.body?.modelo) {
+      const fullSpec = await EspecificacionModelo.findOne({ modelo: req.body.modelo })
+        .select({ marca: 1, categoria: 1 })
+        .lean();
+      if (fullSpec) {
+        // marca desde especificación (forzamos para mantener consistencia)
+        payload.marca = fullSpec.marca || payload.marca;
+        // opcional: alinear categoría si no viene
+        if (!payload.categoria && fullSpec.categoria) payload.categoria = fullSpec.categoria;
+      }
+    }
+
+    const doc = await Activo.create(payload);
 
     // Si viene asignadoA al crear, guardamos movimiento "asignado"
     if (doc.asignadoPara) {
@@ -383,6 +417,97 @@ app.get("/api/historicos/:tipo/:id", async (req, res) => {
     const { tipo, id } = req.params; // tipo: "activo" | "licencia"
     const doc = await Historico.findOne({ tipo, refId: id });
     res.json({ ok: true, data: doc || null });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/* =========================
+ * ESPECIFICACIONES (Modelos)
+ * ========================= */
+// Listar especificaciones de modelos
+app.get("/api/especificaciones", async (_req, res) => {
+  try {
+    const docs = await EspecificacionModelo.find({})
+      .sort({ modelo: 1 })
+      .limit(1000)
+      .lean();
+    res.json({ ok: true, data: docs });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Crear especificación de modelo (modelo único)
+app.post("/api/especificaciones", async (req, res) => {
+  try {
+    const b = req.body || {};
+    if (!b.modelo || String(b.modelo).trim() === "")
+      return res
+        .status(400)
+        .json({ ok: false, error: "Falta campo requerido: modelo" });
+
+    // Evitar duplicados por modelo
+    const exists = await EspecificacionModelo.findOne({ modelo: b.modelo }).lean();
+    if (exists)
+      return res
+        .status(409)
+        .json({ ok: false, error: "Ya existe una especificación para ese modelo" });
+
+    const doc = await EspecificacionModelo.create({
+      modelo: b.modelo,
+      categoria: b.categoria,
+      marca: b.marca,
+      procesador: b.procesador,
+      frecuenciaGhz: b.frecuenciaGhz,
+      almacenamiento: b.almacenamiento,
+      ram: b.ram,
+      so: b.so,
+      graficos: b.graficos,
+      resolucion: b.resolucion,
+    });
+    res.status(201).json({ ok: true, data: doc });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Editar especificación por id
+app.patch("/api/especificaciones/:id", async (req, res) => {
+  try {
+    const set = {};
+    for (const k of [
+      "modelo",
+      "categoria",
+      "marca",
+      "procesador",
+      "frecuenciaGhz",
+      "almacenamiento",
+      "ram",
+      "so",
+      "graficos",
+      "resolucion",
+    ]) {
+      if (req.body[k] !== undefined) set[k] = req.body[k];
+    }
+    const doc = await EspecificacionModelo.findByIdAndUpdate(
+      req.params.id,
+      { $set: set },
+      { new: true, runValidators: true }
+    );
+    if (!doc) return res.status(404).json({ ok: false, error: "No encontrado" });
+    res.json({ ok: true, data: doc });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Eliminar especificación por id
+app.delete("/api/especificaciones/:id", async (req, res) => {
+  try {
+    const doc = await EspecificacionModelo.findByIdAndDelete(req.params.id);
+    if (!doc) return res.status(404).json({ ok: false, error: "No encontrado" });
+    res.json({ ok: true, data: doc });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
