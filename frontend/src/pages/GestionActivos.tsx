@@ -44,10 +44,11 @@ const OPCIONES_CATEGORIA = [
   "Otro",
 ];
 const OPCIONES_TIPO_LIC = [
-  "profesional",
+  "Profesional",
   "CRM limitado",
-  "logística",
+  "Logistica limitada",
   "acceso directo",
+  "Financiera limitada",
 ];
 
 // Proveedores disponibles para licencias
@@ -1260,12 +1261,17 @@ export default function GestionInventario() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-neutral-300">Proveedor *</label>
+                <label className="block text-sm text-neutral-300">
+                  Proveedor *
+                </label>
                 <select
                   className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
                   value={licForm.proveedor || ""}
                   onChange={(e) =>
-                    setLicForm((f) => ({ ...f, proveedor: e.target.value as any }))
+                    setLicForm((f) => ({
+                      ...f,
+                      proveedor: e.target.value as any,
+                    }))
                   }
                 >
                   <option value="">Seleccione</option>

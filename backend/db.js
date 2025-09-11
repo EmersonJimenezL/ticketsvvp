@@ -68,7 +68,13 @@ const licenciaSchema = new Schema(
     tipoLicencia: {
       type: String,
       trim: true,
-      enum: ["profesional", "CRM limitado", "logística", "acceso directo"],
+      enum: [
+        "Profesional",
+        "CRM limitado",
+        "Logistica limitada",
+        "acceso directo",
+        "Financiera limitada",
+      ],
     },
     fechaCompra: { type: Date },
 
