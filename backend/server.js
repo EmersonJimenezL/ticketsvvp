@@ -350,6 +350,13 @@ app.get("/api/licencias", async (req, res) => {
     const q = {};
     if (req.query.cuenta) q.cuenta = req.query.cuenta;
     if (req.query.tipoLicencia) q.tipoLicencia = req.query.tipoLicencia;
+    if (req.query.asignadoPara) {
+      try {
+        q.asignadoPara = new RegExp(String(req.query.asignadoPara), "i");
+      } catch (_) {
+        q.asignadoPara = String(req.query.asignadoPara);
+      }
+    }
 
     if (req.query.desdeCompra || req.query.hastaCompra) {
       q.fechaCompra = {};

@@ -79,6 +79,7 @@ export default function GestionInventario() {
   /* Filtros licencias */
   const [cuenta, setCuenta] = useState("");
   const [tipoLicencia, setTipoLicencia] = useState("");
+  const [licAsignadoPara, setLicAsignadoPara] = useState("");
   const [licDesdeCompra, setLicDesdeCompra] = useState("");
   const [licHastaCompra, setLicHastaCompra] = useState("");
   const [licDesdeAsign, setLicDesdeAsign] = useState("");
@@ -112,6 +113,7 @@ export default function GestionInventario() {
     const params = new URLSearchParams();
     if (cuenta) params.set("cuenta", cuenta);
     if (tipoLicencia) params.set("tipoLicencia", tipoLicencia);
+    if (licAsignadoPara) params.set("asignadoPara", licAsignadoPara);
     if (licDesdeCompra) params.set("desdeCompra", licDesdeCompra);
     if (licHastaCompra) params.set("hastaCompra", licHastaCompra);
 
@@ -123,7 +125,7 @@ export default function GestionInventario() {
       fetch(`${API}/activos?${activosLicParams.toString()}`).catch(() => null),
     ]);
 
-    const list: Licencia[] = [];
+    let list: Licencia[] = [];
     try {
       if (rLic) {
         const j = await rLic.json();
@@ -158,8 +160,16 @@ export default function GestionInventario() {
       }
     } catch {}
 
+    // Filtro por asignado (cliente) para cubrir las filas que vienen desde activos
+    if (licAsignadoPara) {
+      const needle = licAsignadoPara.toLowerCase();
+      list = list.filter((l) =>
+        (l.asignadoPara || "").toLowerCase().includes(needle)
+      );
+    }
+
     setLicencias(list);
-  }, [cuenta, tipoLicencia, licDesdeCompra, licHastaCompra]);
+  }, [cuenta, tipoLicencia, licAsignadoPara, licDesdeCompra, licHastaCompra]);
 
   const cargar = useCallback(async () => {
     try {
@@ -263,6 +273,7 @@ export default function GestionInventario() {
     } else {
       setCuenta("");
       setTipoLicencia("");
+      setLicAsignadoPara("");
       setLicDesdeCompra("");
       setLicHastaCompra("");
       setLicDesdeAsign("");
@@ -489,7 +500,7 @@ export default function GestionInventario() {
 
   /* ===== Render ===== */
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden px-4 py-10">
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden px-4 sm:px-6 lg:px-12 2xl:px-20 py-6 sm:py-8 lg:py-10">
       {/* fondos decorativos (igual que tus páginas) */}
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div
@@ -506,9 +517,9 @@ export default function GestionInventario() {
         />
       </div>
 
-      <div className="relative mx-auto max-w-screen-2xl">
+      <div className="relative mx-auto w-full">
         {/* Header */}
-        <div className="mb-6 flex items-end justify-between gap-4">
+        <div className="mb-6 flex flex-wrap items-start md:items-end justify-between gap-4 gap-y-3">
           <div>
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
               Inventario
@@ -517,7 +528,7 @@ export default function GestionInventario() {
               Activos y licencias con sus asignaciones.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 justify-end">
             <button
               onClick={() => navigate(-1)}
               className="rounded-xl border border-white/10 px-4 py-2 hover:bg-white/10 transition"
@@ -697,6 +708,17 @@ export default function GestionInventario() {
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm text-neutral-300">
+                    Asignado a
+                  </label>
+                  <input
+                    placeholder="Nombre o parte del nombre"
+                    className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                    value={licAsignadoPara}
+                    onChange={(e) => setLicAsignadoPara(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-neutral-300">
                     Cuenta
                   </label>
                   <input
@@ -796,12 +818,12 @@ export default function GestionInventario() {
           </aside>
 
           {/* Tabla derecha */}
-          <section className="lg:col-span-9 space-y-4">
+          <section className="lg:col-span-9 space-y-4 min-w-0">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-0 backdrop-blur-md overflow-hidden">
               <div className="max-h-[70vh] overflow-auto">
                 {tab === "activos" ? (
                   <table className="min-w-full text-sm">
-                    <thead className="bg-neutral-900/70 sticky top-0 z-10 backdrop-blur">
+                    <thead className="bg-black sticky top-0 z-10 backdrop-blur">
                       <tr>
                         <th className="text-left px-4 py-3">Categoría</th>
                         <th className="text-left px-4 py-3">Marca</th>
