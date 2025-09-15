@@ -122,7 +122,7 @@ export default function MisTickets() {
       </div>
 
       <div className="relative mx-auto max-w-6xl">
-        <div className="mb-6 flex items-end justify-between gap-4">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight">
               Mis tickets
@@ -201,7 +201,7 @@ export default function MisTickets() {
             ))}
           </select>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               disabled={page === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
@@ -311,3 +311,4 @@ export default function MisTickets() {
     </div>
   );
 }
+

@@ -901,19 +901,19 @@ export default function GestionInventario() {
           {/* Tabla derecha */}
           <section className="lg:col-span-9 space-y-4 min-w-0">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-0 backdrop-blur-md overflow-hidden">
-              <div className="overflow-x-auto max-h-[70vh] overflow-y-auto -mx-4 sm:mx-0">
+              <div className="max-h-[70vh] overflow-auto">
                 {tab === "activos" ? (
                   <table className="min-w-full text-sm">
                     <thead className="bg-black sticky top-0 z-10 backdrop-blur">
                       <tr>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Categoría</th>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Marca</th>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Modelo</th>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Serie</th>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Compra</th>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Asignado a</th>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Asignación</th>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Acciones</th>
+                        <th className="text-left px-4 py-3">Categoría</th>
+                        <th className="text-left px-4 py-3">Marca</th>
+                        <th className="text-left px-4 py-3">Modelo</th>
+                        <th className="text-left px-4 py-3">Serie</th>
+                        <th className="text-left px-4 py-3">Compra</th>
+                        <th className="text-left px-4 py-3">Asignado a</th>
+                        <th className="text-left px-4 py-3">Asignación</th>
+                        <th className="text-left px-4 py-3">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -922,33 +922,33 @@ export default function GestionInventario() {
                           key={a._id}
                           className="border-t border-white/10 odd:bg-white/[0.03] hover:bg-white/10 transition-colors"
                         >
-                          <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
+                          <td className="px-4 py-2 whitespace-nowrap">
                             {a.categoria || "-"}
                           </td>
-                          <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
+                          <td className="px-4 py-2 whitespace-nowrap">
                             {a.marca || "-"}
                           </td>
-                          <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate" title={a.modelo || undefined}>
+                          <td className="px-4 py-2 whitespace-nowrap">
                             {a.modelo || "-"}
                           </td>
-                          <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate" title={a.numeroSerie || undefined}>
+                          <td className="px-4 py-2 whitespace-nowrap">
                             {a.numeroSerie || "-"}
                           </td>
-                          <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
+                          <td className="px-4 py-2 whitespace-nowrap">
                             {a.fechaCompra
                               ? new Date(a.fechaCompra).toLocaleDateString()
-                              : "-"}
+                              : "—"}
                           </td>
-                          <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate" title={a.asignadoPara || undefined}>
+                          <td className="px-4 py-2 whitespace-nowrap">
                             {a.asignadoPara || "-"}
                           </td>
-                          <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
+                          <td className="px-4 py-2 whitespace-nowrap">
                             {a.fechaAsignacion
                               ? new Date(a.fechaAsignacion).toLocaleDateString()
-                              : "-"}
+                              : "—"}
                           </td>
-                          <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
-                            <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            <div className="flex flex-wrap items-center gap-2">
                               <button
                                 className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
                                 onClick={() => openEdit(a)}
@@ -1020,13 +1020,13 @@ export default function GestionInventario() {
                   <table className="min-w-full text-sm">
                     <thead className="bg-black sticky top-0 z-10 backdrop-blur">
                       <tr>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Cuenta</th>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Proveedor</th>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Tipo licencia</th>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Compra</th>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Asignado a</th>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Asignación</th>
-                        <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Acciones</th>
+                        <th className="text-left px-4 py-3">Cuenta</th>
+                        <th className="text-left px-4 py-3">Proveedor</th>
+                        <th className="text-left px-4 py-3">Tipo licencia</th>
+                        <th className="text-left px-4 py-3">Compra</th>
+                        <th className="text-left px-4 py-3">Asignado a</th>
+                        <th className="text-left px-4 py-3">Asignación</th>
+                        <th className="text-left px-4 py-3">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1052,33 +1052,33 @@ export default function GestionInventario() {
                             key={l._id}
                             className="border-t border-white/10 odd:bg-white/[0.03] hover:bg-white/10 transition-colors"
                           >
-                            <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate" title={l.cuenta || undefined}>
+                            <td className="px-4 py-2 whitespace-nowrap">
                               {l.cuenta || "-"}
                             </td>
-                            <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
+                            <td className="px-4 py-2 whitespace-nowrap">
                               {l.proveedor || "-"}
                             </td>
-                            <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[240px] truncate" title={l.tipoLicencia || undefined}>
+                            <td className="px-4 py-2 whitespace-nowrap">
                               {l.tipoLicencia || "-"}
                             </td>
-                            <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
+                            <td className="px-4 py-2 whitespace-nowrap">
                               {l.fechaCompra
                                 ? new Date(l.fechaCompra).toLocaleDateString()
-                                : "-"}
+                                : "—"}
                             </td>
-                            
-                            <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate" title={l.asignadoPara || undefined}>
+
+                            <td className="px-4 py-2 whitespace-nowrap">
                               {l.asignadoPara || "-"}
                             </td>
-                            <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
+                            <td className="px-4 py-2 whitespace-nowrap">
                               {l.fechaAsignacion
                                 ? new Date(
                                     l.fechaAsignacion
                                   ).toLocaleDateString()
-                                : "-"}
+                                : "—"}
                             </td>
-                            <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
-                              <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              <div className="flex flex-wrap items-center gap-2">
                                 {!l.activoId && (
                                   <>
                                     <button
@@ -1165,7 +1165,7 @@ export default function GestionInventario() {
       {/* Modal Activo (crear/editar) */}
       {showForm && tab === "activos" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-4xl max-h-[85vh] overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
+          <div className="w-full max-w-4xl rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">
                 {editId
@@ -1354,7 +1354,7 @@ export default function GestionInventario() {
       {/* Modal Licencia (crear/editar) */}
       {showLicForm && tab === "licencias" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
+          <div className="w-full max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">
                 {editLicId ? "Editar licencia" : "Crear licencia"}
@@ -1507,7 +1507,7 @@ export default function GestionInventario() {
       {/* Modal Asignar/Reasignar */}
       {showAssign && assignCtx && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">
                 {assignCtx.asignadoPara ? "Reasignar" : "Asignar"}{" "}
@@ -1573,7 +1573,7 @@ export default function GestionInventario() {
       {/* Modal Eliminar */}
       {showDelete && deleteCtx && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
             <div className="mb-4">
               <h3 className="text-lg font-semibold">Confirmar eliminación</h3>
               <p className="text-sm text-neutral-300 mt-1">
@@ -1602,7 +1602,7 @@ export default function GestionInventario() {
       {/* Modal Historial */}
       {showHist && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
+          <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Historial: {histTitle}</h3>
               <button
@@ -1654,3 +1654,4 @@ export default function GestionInventario() {
     </div>
   );
 }
+

@@ -183,7 +183,7 @@ export default function NuevoTicket() {
               className="w-full rounded-xl mt-2 bg-neutral-900/70 px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
             />
             {!!images.length && (
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {images.map((src, i) => (
                   <img
                     key={i}
@@ -199,7 +199,7 @@ export default function NuevoTicket() {
           {/* Riesgo */}
           <div className="space-y-2">
             <label className="text-sm text-neutral-300">Riesgo</label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {RISKS.map((r) => (
                 <button
                   type="button"
