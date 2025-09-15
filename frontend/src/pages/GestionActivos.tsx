@@ -57,13 +57,21 @@ const OPCIONES_CATEGORIA = [
   "Periférico",
   "Otro",
 ];
-const OPCIONES_TIPO_LIC = [
-  "Profesional",
-  "CRM limitada",
-  "Logistica limitada",
-  "Acceso indirecto",
-  "Financiera limitada",
-];
+// Tipos de licencias por proveedor
+const OPCIONES_TIPO_LIC_MAP = {
+  SAP: [
+    "Profesional",
+    "CRM limitada",
+    "Logistica limitada",
+    "Acceso indirecto",
+    "Financiera limitada",
+  ],
+  Office: [
+    "Microsoft 365 E3",
+    "Microsoft 365 Empresa Basico",
+    "Microsoft 365 Empresa Estandar",
+  ],
+} as const;
 
 // Proveedores disponibles para licencias
 const OPCIONES_PROVEEDOR = ["SAP", "Office"] as const;
@@ -93,12 +101,20 @@ export default function GestionInventario() {
 
   /* Filtros licencias */
   const [cuenta, setCuenta] = useState("");
+  const [licProveedor, setLicProveedor] = useState("");
   const [tipoLicencia, setTipoLicencia] = useState("");
   const [licAsignadoPara, setLicAsignadoPara] = useState("");
   const [licDesdeCompra, setLicDesdeCompra] = useState("");
   const [licHastaCompra, setLicHastaCompra] = useState("");
   const [licDesdeAsign, setLicDesdeAsign] = useState("");
   const [licHastaAsign, setLicHastaAsign] = useState("");
+
+  // Tipos de licencia disponibles en filtros según proveedor seleccionado
+  const tiposLicenciasFiltro = useMemo(() => {
+    if (licProveedor === "SAP") return [...OPCIONES_TIPO_LIC_MAP.SAP];
+    if (licProveedor === "Office") return [...OPCIONES_TIPO_LIC_MAP.Office];
+    return [...OPCIONES_TIPO_LIC_MAP.SAP, ...OPCIONES_TIPO_LIC_MAP.Office];
+  }, [licProveedor]);
 
   /* ===== cargar datos ===== */
   const fetchActivos = useCallback(async () => {
@@ -138,6 +154,7 @@ export default function GestionInventario() {
   const fetchLicenciasMerged = useCallback(async () => {
     const params = new URLSearchParams();
     if (cuenta) params.set("cuenta", cuenta);
+    if (licProveedor) params.set("proveedor", licProveedor);
     if (tipoLicencia) params.set("tipoLicencia", tipoLicencia);
     if (licAsignadoPara) params.set("asignadoPara", licAsignadoPara);
     if (licDesdeCompra) params.set("desdeCompra", licDesdeCompra);
@@ -194,8 +211,21 @@ export default function GestionInventario() {
       );
     }
 
+    // Filtro por proveedor (aplica también a las filas mapeadas desde activos)
+    if (licProveedor) {
+      const p = licProveedor.toLowerCase();
+      list = list.filter((l) => (l.proveedor || "").toLowerCase() === p);
+    }
+
     setLicencias(list);
-  }, [cuenta, tipoLicencia, licAsignadoPara, licDesdeCompra, licHastaCompra]);
+  }, [
+    cuenta,
+    licProveedor,
+    tipoLicencia,
+    licAsignadoPara,
+    licDesdeCompra,
+    licHastaCompra,
+  ]);
 
   const cargar = useCallback(async () => {
     try {
@@ -304,6 +334,7 @@ export default function GestionInventario() {
       setHastaAsign("");
     } else {
       setCuenta("");
+      setLicProveedor("");
       setTipoLicencia("");
       setLicAsignadoPara("");
       setLicDesdeCompra("");
@@ -762,6 +793,24 @@ export default function GestionInventario() {
 
                 <div>
                   <label className="block text-sm text-neutral-300">
+                    Proveedor
+                  </label>
+                  <select
+                    className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                    value={licProveedor}
+                    onChange={(e) => setLicProveedor(e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {OPCIONES_PROVEEDOR.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-neutral-300">
                     Tipo licencia
                   </label>
                   <select
@@ -770,7 +819,7 @@ export default function GestionInventario() {
                     onChange={(e) => setTipoLicencia(e.target.value)}
                   >
                     <option value="">Todos</option>
-                    {OPCIONES_TIPO_LIC.map((t) => (
+                    {tiposLicenciasFiltro.map((t) => (
                       <option key={t} value={t}>
                         {t}
                       </option>
@@ -969,7 +1018,7 @@ export default function GestionInventario() {
                   </table>
                 ) : (
                   <table className="min-w-full text-sm">
-                    <thead className="bg-neutral-900/70 sticky top-0 z-10 backdrop-blur">
+                    <thead className="bg-black sticky top-0 z-10 backdrop-blur">
                       <tr>
                         <th className="text-left px-4 py-3">Cuenta</th>
                         <th className="text-left px-4 py-3">Proveedor</th>
@@ -1333,6 +1382,43 @@ export default function GestionInventario() {
               </div>
               <div>
                 <label className="block text-sm text-neutral-300">
+                  Proveedor *
+                </label>
+                <select
+                  className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                  value={licForm.proveedor || ""}
+                  onChange={(e) =>
+                    setLicForm((f) => ({
+                      ...f,
+                      proveedor: e.target.value as any,
+                      // Si el tipo actual no pertenece al nuevo proveedor, limpiar
+                      tipoLicencia:
+                        e.target.value === "SAP" &&
+                        f.tipoLicencia &&
+                        (
+                          OPCIONES_TIPO_LIC_MAP.SAP as readonly string[]
+                        ).includes(f.tipoLicencia)
+                          ? f.tipoLicencia
+                          : e.target.value === "Office" &&
+                            f.tipoLicencia &&
+                            (
+                              OPCIONES_TIPO_LIC_MAP.Office as readonly string[]
+                            ).includes(f.tipoLicencia)
+                          ? f.tipoLicencia
+                          : "",
+                    }))
+                  }
+                >
+                  <option value="">Seleccione</option>
+                  {OPCIONES_PROVEEDOR.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-neutral-300">
                   Tipo licencia *
                 </label>
                 <select
@@ -1343,31 +1429,14 @@ export default function GestionInventario() {
                   }
                 >
                   <option value="">Seleccione</option>
-                  {OPCIONES_TIPO_LIC.map((t) => (
+                  {(licForm.proveedor === "SAP"
+                    ? OPCIONES_TIPO_LIC_MAP.SAP
+                    : licForm.proveedor === "Office"
+                    ? OPCIONES_TIPO_LIC_MAP.Office
+                    : []
+                  ).map((t) => (
                     <option key={t} value={t}>
                       {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm text-neutral-300">
-                  Proveedor *
-                </label>
-                <select
-                  className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                  value={licForm.proveedor || ""}
-                  onChange={(e) =>
-                    setLicForm((f) => ({
-                      ...f,
-                      proveedor: e.target.value as any,
-                    }))
-                  }
-                >
-                  <option value="">Seleccione</option>
-                  {OPCIONES_PROVEEDOR.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
                     </option>
                   ))}
                 </select>

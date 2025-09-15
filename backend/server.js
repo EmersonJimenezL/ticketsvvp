@@ -43,6 +43,32 @@ function assertLicenciaCreate(b) {
   return missing.length ? `Faltan campos: ${missing.join(", ")}` : null;
 }
 
+// Tipos de licencia válidos por proveedor
+const TIPOS_LIC_POR_PROV = {
+  SAP: [
+    "Profesional",
+    "CRM limitada",
+    "Logistica limitada",
+    "Acceso indirecto",
+    "Financiera limitada",
+  ],
+  Office: [
+    "Microsoft 365 E3",
+    "Microsoft 365 Empresa Basico",
+    "Microsoft 365 Empresa Estandar",
+  ],
+};
+
+function assertCompatProveedorTipo({ proveedor, tipoLicencia }) {
+  if (!proveedor || !tipoLicencia) return null;
+  const lista = TIPOS_LIC_POR_PROV[proveedor];
+  if (!lista) return `Proveedor desconocido: ${proveedor}`;
+  if (!lista.includes(tipoLicencia)) {
+    return `El tipo de licencia '${tipoLicencia}' no corresponde al proveedor '${proveedor}'.`;
+  }
+  return null;
+}
+
 // upsert + push movimiento
 async function pushMovimiento({ tipo, refId, movimiento }) {
   // compat: aseguramos activoId = refId para no chocar con índices antiguos
@@ -212,14 +238,18 @@ app.post("/api/licencias", async (req, res) => {
     const payload = req.body;
 
     // Caso múltiple
-    if (Array.isArray(payload)) {
+  if (Array.isArray(payload)) {
       if (payload.length === 0) {
         return res.status(400).json({ ok: false, error: "Sin elementos" });
       }
 
-      // Validar requeridos por cada item
+      // Validar requeridos y compatibilidad proveedor-tipo por item
       const errores = payload
-        .map((item, idx) => ({ idx, err: assertLicenciaCreate(item) }))
+        .map((item, idx) => {
+          const reqErr = assertLicenciaCreate(item);
+          const compErr = reqErr ? null : assertCompatProveedorTipo(item);
+          return { idx, err: reqErr || compErr };
+        })
         .filter((x) => x.err);
       if (errores.length) {
         const first = errores[0];
@@ -287,7 +317,8 @@ app.post("/api/licencias", async (req, res) => {
     }
 
     // Caso único
-    const err = assertLicenciaCreate(payload);
+    let err = assertLicenciaCreate(payload);
+    if (!err) err = assertCompatProveedorTipo(payload);
     if (err) return res.status(400).json({ ok: false, error: err });
 
     // Regla de negocio: una cuenta no puede repetir el mismo tipo de licencia
@@ -334,6 +365,12 @@ app.patch("/api/licencias/:id", async (req, res) => {
     const before = await Licencia.findById(req.params.id);
     if (!before)
       return res.status(404).json({ ok: false, error: "No encontrada" });
+
+    // Si se cambian proveedor/tipo, validar compatibilidad
+    const prov = req.body.proveedor || before.proveedor;
+    const tipo = req.body.tipoLicencia || before.tipoLicencia;
+    const errComp = assertCompatProveedorTipo({ proveedor: prov, tipoLicencia: tipo });
+    if (errComp) return res.status(400).json({ ok: false, error: errComp });
 
     const doc = await Licencia.findByIdAndUpdate(
       req.params.id,
@@ -383,6 +420,7 @@ app.get("/api/licencias", async (req, res) => {
   try {
     const q = {};
     if (req.query.cuenta) q.cuenta = req.query.cuenta;
+    if (req.query.proveedor) q.proveedor = req.query.proveedor;
     if (req.query.tipoLicencia) q.tipoLicencia = req.query.tipoLicencia;
     if (req.query.asignadoPara) {
       try {

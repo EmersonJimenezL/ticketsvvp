@@ -69,11 +69,16 @@ const licenciaSchema = new Schema(
       type: String,
       trim: true,
       enum: [
+        // SAP
         "Profesional",
         "CRM limitada",
         "Logistica limitada",
         "Acceso indirecto",
         "Financiera limitada",
+        // Office
+        "Microsoft 365 E3",
+        "Microsoft 365 Empresa Basico",
+        "Microsoft 365 Empresa Estandar",
       ],
     },
     fechaCompra: { type: Date },
