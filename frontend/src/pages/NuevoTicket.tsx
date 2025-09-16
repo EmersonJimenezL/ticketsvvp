@@ -48,7 +48,8 @@ export default function NuevoTicket() {
           if (!f.type.startsWith("image/")) return resolve("");
           const reader = new FileReader();
           reader.onload = () => resolve(String(reader.result || ""));
-          reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+          reader.onerror = () =>
+            reject(new Error("No se pudo leer el archivo"));
           reader.readAsDataURL(f);
         })
     );
@@ -173,7 +174,10 @@ export default function NuevoTicket() {
           {/* Imágenes (opcional) */}
           <div className="space-y-2 text-center">
             <label className="text-lg text-neutral-300">
-              <strong>Adjuntar imágenes</strong> <span className="text-sm text-neutral-400">(opcional, máx. 5)</span>
+              <strong>Adjuntar imágenes</strong>{" "}
+              <span className="text-sm text-neutral-400">
+                (opcional, máx. 5)
+              </span>
             </label>
             <input
               type="file"

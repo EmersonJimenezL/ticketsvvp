@@ -33,6 +33,25 @@ type Licencia = {
 
 const API = "/api";
 
+type LicenciaStats = {
+  total: number;
+  disponibles: number;
+  ocupadas: number;
+  porTipo: Record<string, number>;
+  porProveedor: Record<string, number>;
+};
+
+function useDebouncedValue<T>(value: T, delay: number) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+}
+
+const PAGE_SIZE = 25;
+
 type Especificacion = {
   _id?: string;
   modelo: string;
@@ -80,7 +99,9 @@ export default function GestionInventario() {
   const navigate = useNavigate();
   const { logout } = useAuth();
   /* ===== pestaña: activos | licencias ===== */
-  const [tab, setTab] = useState<"activos" | "licencias">("activos");
+  const [tab, setTab] = useState<"activos" | "licencias" | "estadisticas">(
+    "activos"
+  );
 
   /* ===== listado ===== */
   const [activos, setActivos] = useState<Activo[]>([]);
@@ -88,6 +109,10 @@ export default function GestionInventario() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [specs, setSpecs] = useState<Especificacion[]>([]);
+
+  const [visibleActivos, setVisibleActivos] = useState(PAGE_SIZE);
+  const [visibleLicencias, setVisibleLicencias] = useState(PAGE_SIZE);
+  const [licStats, setLicStats] = useState<LicenciaStats | null>(null);
 
   /* ===== filtros comunes ===== */
   const [soloSinAsignacion, setSoloSinAsignacion] = useState(false);
@@ -109,6 +134,9 @@ export default function GestionInventario() {
   const [licDesdeAsign, setLicDesdeAsign] = useState("");
   const [licHastaAsign, setLicHastaAsign] = useState("");
 
+  const debouncedCuenta = useDebouncedValue(cuenta, 300);
+  const debouncedAsignado = useDebouncedValue(licAsignadoPara, 300);
+
   // Tipos de licencia disponibles en filtros según proveedor seleccionado
   const tiposLicenciasFiltro = useMemo(() => {
     if (licProveedor === "SAP") return [...OPCIONES_TIPO_LIC_MAP.SAP];
@@ -119,6 +147,7 @@ export default function GestionInventario() {
   /* ===== cargar datos ===== */
   const fetchActivos = useCallback(async () => {
     const params = new URLSearchParams();
+    params.set("limit", "500");
     if (soloSinAsignacion) params.set("soloSinAsignacion", "1");
     if (categoria) params.set("categoria", categoria);
     if (desdeCompra) params.set("desdeCompra", desdeCompra);
@@ -129,6 +158,7 @@ export default function GestionInventario() {
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || "Error al listar activos");
     setActivos(j.data);
+    setVisibleActivos(PAGE_SIZE);
   }, [
     soloSinAsignacion,
     categoria,
@@ -153,15 +183,17 @@ export default function GestionInventario() {
 
   const fetchLicenciasMerged = useCallback(async () => {
     const params = new URLSearchParams();
-    if (cuenta) params.set("cuenta", cuenta);
+    params.set("limit", "500");
+    if (debouncedCuenta) params.set("cuenta", debouncedCuenta);
     if (licProveedor) params.set("proveedor", licProveedor);
     if (tipoLicencia) params.set("tipoLicencia", tipoLicencia);
-    if (licAsignadoPara) params.set("asignadoPara", licAsignadoPara);
+    if (debouncedAsignado) params.set("asignadoPara", debouncedAsignado);
     if (licDesdeCompra) params.set("desdeCompra", licDesdeCompra);
     if (licHastaCompra) params.set("hastaCompra", licHastaCompra);
 
     const activosLicParams = new URLSearchParams();
     activosLicParams.set("categoria", "licencias");
+    activosLicParams.set("limit", "500");
 
     const [rLic, rActLic] = await Promise.all([
       fetch(`${API}/licencias?${params.toString()}`).catch(() => null),
@@ -204,10 +236,29 @@ export default function GestionInventario() {
     } catch {}
 
     // Filtro por asignado (cliente) para cubrir las filas que vienen desde activos
-    if (licAsignadoPara) {
-      const needle = licAsignadoPara.toLowerCase();
+    if (debouncedAsignado) {
+      const needle = debouncedAsignado.toLowerCase();
       list = list.filter((l) =>
         (l.asignadoPara || "").toLowerCase().includes(needle)
+      );
+    }
+
+    if (debouncedCuenta) {
+      const cuentaNeedle = debouncedCuenta.toLowerCase();
+      list = list.filter((l) =>
+        (l.cuenta || "").toLowerCase().includes(cuentaNeedle)
+      );
+    }
+
+    if (licDesdeCompra) {
+      list = list.filter(
+        (l) => (l.fechaCompra || "").slice(0, 10) >= licDesdeCompra
+      );
+    }
+
+    if (licHastaCompra) {
+      list = list.filter(
+        (l) => (l.fechaCompra || "").slice(0, 10) <= licHastaCompra
       );
     }
 
@@ -218,32 +269,49 @@ export default function GestionInventario() {
     }
 
     setLicencias(list);
+    setVisibleLicencias(PAGE_SIZE);
   }, [
-    cuenta,
+    debouncedCuenta,
     licProveedor,
     tipoLicencia,
-    licAsignadoPara,
+    debouncedAsignado,
     licDesdeCompra,
     licHastaCompra,
   ]);
+
+  const fetchLicStats = useCallback(async () => {
+    const r = await fetch(`${API}/licencias/stats`);
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || "Error al obtener estadisticas");
+    setLicStats(j.data || null);
+  }, []);
 
   const cargar = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       if (tab === "activos") await fetchActivos();
-      else await fetchLicenciasMerged();
+      else if (tab === "licencias") await fetchLicenciasMerged();
+      else await fetchLicStats();
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [tab, fetchActivos, fetchLicenciasMerged]);
+  }, [tab, fetchActivos, fetchLicenciasMerged, fetchLicStats]);
 
   useEffect(() => {
     cargar();
     fetchEspecificaciones();
   }, [cargar, fetchEspecificaciones]);
+
+  useEffect(() => {
+    setVisibleActivos(PAGE_SIZE);
+  }, [activos]);
+
+  useEffect(() => {
+    setVisibleLicencias(PAGE_SIZE);
+  }, [licencias, licDesdeAsign, licHastaAsign]);
 
   /* ===== crear/editar activos (mismo flujo que tenías) ===== */
   const [showForm, setShowForm] = useState(false);
@@ -357,9 +425,63 @@ export default function GestionInventario() {
     [activos]
   );
 
+  const activosToRender = useMemo(
+    () => activosSolo.slice(0, visibleActivos),
+    [activosSolo, visibleActivos]
+  );
+
+  const licenciasFiltradas = useMemo(
+    () =>
+      licencias.filter((l) => {
+        if (
+          licDesdeAsign &&
+          (!l.fechaAsignacion || l.fechaAsignacion < licDesdeAsign)
+        )
+          return false;
+        if (
+          licHastaAsign &&
+          (!l.fechaAsignacion || l.fechaAsignacion > licHastaAsign)
+        )
+          return false;
+        return true;
+      }),
+    [licencias, licDesdeAsign, licHastaAsign]
+  );
+
+  const licenciasToRender = useMemo(
+    () => licenciasFiltradas.slice(0, visibleLicencias),
+    [licenciasFiltradas, visibleLicencias]
+  );
+
   const total = useMemo(
-    () => (tab === "activos" ? activosSolo.length : licencias.length),
-    [tab, activosSolo, licencias]
+    () =>
+      tab === "activos"
+        ? activosSolo.length
+        : tab === "licencias"
+        ? licenciasFiltradas.length
+        : licStats?.total ?? 0,
+    [tab, activosSolo.length, licenciasFiltradas.length, licStats]
+  );
+
+  const statsPorTipo = useMemo(
+    () => Object.entries(licStats?.porTipo || {}).sort((a, b) => b[1] - a[1]),
+    [licStats]
+  );
+
+  const statsPorProveedor = useMemo(
+    () =>
+      Object.entries(licStats?.porProveedor || {}).sort((a, b) => b[1] - a[1]),
+    [licStats]
+  );
+
+  const statsMaxTipo = useMemo(
+    () => (statsPorTipo.length ? statsPorTipo[0][1] : 0),
+    [statsPorTipo]
+  );
+
+  const statsMaxProveedor = useMemo(
+    () => (statsPorProveedor.length ? statsPorProveedor[0][1] : 0),
+    [statsPorProveedor]
   );
 
   /* ===== Historial (activos/licencias) ===== */
@@ -659,521 +781,635 @@ export default function GestionInventario() {
             >
               Licencias
             </button>
+            <button
+              className={`px-4 py-2 rounded-lg transition ${
+                tab === "estadisticas"
+                  ? "bg-neutral-900/70 text-neutral-100"
+                  : "hover:bg-white/10 text-neutral-300"
+              }`}
+              onClick={() => setTab("estadisticas")}
+            >
+              Estadisticas
+            </button>
           </div>
         </div>
 
         {/* Layout 2 columnas */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Filtros izquierda */}
-          <aside className="lg:col-span-3 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md lg:sticky lg:top-4 self-start">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-semibold">Filtros</h2>
-              <span className="text-sm text-neutral-300">{total} items</span>
-            </div>
-
-            {tab === "activos" ? (
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm text-neutral-300">
-                    Categoría
-                  </label>
-                  <select
-                    className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                    value={categoria}
-                    onChange={(e) => setCategoria(e.target.value)}
-                  >
-                    <option value="">Todas</option>
-                    {OPCIONES_CATEGORIA.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm text-neutral-300">
-                      Comprado el (desde)
-                    </label>
-                    <input
-                      type="date"
-                      value={desdeCompra}
-                      onChange={(e) => setDesdeCompra(e.target.value)}
-                      className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-neutral-300">
-                      Comprado el (hasta)
-                    </label>
-                    <input
-                      type="date"
-                      value={hastaCompra}
-                      onChange={(e) => setHastaCompra(e.target.value)}
-                      className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm text-neutral-300">
-                      Asignado el (desde)
-                    </label>
-                    <input
-                      type="date"
-                      value={desdeAsign}
-                      onChange={(e) => setDesdeAsign(e.target.value)}
-                      className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-neutral-300">
-                      Asignado el (hasta)
-                    </label>
-                    <input
-                      type="date"
-                      value={hastaAsign}
-                      onChange={(e) => setHastaAsign(e.target.value)}
-                      className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-                </div>
-
-                <label className="inline-flex items-center gap-2 text-neutral-300">
-                  <input
-                    type="checkbox"
-                    checked={soloSinAsignacion}
-                    onChange={(e) => setSoloSinAsignacion(e.target.checked)}
-                  />
-                  <span>Solo sin asignación</span>
-                </label>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={fetchActivos}
-                    className="rounded-xl bg-orange-600 px-4 py-2 font-semibold transition hover:bg-orange-500"
-                    disabled={loading}
-                  >
-                    Aplicar
-                  </button>
-                  <button
-                    onClick={limpiarFiltros}
-                    className="rounded-xl border border-white/10 px-4 py-2 hover:bg-white/10 transition"
-                    disabled={loading}
-                  >
-                    Limpiar
-                  </button>
-                </div>
+          {tab !== "estadisticas" && (
+            <aside className="lg:col-span-3 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md lg:sticky lg:top-4 self-start">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-lg font-semibold">Filtros</h2>
+                <span className="text-sm text-neutral-300">{total} items</span>
               </div>
-            ) : (
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm text-neutral-300">
-                    Asignado a
-                  </label>
-                  <input
-                    placeholder="Nombre o parte del nombre"
-                    className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                    value={licAsignadoPara}
-                    onChange={(e) => setLicAsignadoPara(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-neutral-300">
-                    Cuenta
-                  </label>
-                  <input
-                    className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                    value={cuenta}
-                    onChange={(e) => setCuenta(e.target.value)}
-                  />
-                </div>
 
-                <div>
-                  <label className="block text-sm text-neutral-300">
-                    Proveedor
-                  </label>
-                  <select
-                    className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                    value={licProveedor}
-                    onChange={(e) => setLicProveedor(e.target.value)}
-                  >
-                    <option value="">Todos</option>
-                    {OPCIONES_PROVEEDOR.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm text-neutral-300">
-                    Tipo licencia
-                  </label>
-                  <select
-                    className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                    value={tipoLicencia}
-                    onChange={(e) => setTipoLicencia(e.target.value)}
-                  >
-                    <option value="">Todos</option>
-                    {tiposLicenciasFiltro.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+              {tab === "activos" ? (
+                <div className="space-y-3">
                   <div>
                     <label className="block text-sm text-neutral-300">
-                      Comprado el (desde)
+                      Categoría
+                    </label>
+                    <select
+                      className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                      value={categoria}
+                      onChange={(e) => setCategoria(e.target.value)}
+                    >
+                      <option value="">Todas</option>
+                      {OPCIONES_CATEGORIA.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm text-neutral-300">
+                        Comprado el (desde)
+                      </label>
+                      <input
+                        type="date"
+                        value={desdeCompra}
+                        onChange={(e) => setDesdeCompra(e.target.value)}
+                        className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-neutral-300">
+                        Comprado el (hasta)
+                      </label>
+                      <input
+                        type="date"
+                        value={hastaCompra}
+                        onChange={(e) => setHastaCompra(e.target.value)}
+                        className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm text-neutral-300">
+                        Asignado el (desde)
+                      </label>
+                      <input
+                        type="date"
+                        value={desdeAsign}
+                        onChange={(e) => setDesdeAsign(e.target.value)}
+                        className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-neutral-300">
+                        Asignado el (hasta)
+                      </label>
+                      <input
+                        type="date"
+                        value={hastaAsign}
+                        onChange={(e) => setHastaAsign(e.target.value)}
+                        className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                  </div>
+
+                  <label className="inline-flex items-center gap-2 text-neutral-300">
+                    <input
+                      type="checkbox"
+                      checked={soloSinAsignacion}
+                      onChange={(e) => setSoloSinAsignacion(e.target.checked)}
+                    />
+                    <span>Solo sin asignación</span>
+                  </label>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={fetchActivos}
+                      className="rounded-xl bg-orange-600 px-4 py-2 font-semibold transition hover:bg-orange-500"
+                      disabled={loading}
+                    >
+                      Aplicar
+                    </button>
+                    <button
+                      onClick={limpiarFiltros}
+                      className="rounded-xl border border-white/10 px-4 py-2 hover:bg-white/10 transition"
+                      disabled={loading}
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm text-neutral-300">
+                      Asignado a
                     </label>
                     <input
-                      type="date"
-                      value={licDesdeCompra}
-                      onChange={(e) => setLicDesdeCompra(e.target.value)}
+                      placeholder="Nombre o parte del nombre"
                       className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                      value={licAsignadoPara}
+                      onChange={(e) => setLicAsignadoPara(e.target.value)}
                     />
                   </div>
                   <div>
                     <label className="block text-sm text-neutral-300">
-                      Comprado el (hasta)
+                      Cuenta
                     </label>
                     <input
-                      type="date"
-                      value={licHastaCompra}
-                      onChange={(e) => setLicHastaCompra(e.target.value)}
                       className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                      value={cuenta}
+                      onChange={(e) => setCuenta(e.target.value)}
                     />
                   </div>
-                </div>
 
-                {/* Rango de asignación local (no filtra en server; útil para ordenar/filtrar client-side si luego quieres) */}
-                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm text-neutral-300">
-                      Asignado el (desde)
+                      Proveedor
                     </label>
-                    <input
-                      type="date"
-                      value={licDesdeAsign}
-                      onChange={(e) => setLicDesdeAsign(e.target.value)}
+                    <select
                       className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                    />
+                      value={licProveedor}
+                      onChange={(e) => setLicProveedor(e.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      {OPCIONES_PROVEEDOR.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+
                   <div>
                     <label className="block text-sm text-neutral-300">
-                      Asignado el (hasta)
+                      Tipo licencia
                     </label>
-                    <input
-                      type="date"
-                      value={licHastaAsign}
-                      onChange={(e) => setLicHastaAsign(e.target.value)}
+                    <select
                       className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                    />
+                      value={tipoLicencia}
+                      onChange={(e) => setTipoLicencia(e.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      {tiposLicenciasFiltro.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm text-neutral-300">
+                        Comprado el (desde)
+                      </label>
+                      <input
+                        type="date"
+                        value={licDesdeCompra}
+                        onChange={(e) => setLicDesdeCompra(e.target.value)}
+                        className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-neutral-300">
+                        Comprado el (hasta)
+                      </label>
+                      <input
+                        type="date"
+                        value={licHastaCompra}
+                        onChange={(e) => setLicHastaCompra(e.target.value)}
+                        className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Rango de asignación local (no filtra en server; útil para ordenar/filtrar client-side si luego quieres) */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm text-neutral-300">
+                        Asignado el (desde)
+                      </label>
+                      <input
+                        type="date"
+                        value={licDesdeAsign}
+                        onChange={(e) => setLicDesdeAsign(e.target.value)}
+                        className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-neutral-300">
+                        Asignado el (hasta)
+                      </label>
+                      <input
+                        type="date"
+                        value={licHastaAsign}
+                        onChange={(e) => setLicHastaAsign(e.target.value)}
+                        className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={fetchLicenciasMerged}
+                      className="rounded-xl bg-orange-600 px-4 py-2 font-semibold transition hover:bg-orange-500"
+                      disabled={loading}
+                    >
+                      Aplicar
+                    </button>
+                    <button
+                      onClick={limpiarFiltros}
+                      className="rounded-xl border border-white/10 px-4 py-2 hover:bg-white/10 transition"
+                      disabled={loading}
+                    >
+                      Limpiar
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={fetchLicenciasMerged}
-                    className="rounded-xl bg-orange-600 px-4 py-2 font-semibold transition hover:bg-orange-500"
-                    disabled={loading}
-                  >
-                    Aplicar
-                  </button>
-                  <button
-                    onClick={limpiarFiltros}
-                    className="rounded-xl border border-white/10 px-4 py-2 hover:bg-white/10 transition"
-                    disabled={loading}
-                  >
-                    Limpiar
-                  </button>
-                </div>
-              </div>
-            )}
-          </aside>
+              )}
+            </aside>
+          )}
 
           {/* Tabla derecha */}
-          <section className="lg:col-span-9 space-y-4 min-w-0">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-0 backdrop-blur-md overflow-hidden">
-              <div className="overflow-x-auto max-h-[70vh] overflow-y-auto -mx-4 sm:mx-0">
-                {tab === "activos" ? (
+          <section
+            className={`${
+              tab === "estadisticas" ? "lg:col-span-12" : "lg:col-span-9"
+            } space-y-4 min-w-0`}
+          >
+            {tab === "estadisticas" ? (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md space-y-6">
+                {loading ? (
+                  <div className="text-neutral-300">Cargando...</div>
+                ) : error ? (
+                  <div className="text-red-300">{error}</div>
+                ) : licStats ? (
                   <>
-                    {/* Vista móvil: tarjetas */}
-                    <div className="block lg:hidden divide-y divide-white/10">
-                      {activosSolo.map((a) => (
-                        <div key={a._id} className="p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="text-sm text-neutral-300">
-                                {a.categoria || "-"}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-sm text-neutral-300">
+                          Total licencias
+                        </p>
+                        <div className="mt-2 text-3xl font-semibold">
+                          {licStats.total}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-sm text-neutral-300">Disponibles</p>
+                        <div className="mt-2 text-3xl font-semibold text-emerald-400">
+                          {licStats.disponibles}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-sm text-neutral-300">Asignadas</p>
+                        <div className="mt-2 text-3xl font-semibold text-orange-400">
+                          {licStats.ocupadas}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+                        <h3 className="text-base font-semibold">Por tipo</h3>
+                        <ul className="mt-3 space-y-3">
+                          {statsPorTipo.length === 0 ? (
+                            <li className="text-sm text-neutral-300">
+                              Sin datos.
+                            </li>
+                          ) : (
+                            statsPorTipo.map(([tipo, count]) => (
+                              <li key={tipo} className="space-y-1">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="truncate pr-2">{tipo}</span>
+                                  <span className="font-semibold">{count}</span>
+                                </div>
+                                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-orange-500"
+                                    style={{
+                                      width: `${
+                                        statsMaxTipo
+                                          ? Math.max(
+                                              (count / statsMaxTipo) * 100,
+                                              8
+                                            )
+                                          : 100
+                                      }%`,
+                                    }}
+                                  />
+                                </div>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+                        <h3 className="text-base font-semibold">
+                          Por proveedor
+                        </h3>
+                        <ul className="mt-3 space-y-3">
+                          {statsPorProveedor.length === 0 ? (
+                            <li className="text-sm text-neutral-300">
+                              Sin datos.
+                            </li>
+                          ) : (
+                            statsPorProveedor.map(([prov, count]) => (
+                              <li key={prov} className="space-y-1">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="truncate pr-2">{prov}</span>
+                                  <span className="font-semibold">{count}</span>
+                                </div>
+                                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-emerald-500"
+                                    style={{
+                                      width: `${
+                                        statsMaxProveedor
+                                          ? Math.max(
+                                              (count / statsMaxProveedor) * 100,
+                                              8
+                                            )
+                                          : 100
+                                      }%`,
+                                    }}
+                                  />
+                                </div>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-neutral-300">Sin datos.</div>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-0 backdrop-blur-md overflow-hidden">
+                <div className="overflow-x-auto max-h-[70vh] overflow-y-auto -mx-4 sm:mx-0">
+                  {tab === "activos" ? (
+                    <>
+                      {/* Vista móvil: tarjetas */}
+                      <div className="block lg:hidden divide-y divide-white/10">
+                        {activosToRender.map((a) => (
+                          <div key={a._id} className="p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm text-neutral-300">
+                                  {a.categoria || "-"}
+                                </div>
+                                <div className="font-semibold truncate">
+                                  {(a.marca || "") + " " + (a.modelo || "-")}
+                                </div>
+                                <ul className="mt-1 text-sm text-neutral-300 space-y-1">
+                                  <li>
+                                    <span className="text-neutral-400">
+                                      Serie:
+                                    </span>{" "}
+                                    {a.numeroSerie || "-"}
+                                  </li>
+                                  <li>
+                                    <span className="text-neutral-400">
+                                      Compra:
+                                    </span>{" "}
+                                    {a.fechaCompra
+                                      ? new Date(
+                                          a.fechaCompra
+                                        ).toLocaleDateString()
+                                      : "-"}
+                                  </li>
+                                  <li>
+                                    <span className="text-neutral-400">
+                                      Asignado a:
+                                    </span>{" "}
+                                    {a.asignadoPara || "-"}
+                                  </li>
+                                  <li>
+                                    <span className="text-neutral-400">
+                                      Asignación:
+                                    </span>{" "}
+                                    {a.fechaAsignacion
+                                      ? new Date(
+                                          a.fechaAsignacion
+                                        ).toLocaleDateString()
+                                      : "-"}
+                                  </li>
+                                </ul>
                               </div>
-                              <div className="font-semibold truncate">
-                                {(a.marca || "") + " " + (a.modelo || "-")}
-                              </div>
-                              <ul className="mt-1 text-sm text-neutral-300 space-y-1">
-                                <li>
-                                  <span className="text-neutral-400">
-                                    Serie:
-                                  </span>{" "}
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <button
+                                className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
+                                onClick={() => openEdit(a)}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
+                                onClick={() =>
+                                  openAssign(
+                                    "activo",
+                                    String(a._id || ""),
+                                    `${a.marca || ""} ${
+                                      a.modelo || ""
+                                    }`.trim() || "Activo",
+                                    a.asignadoPara || "",
+                                    a.fechaAsignacion || ""
+                                  )
+                                }
+                              >
+                                {a.asignadoPara ? "Reasignar" : "Asignar"}
+                              </button>
+                              <button
+                                className="rounded-lg border border-red-500/40 px-3 py-1 hover:bg-red-500/20 transition"
+                                onClick={() =>
+                                  openDelete(
+                                    "activo",
+                                    String(a._id || ""),
+                                    `${a.marca || ""} ${
+                                      a.modelo || ""
+                                    }`.trim() || "Activo"
+                                  )
+                                }
+                              >
+                                Eliminar
+                              </button>
+                              <button
+                                className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
+                                onClick={() =>
+                                  openHistorial(
+                                    "activo",
+                                    String(a._id || ""),
+                                    `${a.marca || ""} ${
+                                      a.modelo || ""
+                                    }`.trim() || "Activo"
+                                  )
+                                }
+                              >
+                                Historial
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {activosSolo.length === 0 && !loading && (
+                          <div className="px-4 py-6 text-center text-neutral-300">
+                            Sin resultados
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Vista escritorio: tabla */}
+                      <div className="hidden lg:block">
+                        <table className="min-w-full text-sm">
+                          <thead className="bg-black sticky top-0 z-10 backdrop-blur">
+                            <tr>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Categoría
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Marca
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Modelo
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Serie
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Compra
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Asignado a
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Asignación
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Acciones
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {activosToRender.map((a) => (
+                              <tr
+                                key={a._id}
+                                className="border-t border-white/10 odd:bg-white/[0.03] hover:bg-white/10 transition-colors"
+                              >
+                                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
+                                  {a.categoria || "-"}
+                                </td>
+                                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
+                                  {a.marca || "-"}
+                                </td>
+                                <td
+                                  className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate"
+                                  title={a.modelo || undefined}
+                                >
+                                  {a.modelo || "-"}
+                                </td>
+                                <td
+                                  className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate"
+                                  title={a.numeroSerie || undefined}
+                                >
                                   {a.numeroSerie || "-"}
-                                </li>
-                                <li>
-                                  <span className="text-neutral-400">
-                                    Compra:
-                                  </span>{" "}
+                                </td>
+                                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
                                   {a.fechaCompra
                                     ? new Date(
                                         a.fechaCompra
                                       ).toLocaleDateString()
                                     : "-"}
-                                </li>
-                                <li>
-                                  <span className="text-neutral-400">
-                                    Asignado a:
-                                  </span>{" "}
+                                </td>
+                                <td
+                                  className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate"
+                                  title={a.asignadoPara || undefined}
+                                >
                                   {a.asignadoPara || "-"}
-                                </li>
-                                <li>
-                                  <span className="text-neutral-400">
-                                    Asignación:
-                                  </span>{" "}
+                                </td>
+                                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
                                   {a.fechaAsignacion
                                     ? new Date(
                                         a.fechaAsignacion
                                       ).toLocaleDateString()
                                     : "-"}
-                                </li>
-                              </ul>
-                            </div>
-                          </div>
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <button
-                              className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
-                              onClick={() => openEdit(a)}
-                            >
-                              Editar
-                            </button>
-                            <button
-                              className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
-                              onClick={() =>
-                                openAssign(
-                                  "activo",
-                                  String(a._id || ""),
-                                  `${a.marca || ""} ${a.modelo || ""}`.trim() ||
-                                    "Activo",
-                                  a.asignadoPara || "",
-                                  a.fechaAsignacion || ""
-                                )
-                              }
-                            >
-                              {a.asignadoPara ? "Reasignar" : "Asignar"}
-                            </button>
-                            <button
-                              className="rounded-lg border border-red-500/40 px-3 py-1 hover:bg-red-500/20 transition"
-                              onClick={() =>
-                                openDelete(
-                                  "activo",
-                                  String(a._id || ""),
-                                  `${a.marca || ""} ${a.modelo || ""}`.trim() ||
-                                    "Activo"
-                                )
-                              }
-                            >
-                              Eliminar
-                            </button>
-                            <button
-                              className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
-                              onClick={() =>
-                                openHistorial(
-                                  "activo",
-                                  String(a._id || ""),
-                                  `${a.marca || ""} ${a.modelo || ""}`.trim() ||
-                                    "Activo"
-                                )
-                              }
-                            >
-                              Historial
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      {activosSolo.length === 0 && !loading && (
-                        <div className="px-4 py-6 text-center text-neutral-300">
-                          Sin resultados
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Vista escritorio: tabla */}
-                    <div className="hidden lg:block">
-                      <table className="min-w-full text-sm">
-                        <thead className="bg-black sticky top-0 z-10 backdrop-blur">
-                          <tr>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Categoría
-                            </th>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Marca
-                            </th>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Modelo
-                            </th>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Serie
-                            </th>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Compra
-                            </th>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Asignado a
-                            </th>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Asignación
-                            </th>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Acciones
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {activosSolo.map((a) => (
-                            <tr
-                              key={a._id}
-                              className="border-t border-white/10 odd:bg-white/[0.03] hover:bg-white/10 transition-colors"
-                            >
-                              <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
-                                {a.categoria || "-"}
-                              </td>
-                              <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
-                                {a.marca || "-"}
-                              </td>
-                              <td
-                                className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate"
-                                title={a.modelo || undefined}
-                              >
-                                {a.modelo || "-"}
-                              </td>
-                              <td
-                                className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate"
-                                title={a.numeroSerie || undefined}
-                              >
-                                {a.numeroSerie || "-"}
-                              </td>
-                              <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
-                                {a.fechaCompra
-                                  ? new Date(a.fechaCompra).toLocaleDateString()
-                                  : "-"}
-                              </td>
-                              <td
-                                className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate"
-                                title={a.asignadoPara || undefined}
-                              >
-                                {a.asignadoPara || "-"}
-                              </td>
-                              <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
-                                {a.fechaAsignacion
-                                  ? new Date(
-                                      a.fechaAsignacion
-                                    ).toLocaleDateString()
-                                  : "-"}
-                              </td>
-                              <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
-                                <div className="flex flex-wrap items-center gap-2 gap-y-1">
-                                  <button
-                                    className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
-                                    onClick={() => openEdit(a)}
-                                  >
-                                    Editar
-                                  </button>
-                                  <button
-                                    className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
-                                    onClick={() =>
-                                      openAssign(
-                                        "activo",
-                                        String(a._id || ""),
-                                        `${a.marca || ""} ${
-                                          a.modelo || ""
-                                        }`.trim() || "Activo",
-                                        a.asignadoPara || "",
-                                        a.fechaAsignacion || ""
-                                      )
-                                    }
-                                  >
-                                    {a.asignadoPara ? "Reasignar" : "Asignar"}
-                                  </button>
-                                  <button
-                                    className="rounded-lg border border-red-500/40 px-3 py-1 hover:bg-red-500/20 transition"
-                                    onClick={() =>
-                                      openDelete(
-                                        "activo",
-                                        String(a._id || ""),
-                                        `${a.marca || ""} ${
-                                          a.modelo || ""
-                                        }`.trim() || "Activo"
-                                      )
-                                    }
-                                  >
-                                    Eliminar
-                                  </button>
-                                  <button
-                                    className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
-                                    onClick={() =>
-                                      openHistorial(
-                                        "activo",
-                                        String(a._id || ""),
-                                        `${a.marca || ""} ${
-                                          a.modelo || ""
-                                        }`.trim() || "Activo"
-                                      )
-                                    }
-                                  >
-                                    Historial
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                          {activos.length === 0 && !loading && (
-                            <tr>
-                              <td
-                                className="px-4 py-6 text-center text-neutral-300"
-                                colSpan={8}
-                              >
-                                Sin resultados
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {/* Vista móvil: tarjetas */}
-                    <div className="block lg:hidden divide-y divide-white/10">
-                      {licencias
-                        .filter((l) => {
-                          if (
-                            licDesdeAsign &&
-                            (!l.fechaAsignacion ||
-                              l.fechaAsignacion < licDesdeAsign)
-                          )
-                            return false;
-                          if (
-                            licHastaAsign &&
-                            (!l.fechaAsignacion ||
-                              l.fechaAsignacion > licHastaAsign)
-                          )
-                            return false;
-                          return true;
-                        })
-                        .map((l) => (
+                                </td>
+                                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
+                                  <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                                    <button
+                                      className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
+                                      onClick={() => openEdit(a)}
+                                    >
+                                      Editar
+                                    </button>
+                                    <button
+                                      className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
+                                      onClick={() =>
+                                        openAssign(
+                                          "activo",
+                                          String(a._id || ""),
+                                          `${a.marca || ""} ${
+                                            a.modelo || ""
+                                          }`.trim() || "Activo",
+                                          a.asignadoPara || "",
+                                          a.fechaAsignacion || ""
+                                        )
+                                      }
+                                    >
+                                      {a.asignadoPara ? "Reasignar" : "Asignar"}
+                                    </button>
+                                    <button
+                                      className="rounded-lg border border-red-500/40 px-3 py-1 hover:bg-red-500/20 transition"
+                                      onClick={() =>
+                                        openDelete(
+                                          "activo",
+                                          String(a._id || ""),
+                                          `${a.marca || ""} ${
+                                            a.modelo || ""
+                                          }`.trim() || "Activo"
+                                        )
+                                      }
+                                    >
+                                      Eliminar
+                                    </button>
+                                    <button
+                                      className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
+                                      onClick={() =>
+                                        openHistorial(
+                                          "activo",
+                                          String(a._id || ""),
+                                          `${a.marca || ""} ${
+                                            a.modelo || ""
+                                          }`.trim() || "Activo"
+                                        )
+                                      }
+                                    >
+                                      Historial
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                            {activosSolo.length === 0 && !loading && (
+                              <tr>
+                                <td
+                                  className="px-4 py-6 text-center text-neutral-300"
+                                  colSpan={8}
+                                >
+                                  Sin resultados
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Vista móvil: tarjetas */}
+                      <div className="block lg:hidden divide-y divide-white/10">
+                        {licenciasToRender.map((l) => (
                           <div key={l._id} className="p-4">
                             <div className="font-semibold truncate">
                               {l.cuenta || "-"}
@@ -1266,59 +1502,43 @@ export default function GestionInventario() {
                             </div>
                           </div>
                         ))}
-                      {licencias.length === 0 && !loading && (
-                        <div className="px-4 py-6 text-center text-neutral-300">
-                          Sin resultados
-                        </div>
-                      )}
-                    </div>
+                        {licenciasFiltradas.length === 0 && !loading && (
+                          <div className="px-4 py-6 text-center text-neutral-300">
+                            Sin resultados
+                          </div>
+                        )}
+                      </div>
 
-                    {/* Vista escritorio: tabla */}
-                    <div className="hidden lg:block">
-                      <table className="min-w-full text-sm">
-                        <thead className="bg-black sticky top-0 z-10 backdrop-blur">
-                          <tr>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Cuenta
-                            </th>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Proveedor
-                            </th>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Tipo licencia
-                            </th>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Compra
-                            </th>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Asignado a
-                            </th>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Asignación
-                            </th>
-                            <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
-                              Acciones
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {licencias
-                            .filter((l) => {
-                              if (
-                                licDesdeAsign &&
-                                (!l.fechaAsignacion ||
-                                  l.fechaAsignacion < licDesdeAsign)
-                              )
-                                return false;
-                              if (
-                                licHastaAsign &&
-                                (!l.fechaAsignacion ||
-                                  l.fechaAsignacion > licHastaAsign)
-                              )
-                                return false;
-                              return true;
-                            })
-                            .map((l) => (
+                      {/* Vista escritorio: tabla */}
+                      <div className="hidden lg:block">
+                        <table className="min-w-full text-sm">
+                          <thead className="bg-black sticky top-0 z-10 backdrop-blur">
+                            <tr>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Cuenta
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Proveedor
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Tipo licencia
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Compra
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Asignado a
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Asignación
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Acciones
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {licenciasToRender.map((l) => (
                               <tr
                                 key={l._id}
                                 className="border-t border-white/10 odd:bg-white/[0.03] hover:bg-white/10 transition-colors"
@@ -1414,34 +1634,47 @@ export default function GestionInventario() {
                                 </td>
                               </tr>
                             ))}
-                          {licencias.length === 0 && !loading && (
-                            <tr>
-                              <td
-                                className="px-4 py-6 text-center text-neutral-300"
-                                colSpan={7}
-                              >
-                                Sin resultados
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
+                            {licenciasFiltradas.length === 0 && !loading && (
+                              <tr>
+                                <td
+                                  className="px-4 py-6 text-center text-neutral-300"
+                                  colSpan={7}
+                                >
+                                  Sin resultados
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                      {visibleLicencias < licenciasFiltradas.length && (
+                        <div className="px-4 py-4 flex justify-center border-t border-white/10">
+                          <button
+                            className="rounded-xl border border-white/10 px-4 py-2 hover:bg-white/10 transition"
+                            onClick={() =>
+                              setVisibleLicencias((v) => v + PAGE_SIZE)
+                            }
+                          >
+                            Mostrar más
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {loading && (
+                  <div className="px-4 py-3 text-neutral-300 border-t border-white/10">
+                    Cargando…
+                  </div>
+                )}
+                {error && (
+                  <div className="px-4 py-3 text-red-300 border-t border-red-500/30 bg-red-500/10">
+                    {error}
+                  </div>
                 )}
               </div>
-
-              {loading && (
-                <div className="px-4 py-3 text-neutral-300 border-t border-white/10">
-                  Cargando…
-                </div>
-              )}
-              {error && (
-                <div className="px-4 py-3 text-red-300 border-t border-red-500/30 bg-red-500/10">
-                  {error}
-                </div>
-              )}
-            </div>
+            )}
           </section>
         </div>
       </div>

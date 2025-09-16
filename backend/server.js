@@ -220,8 +220,13 @@ app.get("/api/activos", async (req, res) => {
         q.fechaAsignacion.$lte = new Date(req.query.hastaAsign);
     }
 
-    const docs = await Activo.find(q).sort({ createdAt: -1 }).limit(500);
-    res.json({ ok: true, data: docs });
+    const limit = Math.min(Number(req.query.limit) || 50, 500);
+    const skip = Math.max(Number(req.query.skip) || 0, 0);
+    const [docs, total] = await Promise.all([
+      Activo.find(q).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Activo.countDocuments(q),
+    ]);
+    res.json({ ok: true, data: docs, total, limit, skip });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -419,7 +424,13 @@ app.delete("/api/licencias/:id", async (req, res) => {
 app.get("/api/licencias", async (req, res) => {
   try {
     const q = {};
-    if (req.query.cuenta) q.cuenta = req.query.cuenta;
+    if (req.query.cuenta) {
+      try {
+        q.cuenta = new RegExp(String(req.query.cuenta), "i");
+      } catch (_) {
+        q.cuenta = String(req.query.cuenta);
+      }
+    }
     if (req.query.proveedor) q.proveedor = req.query.proveedor;
     if (req.query.tipoLicencia) q.tipoLicencia = req.query.tipoLicencia;
     if (req.query.asignadoPara) {
@@ -438,8 +449,67 @@ app.get("/api/licencias", async (req, res) => {
         q.fechaCompra.$lte = new Date(req.query.hastaCompra);
     }
 
-    const docs = await Licencia.find(q).sort({ createdAt: -1 }).limit(500);
-    res.json({ ok: true, data: docs });
+    const limit = Math.min(Number(req.query.limit) || 50, 500);
+    const skip = Math.max(Number(req.query.skip) || 0, 0);
+    const [docs, total] = await Promise.all([
+      Licencia.find(q).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Licencia.countDocuments(q),
+    ]);
+    res.json({ ok: true, data: docs, total, limit, skip });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+
+// Estadisticas de LICENCIAS
+app.get("/api/licencias/stats", async (_req, res) => {
+  try {
+    const [licDocs, activosLicDocs] = await Promise.all([
+      Licencia.find({}, { proveedor: 1, tipoLicencia: 1, cuenta: 1 }).lean(),
+      Activo.find({ categoria: "licencias" }, { licencia: 1 }).lean(),
+    ]);
+
+    const stats = {
+      total: 0,
+      disponibles: 0,
+      porTipo: {},
+      porProveedor: {},
+    };
+
+    const addSample = (tipo, proveedor, cuenta) => {
+      const keyTipo = tipo || "Sin tipo";
+      const keyProv = proveedor || "Sin proveedor";
+      const cuentaStr = (cuenta == null ? "" : String(cuenta)).trim().toLowerCase();
+      const disponible = cuentaStr === "disponible";
+
+      stats.total += 1;
+      if (disponible) stats.disponibles += 1;
+      stats.porTipo[keyTipo] = (stats.porTipo[keyTipo] || 0) + 1;
+      stats.porProveedor[keyProv] = (stats.porProveedor[keyProv] || 0) + 1;
+    };
+
+    for (const lic of licDocs) {
+      addSample(lic.tipoLicencia || "Sin tipo", lic.proveedor || "Sin proveedor", lic.cuenta);
+    }
+
+    for (const activo of activosLicDocs) {
+      const lic = (activo && activo.licencia) || {};
+      addSample(lic.tipoLicencia || "Sin tipo", lic.proveedor || "Sin proveedor", lic.cuenta);
+    }
+
+    const ocupadas = Math.max(stats.total - stats.disponibles, 0);
+
+    res.json({
+      ok: true,
+      data: {
+        total: stats.total,
+        disponibles: stats.disponibles,
+        ocupadas,
+        porTipo: stats.porTipo,
+        porProveedor: stats.porProveedor,
+      },
+    });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }

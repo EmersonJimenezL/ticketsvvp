@@ -27,7 +27,9 @@ export default function AdminHome() {
           <h1 className="text-2xl font-extrabold tracking-tight">
             Centro de Administración
           </h1>
-          <p className="text-neutral-300 text-sm">Elige un módulo para continuar</p>
+          <p className="text-neutral-300 text-sm">
+            Elige un módulo para continuar
+          </p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
@@ -56,7 +58,9 @@ export default function AdminHome() {
               </div>
               <div>
                 <div className="text-xl font-bold">Gestionar Tickets</div>
-                <div className="text-neutral-300 text-sm">Ver y actualizar pendientes</div>
+                <div className="text-neutral-300 text-sm">
+                  Ver y actualizar pendientes
+                </div>
               </div>
             </div>
             <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-300">
@@ -78,7 +82,9 @@ export default function AdminHome() {
               </div>
               <div>
                 <div className="text-xl font-bold">Gestionar Activos</div>
-                <div className="text-neutral-300 text-sm">Activos y licencias</div>
+                <div className="text-neutral-300 text-sm">
+                  Activos y licencias
+                </div>
               </div>
             </div>
             <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-300">
@@ -100,7 +106,9 @@ export default function AdminHome() {
               </div>
               <div>
                 <div className="text-xl font-bold">Gestionar Modelos</div>
-                <div className="text-neutral-300 text-sm">Especificaciones técnicas</div>
+                <div className="text-neutral-300 text-sm">
+                  Especificaciones técnicas
+                </div>
               </div>
             </div>
             <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-300">
