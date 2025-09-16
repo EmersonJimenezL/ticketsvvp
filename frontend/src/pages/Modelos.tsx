@@ -238,7 +238,50 @@ export default function Modelos() {
 
         {/* Lista */}
         <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md">
-          <div className="overflow-x-auto">
+          {/* Vista móvil: tarjetas */}
+          <div className="block lg:hidden divide-y divide-white/10">
+            {loading && (
+              <div className="px-4 py-6 text-neutral-300">Cargando...</div>
+            )}
+            {!loading && filtered.length === 0 && (
+              <div className="px-4 py-6 text-neutral-300">No hay modelos cargados.</div>
+            )}
+            {filtered.map((m) => (
+              <div key={m._id || m.modelo} className="p-4">
+                <div className="font-semibold truncate">{m.modelo}</div>
+                <ul className="mt-1 text-sm text-neutral-300 space-y-1">
+                  <li><span className="text-neutral-400">Categoría:</span> {m.categoria || '-'}</li>
+                  <li><span className="text-neutral-400">Marca:</span> {m.marca || '-'}</li>
+                  <li className="truncate"><span className="text-neutral-400">Procesador:</span> {m.procesador || '-'}</li>
+                  <li><span className="text-neutral-400">Frecuencia:</span> {m.frecuenciaGhz || '-'}</li>
+                  <li className="truncate"><span className="text-neutral-400">Almacenamiento:</span> {m.almacenamiento || '-'}</li>
+                  <li><span className="text-neutral-400">RAM:</span> {m.ram || '-'}</li>
+                  <li><span className="text-neutral-400">SO:</span> {m.so || '-'}</li>
+                  <li className="truncate"><span className="text-neutral-400">Gráficos:</span> {m.graficos || '-'}</li>
+                  <li className="truncate"><span className="text-neutral-400">Resolución:</span> {m.resolucion || '-'}</li>
+                </ul>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setEditingId(m._id || null); setForm({ ...m }); setShowForm(true); }}
+                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-neutral-100 hover:bg-white/10 transition"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(m._id)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-red-600/80 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500 transition"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Vista escritorio: tabla */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="text-neutral-300">
                 <tr>
