@@ -204,6 +204,13 @@ app.get("/api/activos", async (req, res) => {
       ];
     }
     if (req.query.categoria) q.categoria = req.query.categoria;
+    if (req.query.sucursal) {
+      try {
+        q.sucursal = new RegExp(String(req.query.sucursal), "i");
+      } catch (_) {
+        q.sucursal = String(req.query.sucursal);
+      }
+    }
 
     if (req.query.desdeCompra || req.query.hastaCompra) {
       q.fechaCompra = {};
@@ -433,6 +440,13 @@ app.get("/api/licencias", async (req, res) => {
     }
     if (req.query.proveedor) q.proveedor = req.query.proveedor;
     if (req.query.tipoLicencia) q.tipoLicencia = req.query.tipoLicencia;
+    if (req.query.sucursal) {
+      try {
+        q.sucursal = new RegExp(String(req.query.sucursal), "i");
+      } catch (_) {
+        q.sucursal = String(req.query.sucursal);
+      }
+    }
     if (req.query.asignadoPara) {
       try {
         q.asignadoPara = new RegExp(String(req.query.asignadoPara), "i");

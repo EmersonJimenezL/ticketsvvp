@@ -11,6 +11,7 @@ type Activo = {
   modelo?: string;
   fechaCompra?: string; // ISO
   numeroSerie?: string;
+  sucursal?: string;
   asignadoPara?: string;
   fechaAsignacion?: string; // ISO
   createdAt?: string;
@@ -23,6 +24,7 @@ type Licencia = {
   cuenta?: string;
   tipoLicencia?: string;
   fechaCompra?: string; // ISO
+  sucursal?: string;
   asignadoPara?: string;
   fechaAsignacion?: string; // ISO
   activoId?: string;
@@ -123,6 +125,7 @@ export default function GestionInventario() {
   const [hastaCompra, setHastaCompra] = useState("");
   const [desdeAsign, setDesdeAsign] = useState("");
   const [hastaAsign, setHastaAsign] = useState("");
+  const [sucursalAct, setSucursalAct] = useState("");
 
   /* Filtros licencias */
   const [cuenta, setCuenta] = useState("");
@@ -133,6 +136,7 @@ export default function GestionInventario() {
   const [licHastaCompra, setLicHastaCompra] = useState("");
   const [licDesdeAsign, setLicDesdeAsign] = useState("");
   const [licHastaAsign, setLicHastaAsign] = useState("");
+  const [licSucursal, setLicSucursal] = useState("");
 
   const debouncedCuenta = useDebouncedValue(cuenta, 300);
   const debouncedAsignado = useDebouncedValue(licAsignadoPara, 300);
@@ -150,6 +154,7 @@ export default function GestionInventario() {
     params.set("limit", "500");
     if (soloSinAsignacion) params.set("soloSinAsignacion", "1");
     if (categoria) params.set("categoria", categoria);
+    if (sucursalAct) params.set("sucursal", sucursalAct);
     if (desdeCompra) params.set("desdeCompra", desdeCompra);
     if (hastaCompra) params.set("hastaCompra", hastaCompra);
     if (desdeAsign) params.set("desdeAsign", desdeAsign);
@@ -166,6 +171,7 @@ export default function GestionInventario() {
     hastaCompra,
     desdeAsign,
     hastaAsign,
+    sucursalAct,
   ]);
 
   // Versión unificada: trae licencias reales y también las que están
@@ -190,10 +196,12 @@ export default function GestionInventario() {
     if (debouncedAsignado) params.set("asignadoPara", debouncedAsignado);
     if (licDesdeCompra) params.set("desdeCompra", licDesdeCompra);
     if (licHastaCompra) params.set("hastaCompra", licHastaCompra);
+    if (licSucursal) params.set("sucursal", licSucursal);
 
     const activosLicParams = new URLSearchParams();
     activosLicParams.set("categoria", "licencias");
     activosLicParams.set("limit", "500");
+    if (licSucursal) activosLicParams.set("sucursal", licSucursal);
 
     const [rLic, rActLic] = await Promise.all([
       fetch(`${API}/licencias?${params.toString()}`).catch(() => null),
@@ -221,6 +229,7 @@ export default function GestionInventario() {
               cuenta: a?.licencia?.cuenta,
               tipoLicencia: a?.licencia?.tipoLicencia,
               fechaCompra: a?.fechaCompra,
+              sucursal: a?.sucursal,
               asignadoPara: a?.licencia?.usuarioNombre || a?.asignadoPara,
               fechaAsignacion:
                 a?.licencia?.asignadaEn || a?.fechaAsignacion || undefined,
@@ -262,6 +271,13 @@ export default function GestionInventario() {
       );
     }
 
+    if (licSucursal) {
+      const sucursalNeedle = licSucursal.toLowerCase();
+      list = list.filter((l) =>
+        (l.sucursal || "").toLowerCase().includes(sucursalNeedle)
+      );
+    }
+
     // Filtro por proveedor (aplica también a las filas mapeadas desde activos)
     if (licProveedor) {
       const p = licProveedor.toLowerCase();
@@ -277,6 +293,7 @@ export default function GestionInventario() {
     debouncedAsignado,
     licDesdeCompra,
     licHastaCompra,
+    licSucursal,
   ]);
 
   const fetchLicStats = useCallback(async () => {
@@ -311,7 +328,7 @@ export default function GestionInventario() {
 
   useEffect(() => {
     setVisibleLicencias(PAGE_SIZE);
-  }, [licencias, licDesdeAsign, licHastaAsign]);
+  }, [licencias, licDesdeAsign, licHastaAsign, licSucursal]);
 
   /* ===== crear/editar activos (mismo flujo que tenías) ===== */
   const [showForm, setShowForm] = useState(false);
@@ -322,6 +339,7 @@ export default function GestionInventario() {
     modelo: "",
     fechaCompra: "",
     numeroSerie: "",
+    sucursal: "",
     asignadoPara: "",
     fechaAsignacion: "",
   });
@@ -334,6 +352,7 @@ export default function GestionInventario() {
       modelo: "",
       fechaCompra: "",
       numeroSerie: "",
+      sucursal: "",
       asignadoPara: "",
       fechaAsignacion: "",
     });
@@ -347,6 +366,7 @@ export default function GestionInventario() {
       modelo: a.modelo || "",
       fechaCompra: (a.fechaCompra || "").slice(0, 10),
       numeroSerie: a.numeroSerie || "",
+      sucursal: (a as any).sucursal || "",
       asignadoPara: (a as any).asignadoPara || "",
       fechaAsignacion: (a.fechaAsignacion || "").slice(0, 10),
     });
@@ -367,11 +387,13 @@ export default function GestionInventario() {
         modelo: form.modelo,
         fechaCompra: form.fechaCompra,
         numeroSerie: form.numeroSerie,
+        sucursal: form.sucursal,
         asignadoPara: form.asignadoPara,
         fechaAsignacion: form.fechaAsignacion,
       };
       if (!payload.fechaCompra) delete payload.fechaCompra;
       if (!payload.fechaAsignacion) delete payload.fechaAsignacion;
+      if (!payload.sucursal) delete payload.sucursal;
 
       const method = editId ? "PATCH" : "POST";
       const url = editId ? `${API}/activos/${editId}` : `${API}/activos`;
@@ -400,6 +422,7 @@ export default function GestionInventario() {
       setHastaCompra("");
       setDesdeAsign("");
       setHastaAsign("");
+      setSucursalAct("");
     } else {
       setCuenta("");
       setLicProveedor("");
@@ -409,6 +432,7 @@ export default function GestionInventario() {
       setLicHastaCompra("");
       setLicDesdeAsign("");
       setLicHastaAsign("");
+      setLicSucursal("");
     }
   }
 
@@ -526,6 +550,7 @@ export default function GestionInventario() {
     cuenta: "",
     tipoLicencia: "",
     fechaCompra: "",
+    sucursal: "",
     asignadoPara: "",
     fechaAsignacion: "",
   });
@@ -535,6 +560,7 @@ export default function GestionInventario() {
       cuenta: "",
       tipoLicencia: "",
       fechaCompra: "",
+      sucursal: "",
       asignadoPara: "",
       fechaAsignacion: "",
     });
@@ -548,6 +574,7 @@ export default function GestionInventario() {
       cuenta: l.cuenta || "",
       tipoLicencia: l.tipoLicencia || "",
       fechaCompra: (l.fechaCompra || "").slice(0, 10),
+      sucursal: l.sucursal || "",
       asignadoPara: l.asignadoPara || "",
       fechaAsignacion: (l.fechaAsignacion || "").slice(0, 10),
       _id: l._id,
@@ -563,12 +590,14 @@ export default function GestionInventario() {
         cuenta: licForm.cuenta,
         tipoLicencia: licForm.tipoLicencia,
         fechaCompra: licForm.fechaCompra,
+        sucursal: licForm.sucursal,
         asignadoPara: licForm.asignadoPara,
         fechaAsignacion: licForm.fechaAsignacion,
       };
       if (!payload.fechaCompra) delete payload.fechaCompra;
       if (!payload.fechaAsignacion) delete payload.fechaAsignacion;
       if (!payload.proveedor) delete payload.proveedor;
+      if (!payload.sucursal) delete payload.sucursal;
       const method = editLicId ? "PATCH" : "POST";
       const url = editLicId
         ? `${API}/licencias/${editLicId}`
@@ -874,6 +903,17 @@ export default function GestionInventario() {
                     </div>
                   </div>
 
+                  <div>
+                    <label className="block text-sm text-neutral-300">
+                      Sucursal
+                    </label>
+                    <input
+                      className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                      value={sucursalAct}
+                      onChange={(e) => setSucursalAct(e.target.value)}
+                    />
+                  </div>
+
                   <label className="inline-flex items-center gap-2 text-neutral-300">
                     <input
                       type="checkbox"
@@ -921,6 +961,17 @@ export default function GestionInventario() {
                       className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
                       value={cuenta}
                       onChange={(e) => setCuenta(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-neutral-300">
+                      Sucursal
+                    </label>
+                    <input
+                      className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                      value={licSucursal}
+                      onChange={(e) => setLicSucursal(e.target.value)}
                     />
                   </div>
 
@@ -1172,6 +1223,12 @@ export default function GestionInventario() {
                                   </li>
                                   <li>
                                     <span className="text-neutral-400">
+                                      Sucursal:
+                                    </span>{" "}
+                                    {a.sucursal || "-"}
+                                  </li>
+                                  <li>
+                                    <span className="text-neutral-400">
                                       Compra:
                                     </span>{" "}
                                     {a.fechaCompra
@@ -1278,6 +1335,9 @@ export default function GestionInventario() {
                                 Serie
                               </th>
                               <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Sucursal
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
                                 Compra
                               </th>
                               <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
@@ -1314,6 +1374,12 @@ export default function GestionInventario() {
                                   title={a.numeroSerie || undefined}
                                 >
                                   {a.numeroSerie || "-"}
+                                </td>
+                                <td
+                                  className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate"
+                                  title={a.sucursal || undefined}
+                                >
+                                  {a.sucursal || "-"}
                                 </td>
                                 <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
                                   {a.fechaCompra
@@ -1395,7 +1461,7 @@ export default function GestionInventario() {
                               <tr>
                                 <td
                                   className="px-4 py-6 text-center text-neutral-300"
-                                  colSpan={8}
+                                  colSpan={9}
                                 >
                                   Sin resultados
                                 </td>
@@ -1432,6 +1498,12 @@ export default function GestionInventario() {
                                 {l.fechaCompra
                                   ? new Date(l.fechaCompra).toLocaleDateString()
                                   : "-"}
+                              </li>
+                              <li className="truncate">
+                                <span className="text-neutral-400">
+                                  Sucursal:
+                                </span>{" "}
+                                {l.sucursal || "-"}
                               </li>
                               <li className="truncate">
                                 <span className="text-neutral-400">
@@ -1527,6 +1599,9 @@ export default function GestionInventario() {
                                 Compra
                               </th>
                               <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
+                                Sucursal
+                              </th>
+                              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
                                 Asignado a
                               </th>
                               <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">
@@ -1564,6 +1639,12 @@ export default function GestionInventario() {
                                         l.fechaCompra
                                       ).toLocaleDateString()
                                     : "-"}
+                                </td>
+                                <td
+                                  className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate"
+                                  title={l.sucursal || undefined}
+                                >
+                                  {l.sucursal || "-"}
                                 </td>
                                 <td
                                   className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate"
@@ -1638,7 +1719,7 @@ export default function GestionInventario() {
                               <tr>
                                 <td
                                   className="px-4 py-6 text-center text-neutral-300"
-                                  colSpan={7}
+                                  colSpan={8}
                                 >
                                   Sin resultados
                                 </td>
@@ -1814,6 +1895,19 @@ export default function GestionInventario() {
 
               <div>
                 <label className="block text-sm text-neutral-300">
+                  Sucursal
+                </label>
+                <input
+                  className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                  value={form.sucursal || ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, sucursal: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-neutral-300">
                   Asignado a
                 </label>
                 <input
@@ -1972,6 +2066,18 @@ export default function GestionInventario() {
                 />
               </div>
               {/* Disponible ya no aplica en el nuevo modelo */}
+              <div>
+                <label className="block text-sm text-neutral-300">
+                  Sucursal
+                </label>
+                <input
+                  className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+                  value={licForm.sucursal || ""}
+                  onChange={(e) =>
+                    setLicForm((f) => ({ ...f, sucursal: e.target.value }))
+                  }
+                />
+              </div>
               <div>
                 <label className="block text-sm text-neutral-300">
                   Asignado a
