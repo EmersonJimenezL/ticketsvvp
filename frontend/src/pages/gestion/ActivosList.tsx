@@ -1,4 +1,3 @@
-import React from "react";
 import type { Activo } from "./types";
 
 type Props = {
@@ -11,9 +10,64 @@ type Props = {
 };
 
 export default function ActivosList({ items, loading, onEdit, onAssign, onDelete, onHistorial }: Props) {
+  const makeActionButtons = (a: Activo) => {
+    const assignLabel = a.asignadoPara ? "Reasignar" : "Asignar";
+
+    return [
+      <button
+        key="edit"
+        type="button"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition"
+        onClick={() => onEdit(a)}
+        aria-label="Editar"
+        title="Editar"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.688-1.688a1.5 1.5 0 1 1 2.122 2.122L7.5 18.094l-3 1 1-3 11.362-11.607Z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 19.5h12" />
+        </svg>
+      </button>,
+      <button
+        key="assign"
+        type="button"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition"
+        onClick={() => onAssign(a)}
+        aria-label={assignLabel}
+        title={assignLabel}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="m8 7-5 5m0 0 5 5M3 12h12m6 5v2a2 2 0 0 1-2 2h-3m5-18v2a2 2 0 0 1-2 2h-3" />
+        </svg>
+      </button>,
+      <button
+        key="delete"
+        type="button"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 transition"
+        onClick={() => onDelete(a)}
+        aria-label="Eliminar"
+        title="Eliminar"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 9.5v7m5-7v7M4.5 6h15M7 6l.75-2h8.5L17 6m-1 0 .7 11.2a2 2 0 0 1-2 2.1H9.3a2 2 0 0 1-2-2.1L8 6" />
+        </svg>
+      </button>,
+      <button
+        key="history"
+        type="button"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition"
+        onClick={() => onHistorial(a)}
+        aria-label="Historial"
+        title="Historial"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12a9 9 0 1 1 9 9M12 7.5V12l3 3" />
+        </svg>
+      </button>,
+    ];
+  };
+
   return (
     <>
-      {/* Vista móvil: tarjetas */}
       <div className="block lg:hidden divide-y divide-white/10">
         {items.map((a) => (
           <div key={a._id} className="p-4">
@@ -26,7 +80,8 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
                     <span className="text-neutral-400">Serie:</span> {a.numeroSerie || "-"}
                   </li>
                   <li>
-                    <span className="text-neutral-400">Compra:</span> {a.fechaCompra ? new Date(a.fechaCompra).toLocaleDateString() : "-"}
+                    <span className="text-neutral-400">Compra:</span>{" "}
+                    {a.fechaCompra ? new Date(a.fechaCompra).toLocaleDateString() : "-"}
                   </li>
                   <li>
                     <span className="text-neutral-400">Factura:</span> {a.numeroFactura || "-"}
@@ -38,17 +93,13 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
                     <span className="text-neutral-400">Asignado a:</span> {a.asignadoPara || "-"}
                   </li>
                   <li>
-                    <span className="text-neutral-400">Asignación:</span> {a.fechaAsignacion ? new Date(a.fechaAsignacion).toLocaleDateString() : "-"}
+                    <span className="text-neutral-400">Asignación:</span>{" "}
+                    {a.fechaAsignacion ? new Date(a.fechaAsignacion).toLocaleDateString() : "-"}
                   </li>
                 </ul>
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <button className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition" onClick={() => onEdit(a)}>Editar</button>
-              <button className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition" onClick={() => onAssign(a)}>{a.asignadoPara ? "Reasignar" : "Asignar"}</button>
-              <button className="rounded-lg border border-red-500/40 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-red-500/20 transition" onClick={() => onDelete(a)}>Eliminar</button>
-              <button className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition" onClick={() => onHistorial(a)}>Historial</button>
-            </div>
+            <div className="mt-3 grid grid-cols-4 gap-1">{makeActionButtons(a)}</div>
           </div>
         ))}
         {items.length === 0 && !loading && (
@@ -56,48 +107,54 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
         )}
       </div>
 
-      {/* Vista escritorio: tabla */}
       <div className="hidden lg:block">
         <table className="min-w-full text-sm">
           <thead className="bg-black sticky top-0 z-10 backdrop-blur">
             <tr>
-              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Categoría</th>
-              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Marca</th>
-              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Modelo</th>
-              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Serie</th>
-              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Compra</th>
-              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Factura</th>
-              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Detalles</th>
-              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Asignado a</th>
-              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Asignación</th>
-              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Acciones</th>
+              <th className="text-left px-4 py-3">Categoría</th>
+              <th className="text-left px-4 py-3">Marca</th>
+              <th className="text-left px-4 py-3">Modelo</th>
+              <th className="text-left px-4 py-3">Serie</th>
+              <th className="text-left px-4 py-3">Compra</th>
+              <th className="text-left px-4 py-3">Factura</th>
+              <th className="text-left px-4 py-3">Detalles</th>
+              <th className="text-left px-4 py-3">Asignado a</th>
+              <th className="text-left px-4 py-3">Asignación</th>
+              <th className="text-left px-4 py-3">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {items.map((a) => (
               <tr key={a._id} className="border-t border-white/10 odd:bg-white/[0.03] hover:bg-white/10 transition-colors">
-                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">{a.categoria || "-"}</td>
-                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">{a.marca || "-"}</td>
-                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate" title={a.modelo || undefined}>{a.modelo || "-"}</td>
-                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate" title={a.numeroSerie || undefined}>{a.numeroSerie || "-"}</td>
-                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">{a.fechaCompra ? new Date(a.fechaCompra).toLocaleDateString() : "-"}</td>
-                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate" title={a.numeroFactura || undefined}>{a.numeroFactura || "-"}</td>
-                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[260px] truncate" title={a.detalles || undefined}>{a.detalles || "-"}</td>
-                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate" title={a.asignadoPara || undefined}>{a.asignadoPara || "-"}</td>
-                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">{a.fechaAsignacion ? new Date(a.fechaAsignacion).toLocaleDateString() : "-"}</td>
-                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
-                  <div className="flex flex-wrap items-center gap-1.5 gap-y-1">
-                    <button className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition" onClick={() => onEdit(a)}>Editar</button>
-                    <button className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition" onClick={() => onAssign(a)}>{a.asignadoPara ? "Reasignar" : "Asignar"}</button>
-                    <button className="rounded-lg border border-red-500/40 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-red-500/20 transition" onClick={() => onDelete(a)}>Eliminar</button>
-                    <button className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition" onClick={() => onHistorial(a)}>Historial</button>
-                  </div>
+                <td className="px-4 py-2">{a.categoria || "-"}</td>
+                <td className="px-4 py-2">{a.marca || "-"}</td>
+                <td className="px-4 py-2 max-w-[200px] truncate" title={a.modelo || undefined}>
+                  {a.modelo || "-"}
+                </td>
+                <td className="px-4 py-2 max-w-[200px] truncate" title={a.numeroSerie || undefined}>
+                  {a.numeroSerie || "-"}
+                </td>
+                <td className="px-4 py-2">{a.fechaCompra ? new Date(a.fechaCompra).toLocaleDateString() : "-"}</td>
+                <td className="px-4 py-2 max-w-[200px] truncate" title={a.numeroFactura || undefined}>
+                  {a.numeroFactura || "-"}
+                </td>
+                <td className="px-4 py-2 max-w-[260px] truncate" title={a.detalles || undefined}>
+                  {a.detalles || "-"}
+                </td>
+                <td className="px-4 py-2 max-w-[200px] truncate" title={a.asignadoPara || undefined}>
+                  {a.asignadoPara || "-"}
+                </td>
+                <td className="px-4 py-2">{a.fechaAsignacion ? new Date(a.fechaAsignacion).toLocaleDateString() : "-"}</td>
+                <td className="px-4 py-2">
+                  <div className="flex flex-wrap items-center gap-1">{makeActionButtons(a)}</div>
                 </td>
               </tr>
             ))}
             {items.length === 0 && !loading && (
               <tr>
-                <td className="px-4 py-6 text-center text-neutral-300" colSpan={10}>Sin resultados</td>
+                <td className="px-4 py-6 text-center text-neutral-300" colSpan={10}>
+                  Sin resultados
+                </td>
               </tr>
             )}
           </tbody>
