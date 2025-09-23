@@ -29,6 +29,12 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
                     <span className="text-neutral-400">Compra:</span> {a.fechaCompra ? new Date(a.fechaCompra).toLocaleDateString() : "-"}
                   </li>
                   <li>
+                    <span className="text-neutral-400">Factura:</span> {a.numeroFactura || "-"}
+                  </li>
+                  <li>
+                    <span className="text-neutral-400">Detalles:</span> {a.detalles || "-"}
+                  </li>
+                  <li>
                     <span className="text-neutral-400">Asignado a:</span> {a.asignadoPara || "-"}
                   </li>
                   <li>
@@ -37,11 +43,11 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
                 </ul>
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition" onClick={() => onEdit(a)}>Editar</button>
-              <button className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition" onClick={() => onAssign(a)}>{a.asignadoPara ? "Reasignar" : "Asignar"}</button>
-              <button className="rounded-lg border border-red-500/40 px-3 py-1 hover:bg-red-500/20 transition" onClick={() => onDelete(a)}>Eliminar</button>
-              <button className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition" onClick={() => onHistorial(a)}>Historial</button>
+            <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <button className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition" onClick={() => onEdit(a)}>Editar</button>
+              <button className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition" onClick={() => onAssign(a)}>{a.asignadoPara ? "Reasignar" : "Asignar"}</button>
+              <button className="rounded-lg border border-red-500/40 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-red-500/20 transition" onClick={() => onDelete(a)}>Eliminar</button>
+              <button className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition" onClick={() => onHistorial(a)}>Historial</button>
             </div>
           </div>
         ))}
@@ -60,6 +66,8 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
               <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Modelo</th>
               <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Serie</th>
               <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Compra</th>
+              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Factura</th>
+              <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Detalles</th>
               <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Asignado a</th>
               <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Asignación</th>
               <th className="text-left px-4 py-3 sm:whitespace-nowrap whitespace-normal">Acciones</th>
@@ -73,21 +81,23 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
                 <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate" title={a.modelo || undefined}>{a.modelo || "-"}</td>
                 <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate" title={a.numeroSerie || undefined}>{a.numeroSerie || "-"}</td>
                 <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">{a.fechaCompra ? new Date(a.fechaCompra).toLocaleDateString() : "-"}</td>
+                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate" title={a.numeroFactura || undefined}>{a.numeroFactura || "-"}</td>
+                <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[260px] truncate" title={a.detalles || undefined}>{a.detalles || "-"}</td>
                 <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal max-w-[200px] truncate" title={a.asignadoPara || undefined}>{a.asignadoPara || "-"}</td>
                 <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">{a.fechaAsignacion ? new Date(a.fechaAsignacion).toLocaleDateString() : "-"}</td>
                 <td className="px-4 py-2 sm:whitespace-nowrap whitespace-normal">
-                  <div className="flex flex-wrap items-center gap-2 gap-y-1">
-                    <button className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition" onClick={() => onEdit(a)}>Editar</button>
-                    <button className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition" onClick={() => onAssign(a)}>{a.asignadoPara ? "Reasignar" : "Asignar"}</button>
-                    <button className="rounded-lg border border-red-500/40 px-3 py-1 hover:bg-red-500/20 transition" onClick={() => onDelete(a)}>Eliminar</button>
-                    <button className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition" onClick={() => onHistorial(a)}>Historial</button>
+                  <div className="flex flex-wrap items-center gap-1.5 gap-y-1">
+                    <button className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition" onClick={() => onEdit(a)}>Editar</button>
+                    <button className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition" onClick={() => onAssign(a)}>{a.asignadoPara ? "Reasignar" : "Asignar"}</button>
+                    <button className="rounded-lg border border-red-500/40 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-red-500/20 transition" onClick={() => onDelete(a)}>Eliminar</button>
+                    <button className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition" onClick={() => onHistorial(a)}>Historial</button>
                   </div>
                 </td>
               </tr>
             ))}
             {items.length === 0 && !loading && (
               <tr>
-                <td className="px-4 py-6 text-center text-neutral-300" colSpan={8}>Sin resultados</td>
+                <td className="px-4 py-6 text-center text-neutral-300" colSpan={10}>Sin resultados</td>
               </tr>
             )}
           </tbody>

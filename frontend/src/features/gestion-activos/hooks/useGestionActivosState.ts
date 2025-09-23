@@ -266,6 +266,8 @@ export function useGestionActivosState() {
     modelo: "",
     fechaCompra: "",
     numeroSerie: "",
+    numeroFactura: "",
+    detalles: "",
     sucursal: "",
     asignadoPara: "",
     fechaAsignacion: "",
@@ -285,6 +287,8 @@ export function useGestionActivosState() {
       modelo: "",
       fechaCompra: "",
       numeroSerie: "",
+      numeroFactura: "",
+      detalles: "",
       sucursal: "",
       asignadoPara: "",
       fechaAsignacion: "",
@@ -300,6 +304,8 @@ export function useGestionActivosState() {
       modelo: activo.modelo || "",
       fechaCompra: (activo.fechaCompra || "").slice(0, 10),
       numeroSerie: activo.numeroSerie || "",
+      numeroFactura: (activo as any).numeroFactura || "",
+      detalles: (activo as any).detalles || "",
       sucursal: (activo as any).sucursal || "",
       asignadoPara: (activo as any).asignadoPara || "",
       fechaAsignacion: (activo.fechaAsignacion || "").slice(0, 10),
@@ -322,12 +328,16 @@ export function useGestionActivosState() {
         modelo: form.modelo,
         fechaCompra: form.fechaCompra,
         numeroSerie: form.numeroSerie,
+        numeroFactura: form.numeroFactura,
+        detalles: form.detalles,
         sucursal: form.sucursal,
         asignadoPara: form.asignadoPara,
         fechaAsignacion: form.fechaAsignacion,
       };
       if (!payload.fechaCompra) delete payload.fechaCompra;
       if (!payload.fechaAsignacion) delete payload.fechaAsignacion;
+      if (!payload.numeroFactura) delete payload.numeroFactura;
+      if (!payload.detalles) delete payload.detalles;
       if (!payload.sucursal) delete payload.sucursal;
 
       const method = editId ? "PATCH" : "POST";

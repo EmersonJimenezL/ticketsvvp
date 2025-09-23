@@ -7,6 +7,8 @@ export type Activo = {
   modelo?: string;
   fechaCompra?: string;
   numeroSerie?: string;
+  numeroFactura?: string;
+  detalles?: string;
   sucursal?: string;
   asignadoPara?: string;
   fechaAsignacion?: string;
@@ -96,3 +98,4 @@ export type HistMovimiento = {
   desde?: string;
   hasta?: string;
 };
+

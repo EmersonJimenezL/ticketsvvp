@@ -50,7 +50,9 @@ const activoSchema = new Schema(
     modelo: { type: String, trim: true },
     numeroSerie: { type: String, trim: true, index: true },
     fechaCompra: { type: Date },
+    numeroFactura: { type: String, trim: true },
     sucursal: { type: String, trim: true },
+    detalles: { type: String, trim: true },
 
     asignadoPara: { type: String, trim: true },
     fechaAsignacion: { type: Date },

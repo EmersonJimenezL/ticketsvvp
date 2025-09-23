@@ -36,6 +36,8 @@ export interface Activo {
   marca?: string;
   modelo?: string;
   numeroSerie?: string;
+  numeroFactura?: string;
+  detalles?: string;
   sucursal?: string;
   asignadoPara?: string;
   asignadoPor?: string;
@@ -59,6 +61,7 @@ export type ListActivosQuery = {
   usuario?: string;
   sinAsignar?: "true";
   sucursal?: string;
+  numeroFactura?: string;
   fechaCompraDesde?: string;
   fechaCompraHasta?: string;
   fechaAsignacionDesde?: string;

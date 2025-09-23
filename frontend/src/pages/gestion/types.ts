@@ -7,6 +7,8 @@ export type Activo = {
   modelo?: string;
   fechaCompra?: string; // ISO
   numeroSerie?: string;
+  numeroFactura?: string;
+  detalles?: string;
   asignadoPara?: string;
   fechaAsignacion?: string; // ISO
   createdAt?: string;

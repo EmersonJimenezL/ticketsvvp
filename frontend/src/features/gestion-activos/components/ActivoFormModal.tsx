@@ -142,6 +142,25 @@ export function ActivoFormModal({
           </div>
 
           <div>
+            <label className="block text-sm text-neutral-300">Numero de factura</label>
+            <input
+              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              value={form.numeroFactura || ""}
+              onChange={(event) => onChange({ numeroFactura: event.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-neutral-300">Detalles</label>
+            <textarea
+              rows={3}
+              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              value={form.detalles || ""}
+              onChange={(event) => onChange({ detalles: event.target.value })}
+            />
+          </div>
+
+          <div>
             <label className="block text-sm text-neutral-300">Sucursal</label>
             <input
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
@@ -149,7 +168,6 @@ export function ActivoFormModal({
               onChange={(event) => onChange({ sucursal: event.target.value })}
             />
           </div>
-
           <div>
             <label className="block text-sm text-neutral-300">Asignado a</label>
             <input

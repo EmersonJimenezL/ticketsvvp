@@ -53,6 +53,14 @@ export function ActivosTable({
                         : "-"}
                     </li>
                     <li>
+                      <span className="text-neutral-400">Factura:</span>{" "}
+                      {activo.numeroFactura || "-"}
+                    </li>
+                    <li>
+                      <span className="text-neutral-400">Detalles:</span>{" "}
+                      {activo.detalles || "-"}
+                    </li>
+                    <li>
                       <span className="text-neutral-400">Asignado a:</span>{" "}
                       {activo.asignadoPara || "-"}
                     </li>
@@ -65,27 +73,27 @@ export function ActivosTable({
                   </ul>
                 </div>
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <button
-                  className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
+                  className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition"
                   onClick={() => onEdit(activo)}
                 >
                   Editar
                 </button>
                 <button
-                  className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
+                  className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition"
                   onClick={() => onAssign(activo)}
                 >
                   {activo.asignadoPara ? "Reasignar" : "Asignar"}
                 </button>
                 <button
-                  className="rounded-lg border border-red-500/40 px-3 py-1 hover:bg-red-500/20 transition"
+                  className="rounded-lg border border-red-500/40 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-red-500/20 transition"
                   onClick={() => onDelete(activo)}
                 >
                   Eliminar
                 </button>
                 <button
-                  className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
+                  className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition"
                   onClick={() => onHistory(activo)}
                 >
                   Historial
@@ -110,6 +118,8 @@ export function ActivosTable({
                 <th className="text-left px-4 py-3">Serie</th>
                 <th className="text-left px-4 py-3">Sucursal</th>
                 <th className="text-left px-4 py-3">Compra</th>
+                <th className="text-left px-4 py-3">Factura</th>
+                <th className="text-left px-4 py-3">Detalles</th>
                 <th className="text-left px-4 py-3">Asignado a</th>
                 <th className="text-left px-4 py-3">Asignacion</th>
                 <th className="text-left px-4 py-3">Acciones</th>
@@ -148,6 +158,18 @@ export function ActivosTable({
                   </td>
                   <td
                     className="px-4 py-2 max-w-[200px] truncate"
+                    title={activo.numeroFactura || undefined}
+                  >
+                    {activo.numeroFactura || "-"}
+                  </td>
+                  <td
+                    className="px-4 py-2 max-w-[260px] truncate"
+                    title={activo.detalles || undefined}
+                  >
+                    {activo.detalles || "-"}
+                  </td>
+                  <td
+                    className="px-4 py-2 max-w-[200px] truncate"
                     title={activo.asignadoPara || undefined}
                   >
                     {activo.asignadoPara || "-"}
@@ -158,27 +180,27 @@ export function ActivosTable({
                       : "-"}
                   </td>
                   <td className="px-4 py-2">
-                    <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                    <div className="flex flex-wrap items-center gap-1.5 gap-y-1">
                       <button
-                        className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
+                        className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition"
                         onClick={() => onEdit(activo)}
                       >
                         Editar
                       </button>
                       <button
-                        className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
+                        className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition"
                         onClick={() => onAssign(activo)}
                       >
                         {activo.asignadoPara ? "Reasignar" : "Asignar"}
                       </button>
                       <button
-                        className="rounded-lg border border-red-500/40 px-3 py-1 hover:bg-red-500/20 transition"
+                        className="rounded-lg border border-red-500/40 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-red-500/20 transition"
                         onClick={() => onDelete(activo)}
                       >
                         Eliminar
                       </button>
                       <button
-                        className="rounded-lg border border-white/10 px-3 py-1 hover:bg-white/10 transition"
+                        className="rounded-lg border border-white/10 px-2 py-1 text-xs sm:text-sm font-medium hover:bg-white/10 transition"
                         onClick={() => onHistory(activo)}
                       >
                         Historial
@@ -189,7 +211,7 @@ export function ActivosTable({
               ))}
               {total === 0 && !loading && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-neutral-300" colSpan={9}>
+                  <td className="px-4 py-6 text-center text-neutral-300" colSpan={11}>
                     Sin resultados
                   </td>
                 </tr>
