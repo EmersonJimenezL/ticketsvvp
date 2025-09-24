@@ -93,10 +93,10 @@ export function LicenciasTable({
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-0 backdrop-blur-md overflow-hidden">
-      <div className="overflow-x-auto max-h-[70vh] overflow-y-auto -mx-4 sm:mx-0">
-        <div className="block lg:hidden divide-y divide-white/10">
+      <div className="overflow-x-auto max-h-[70vh] overflow-y-auto px-4 sm:px-0">
+        <div className="block lg:hidden space-y-4">
           {items.map((licencia) => (
-            <div key={licencia._id} className="p-4">
+            <div key={licencia._id} className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4">
               <div className="min-w-0">
                 <div className="text-sm text-neutral-300">{licencia.cuenta || "-"}</div>
                 <div className="font-semibold truncate">{licencia.tipoLicencia || "-"}</div>
@@ -120,7 +120,7 @@ export function LicenciasTable({
                   </li>
                 </ul>
               </div>
-              <div className="mt-3 grid grid-cols-4 gap-1">{makeActionButtons(licencia)}</div>
+              <div className="mt-3 grid grid-cols-2 gap-1 sm:grid-cols-4">{makeActionButtons(licencia)}</div>
             </div>
           ))}
           {total === 0 && !loading && (
@@ -168,7 +168,7 @@ export function LicenciasTable({
                     {licencia.fechaAsignacion ? new Date(licencia.fechaAsignacion).toLocaleDateString() : "-"}
                   </td>
                   <td className="px-4 py-2">
-                    <div className="flex flex-wrap items-center gap-1">{makeActionButtons(licencia)}</div>
+                    <div className="grid grid-cols-2 gap-1">{makeActionButtons(licencia)}</div>
                   </td>
                 </tr>
               ))}

@@ -176,7 +176,7 @@ export function ActivosTable({
                   </ul>
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-4 gap-1">
+              <div className="mt-3 grid grid-cols-2 gap-1 sm:grid-cols-4">
                 {makeActionButtons(activo)}
               </div>
             </div>
@@ -260,7 +260,7 @@ export function ActivosTable({
                       : "-"}
                   </td>
                   <td className="px-4 py-2">
-                    <div className="flex flex-wrap items-center gap-1">
+                    <div className="grid grid-cols-2 gap-1">
                       {makeActionButtons(activo)}
                     </div>
                   </td>

@@ -87,7 +87,7 @@ export default function GestionInventario() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden px-4 sm:px-6 lg:px-12 2xl:px-20 py-6 sm:py-8 lg:py-10">
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden px-0 sm:px-1 lg:px-2 xl:px-3 2xl:px-4 py-6 sm:py-8 lg:py-10">
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div
           className="absolute -top-24 -left-24 h-80 w-80 rounded-full blur-3xl"
@@ -118,9 +118,9 @@ export default function GestionInventario() {
           onCreateLicencia={licencias.abrirCrear}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-6">
           {tab !== "estadisticas" && (
-            <aside className="lg:col-span-3 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md lg:sticky lg:top-4 self-start">
+            <aside className="lg:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md lg:sticky lg:top-4 self-start">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-lg font-semibold">Filtros</h2>
                 <span className="text-sm text-neutral-300">{total} items</span>
@@ -153,7 +153,7 @@ export default function GestionInventario() {
             className={
               tab === "estadisticas"
                 ? "lg:col-span-12"
-                : "lg:col-span-9 flex flex-col gap-4"
+                : "lg:col-span-10 flex flex-col gap-4"
             }
           >
             {tab === "estadisticas" ? (
