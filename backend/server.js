@@ -10,6 +10,7 @@ const {
   Historico,
   Ticket,
   EspecificacionModelo,
+  SUCURSAL_OPTIONS,
 } = require("./db");
 
 const app = express();
@@ -31,16 +32,24 @@ connectDB().catch((e) => {
 });
 
 /* ===== Helpers ===== */
-// Validaciones de creación
+// Validaciones de creacion
 function assertActivoCreate(b) {
   const req = ["categoria", "marca", "modelo", "numeroSerie", "fechaCompra"];
   const missing = req.filter((k) => b?.[k] == null || b[k] === "");
-  return missing.length ? `Faltan campos: ${missing.join(", ")}` : null;
+  if (missing.length) return `Faltan campos: ${missing.join(", ")}`;
+  if (b?.sucursal && !SUCURSAL_OPTIONS.includes(b.sucursal)) {
+    return `Sucursal invalida: ${b.sucursal}`;
+  }
+  return null;
 }
 function assertLicenciaCreate(b) {
   const req = ["proveedor", "tipoLicencia", "fechaCompra", "cuenta"];
   const missing = req.filter((k) => b?.[k] == null || b[k] === "");
-  return missing.length ? `Faltan campos: ${missing.join(", ")}` : null;
+  if (missing.length) return `Faltan campos: ${missing.join(", ")}`;
+  if (b?.sucursal && !SUCURSAL_OPTIONS.includes(b.sucursal)) {
+    return `Sucursal invalida: ${b.sucursal}`;
+  }
+  return null;
 }
 
 // Tipos de licencia válidos por proveedor
@@ -205,11 +214,11 @@ app.get("/api/activos", async (req, res) => {
     }
     if (req.query.categoria) q.categoria = req.query.categoria;
     if (req.query.sucursal) {
-      try {
-        q.sucursal = new RegExp(String(req.query.sucursal), "i");
-      } catch (_) {
-        q.sucursal = String(req.query.sucursal);
+      const sucursal = String(req.query.sucursal);
+      if (!SUCURSAL_OPTIONS.includes(sucursal)) {
+        return res.status(400).json({ ok: false, error: "Sucursal invalida" });
       }
+      q.sucursal = sucursal;
     }
 
     if (req.query.desdeCompra || req.query.hastaCompra) {
@@ -441,11 +450,11 @@ app.get("/api/licencias", async (req, res) => {
     if (req.query.proveedor) q.proveedor = req.query.proveedor;
     if (req.query.tipoLicencia) q.tipoLicencia = req.query.tipoLicencia;
     if (req.query.sucursal) {
-      try {
-        q.sucursal = new RegExp(String(req.query.sucursal), "i");
-      } catch (_) {
-        q.sucursal = String(req.query.sucursal);
+      const sucursal = String(req.query.sucursal);
+      if (!SUCURSAL_OPTIONS.includes(sucursal)) {
+        return res.status(400).json({ ok: false, error: "Sucursal invalida" });
       }
+      q.sucursal = sucursal;
     }
     if (req.query.asignadoPara) {
       try {

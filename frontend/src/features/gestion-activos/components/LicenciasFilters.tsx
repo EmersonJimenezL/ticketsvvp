@@ -1,5 +1,6 @@
 import type { LicenciaFilters } from "../types";
-import { OPCIONES_PROVEEDOR } from "../constants";
+import { OPCIONES_PROVEEDOR, OPCIONES_SUCURSAL } from "../constants";
+import type { Sucursal } from "../constants";
 
 type LicenciasFiltersProps = {
   values: LicenciaFilters;
@@ -42,13 +43,20 @@ export function LicenciasFilters({
 
       <div>
         <label className="block text-sm text-neutral-300">Sucursal</label>
-        <input
+        <select
           className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
           value={values.sucursal}
           onChange={(event) =>
-            onChange({ sucursal: event.target.value })
+            onChange({ sucursal: event.target.value as "" | Sucursal })
           }
-        />
+        >
+          <option value="">Todas</option>
+          {OPCIONES_SUCURSAL.map((sucursal) => (
+            <option key={sucursal} value={sucursal}>
+              {sucursal}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>

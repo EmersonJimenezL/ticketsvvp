@@ -1,4 +1,5 @@
 // frontend/src/services/activos.ts
+import type { Sucursal } from "../features/gestion-activos/constants";
 const BASE = "/api/activos";
 
 export type CategoriaActivo =
@@ -38,7 +39,7 @@ export interface Activo {
   numeroSerie?: string;
   numeroFactura?: string;
   detalles?: string;
-  sucursal?: string;
+  sucursal?: "" | Sucursal;
   asignadoPara?: string;
   asignadoPor?: string;
   fechaCompra: string; // ISO
@@ -60,7 +61,7 @@ export type ListActivosQuery = {
   marca?: string;
   usuario?: string;
   sinAsignar?: "true";
-  sucursal?: string;
+  sucursal?: "" | Sucursal;
   numeroFactura?: string;
   fechaCompraDesde?: string;
   fechaCompraHasta?: string;

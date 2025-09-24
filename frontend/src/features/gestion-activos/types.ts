@@ -1,3 +1,5 @@
+import type { Sucursal } from "./constants";
+
 export type TabKey = "activos" | "licencias" | "estadisticas";
 
 export type Activo = {
@@ -9,7 +11,7 @@ export type Activo = {
   numeroSerie?: string;
   numeroFactura?: string;
   detalles?: string;
-  sucursal?: string;
+  sucursal?: "" | Sucursal;
   asignadoPara?: string;
   fechaAsignacion?: string;
   createdAt?: string;
@@ -22,7 +24,7 @@ export type Licencia = {
   cuenta?: string;
   tipoLicencia?: string;
   fechaCompra?: string;
-  sucursal?: string;
+  sucursal?: "" | Sucursal;
   asignadoPara?: string;
   fechaAsignacion?: string;
   activoId?: string;
@@ -55,7 +57,7 @@ export type Especificacion = {
 
 export type ActivoFilters = {
   categoria: string;
-  sucursal: string;
+  sucursal: "" | Sucursal;
   desdeCompra: string;
   hastaCompra: string;
   desdeAsignacion: string;
@@ -68,7 +70,7 @@ export type LicenciaFilters = {
   proveedor: string;
   tipoLicencia: string;
   asignadoPara: string;
-  sucursal: string;
+  sucursal: "" | Sucursal;
   desdeCompra: string;
   hastaCompra: string;
   desdeAsignacion: string;

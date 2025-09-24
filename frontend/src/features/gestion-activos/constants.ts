@@ -28,3 +28,16 @@ export const OPCIONES_TIPO_LIC_MAP = {
 } as const;
 
 export const OPCIONES_PROVEEDOR = ["SAP", "Office"] as const;
+
+export const OPCIONES_SUCURSAL = [
+  "Casa Matriz",
+  "Sucursal Puerto Montt",
+  "Sucursal Antofagasta",
+  "Sucursal Talca",
+  "Sucursal Centro Puerto",
+  "Sucursal Cambio y Soluciones (Peru)",
+  "Sucursal Valparaiso",
+  "Sucursal Copiapo",
+] as const;
+
+export type Sucursal = (typeof OPCIONES_SUCURSAL)[number];

@@ -1,5 +1,6 @@
 import type { Licencia } from "../types";
-import { OPCIONES_PROVEEDOR, OPCIONES_TIPO_LIC_MAP } from "../constants";
+import { OPCIONES_PROVEEDOR, OPCIONES_SUCURSAL, OPCIONES_TIPO_LIC_MAP } from "../constants";
+import type { Sucursal } from "../constants";
 
 type LicenciaFormModalProps = {
   open: boolean;
@@ -109,11 +110,18 @@ export function LicenciaFormModal({
           </div>
           <div>
             <label className="block text-sm text-neutral-300">Sucursal</label>
-            <input
+            <select
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
               value={form.sucursal || ""}
-              onChange={(event) => onChange({ sucursal: event.target.value })}
-            />
+              onChange={(event) => onChange({ sucursal: event.target.value as "" | Sucursal })}
+            >
+              <option value="">Seleccione</option>
+              {OPCIONES_SUCURSAL.map((sucursal) => (
+                <option key={sucursal} value={sucursal}>
+                  {sucursal}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm text-neutral-300">Asignado a</label>

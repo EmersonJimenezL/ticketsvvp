@@ -2,6 +2,16 @@
 const mongoose = require("mongoose");
 const { Schema, Types } = mongoose;
 
+const SUCURSAL_OPTIONS = Object.freeze([
+  "Casa Matriz",
+  "Sucursal Puerto Montt",
+  "Sucursal Antofagasta",
+  "Sucursal Talca",
+  "Sucursal Centro Puerto",
+  "Sucursal Cambio y Soluciones (Peru)",
+  "Sucursal Valparaiso",
+  "Sucursal Copiapo",
+]);
 /* =========================
  * TICKETS (se mantiene igual)
  * ========================= */
@@ -51,7 +61,7 @@ const activoSchema = new Schema(
     numeroSerie: { type: String, trim: true, index: true },
     fechaCompra: { type: Date },
     numeroFactura: { type: String, trim: true },
-    sucursal: { type: String, trim: true },
+    sucursal: { type: String, trim: true, enum: SUCURSAL_OPTIONS },
     detalles: { type: String, trim: true },
 
     asignadoPara: { type: String, trim: true },
@@ -85,7 +95,7 @@ const licenciaSchema = new Schema(
       ],
     },
     fechaCompra: { type: Date },
-    sucursal: { type: String, trim: true },
+    sucursal: { type: String, trim: true, enum: SUCURSAL_OPTIONS },
 
     asignadoPara: { type: String, trim: true },
     fechaAsignacion: { type: Date },
@@ -134,6 +144,7 @@ module.exports = {
   Activo,
   Licencia,
   Historico,
+  SUCURSAL_OPTIONS,
 };
 
 /* =========================
