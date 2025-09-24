@@ -35,8 +35,19 @@ export function ActivosTable({
         aria-label="Editar"
         title="Editar"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.688-1.688a1.5 1.5 0 1 1 2.122 2.122L7.5 18.094l-3 1 1-3 11.362-11.607Z" />
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-4 w-4"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M16.862 4.487l1.688-1.688a1.5 1.5 0 1 1 2.122 2.122L7.5 18.094l-3 1 1-3 11.362-11.607Z"
+          />
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 19.5h12" />
         </svg>
       </button>,
@@ -48,8 +59,19 @@ export function ActivosTable({
         aria-label={assignLabel}
         title={assignLabel}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m8 7-5 5m0 0 5 5M3 12h12m6 5v2a2 2 0 0 1-2 2h-3m5-18v2a2 2 0 0 1-2 2h-3" />
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-4 w-4"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="m8 7-5 5m0 0 5 5M3 12h12m6 5v2a2 2 0 0 1-2 2h-3m5-18v2a2 2 0 0 1-2 2h-3"
+          />
         </svg>
       </button>,
       <button
@@ -60,8 +82,19 @@ export function ActivosTable({
         aria-label="Eliminar"
         title="Eliminar"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 9.5v7m5-7v7M4.5 6h15M7 6l.75-2h8.5L17 6m-1 0 .7 11.2a2 2 0 0 1-2 2.1H9.3a2 2 0 0 1-2-2.1L8 6" />
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-4 w-4"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M9.5 9.5v7m5-7v7M4.5 6h15M7 6l.75-2h8.5L17 6m-1 0 .7 11.2a2 2 0 0 1-2 2.1H9.3a2 2 0 0 1-2-2.1L8 6"
+          />
         </svg>
       </button>,
       <button
@@ -72,8 +105,19 @@ export function ActivosTable({
         aria-label="Historial"
         title="Historial"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12a9 9 0 1 1 9 9M12 7.5V12l3 3" />
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-4 w-4"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3 12a9 9 0 1 1 9 9M12 7.5V12l3 3"
+          />
         </svg>
       </button>,
     ];
@@ -81,37 +125,53 @@ export function ActivosTable({
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-0 backdrop-blur-md overflow-hidden">
-      <div className="overflow-x-auto max-h-[70vh] overflow-y-auto -mx-4 sm:mx-0">
-        <div className="block lg:hidden divide-y divide-white/10">
+      <div className="overflow-x-auto max-h-[70vh] overflow-y-auto px-4 sm:px-0">
+        <div className="block lg:hidden space-y-4">
           {items.map((activo) => (
-            <div key={activo._id} className="p-4">
+            <div
+              key={activo._id}
+              className="rounded-2xl border border-white/10 bg-black/40 px-5 py-4"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm text-neutral-300">{activo.categoria || "-"}</div>
-                  <div className="font-semibold truncate">{(activo.marca || "") + " " + (activo.modelo || "-")}</div>
+                  <div className="text-sm text-neutral-300">
+                    {activo.categoria || "-"}
+                  </div>
+                  <div className="font-semibold truncate">
+                    {(activo.marca || "") + " " + (activo.modelo || "-")}
+                  </div>
                   <ul className="mt-1 text-sm text-neutral-300 space-y-1">
                     <li>
-                      <span className="text-neutral-400">Serie:</span> {activo.numeroSerie || "-"}
+                      <span className="text-neutral-400">Serie:</span>{" "}
+                      {activo.numeroSerie || "-"}
                     </li>
                     <li>
-                      <span className="text-neutral-400">Sucursal:</span> {activo.sucursal || "-"}
+                      <span className="text-neutral-400">Sucursal:</span>{" "}
+                      {activo.sucursal || "-"}
                     </li>
                     <li>
                       <span className="text-neutral-400">Compra:</span>{" "}
-                      {activo.fechaCompra ? new Date(activo.fechaCompra).toLocaleDateString() : "-"}
+                      {activo.fechaCompra
+                        ? new Date(activo.fechaCompra).toLocaleDateString()
+                        : "-"}
                     </li>
                     <li>
-                      <span className="text-neutral-400">Factura:</span> {activo.numeroFactura || "-"}
+                      <span className="text-neutral-400">Factura:</span>{" "}
+                      {activo.numeroFactura || "-"}
                     </li>
                     <li>
-                      <span className="text-neutral-400">Detalles:</span> {activo.detalles || "-"}
+                      <span className="text-neutral-400">Detalles:</span>{" "}
+                      {activo.detalles || "-"}
                     </li>
                     <li>
-                      <span className="text-neutral-400">Asignado a:</span> {activo.asignadoPara || "-"}
+                      <span className="text-neutral-400">Asignado a:</span>{" "}
+                      {activo.asignadoPara || "-"}
                     </li>
                     <li>
                       <span className="text-neutral-400">Asignacion:</span>{" "}
-                      {activo.fechaAsignacion ? new Date(activo.fechaAsignacion).toLocaleDateString() : "-"}
+                      {activo.fechaAsignacion
+                        ? new Date(activo.fechaAsignacion).toLocaleDateString()
+                        : "-"}
                     </li>
                   </ul>
                 </div>
@@ -122,7 +182,9 @@ export function ActivosTable({
             </div>
           ))}
           {total === 0 && !loading && (
-            <div className="px-4 py-6 text-center text-neutral-300">Sin resultados</div>
+            <div className="px-4 py-6 text-center text-neutral-300">
+              Sin resultados
+            </div>
           )}
         </div>
 
@@ -151,29 +213,51 @@ export function ActivosTable({
                 >
                   <td className="px-4 py-2">{activo.categoria || "-"}</td>
                   <td className="px-4 py-2">{activo.marca || "-"}</td>
-                  <td className="px-4 py-2 max-w-[200px] truncate" title={activo.modelo || undefined}>
+                  <td
+                    className="px-4 py-2 max-w-[200px] truncate"
+                    title={activo.modelo || undefined}
+                  >
                     {activo.modelo || "-"}
                   </td>
-                  <td className="px-4 py-2 max-w-[200px] truncate" title={activo.numeroSerie || undefined}>
+                  <td
+                    className="px-4 py-2 max-w-[200px] truncate"
+                    title={activo.numeroSerie || undefined}
+                  >
                     {activo.numeroSerie || "-"}
                   </td>
-                  <td className="px-4 py-2 max-w-[200px] truncate" title={activo.sucursal || undefined}>
+                  <td
+                    className="px-4 py-2 max-w-[200px] truncate"
+                    title={activo.sucursal || undefined}
+                  >
                     {activo.sucursal || "-"}
                   </td>
                   <td className="px-4 py-2">
-                    {activo.fechaCompra ? new Date(activo.fechaCompra).toLocaleDateString() : "-"}
+                    {activo.fechaCompra
+                      ? new Date(activo.fechaCompra).toLocaleDateString()
+                      : "-"}
                   </td>
-                  <td className="px-4 py-2 max-w-[200px] truncate" title={activo.numeroFactura || undefined}>
+                  <td
+                    className="px-4 py-2 max-w-[200px] truncate"
+                    title={activo.numeroFactura || undefined}
+                  >
                     {activo.numeroFactura || "-"}
                   </td>
-                  <td className="px-4 py-2 max-w-[260px] truncate" title={activo.detalles || undefined}>
+                  <td
+                    className="px-4 py-2 max-w-[260px] truncate"
+                    title={activo.detalles || undefined}
+                  >
                     {activo.detalles || "-"}
                   </td>
-                  <td className="px-4 py-2 max-w-[200px] truncate" title={activo.asignadoPara || undefined}>
+                  <td
+                    className="px-4 py-2 max-w-[200px] truncate"
+                    title={activo.asignadoPara || undefined}
+                  >
                     {activo.asignadoPara || "-"}
                   </td>
                   <td className="px-4 py-2">
-                    {activo.fechaAsignacion ? new Date(activo.fechaAsignacion).toLocaleDateString() : "-"}
+                    {activo.fechaAsignacion
+                      ? new Date(activo.fechaAsignacion).toLocaleDateString()
+                      : "-"}
                   </td>
                   <td className="px-4 py-2">
                     <div className="flex flex-wrap items-center gap-1">
@@ -184,7 +268,10 @@ export function ActivosTable({
               ))}
               {total === 0 && !loading && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-neutral-300" colSpan={11}>
+                  <td
+                    className="px-4 py-6 text-center text-neutral-300"
+                    colSpan={11}
+                  >
                     Sin resultados
                   </td>
                 </tr>
