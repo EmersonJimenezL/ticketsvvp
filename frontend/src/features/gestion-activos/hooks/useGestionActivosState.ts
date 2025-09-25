@@ -11,11 +11,7 @@ import type {
   LicenciaStats,
   TabKey,
 } from "../types";
-import {
-  API_BASE,
-  OPCIONES_TIPO_LIC_MAP,
-  PAGE_SIZE,
-} from "../constants";
+import { API_BASE, OPCIONES_TIPO_LIC_MAP, PAGE_SIZE } from "../constants";
 import { useDebouncedValue } from "./useDebouncedValue";
 
 const ACTIVO_FILTERS_DEFAULT: ActivoFilters = {
@@ -73,22 +69,24 @@ export function useGestionActivosState() {
     if (licenciaFilters.proveedor === "Office") {
       return [...OPCIONES_TIPO_LIC_MAP.Office];
     }
-    return [
-      ...OPCIONES_TIPO_LIC_MAP.SAP,
-      ...OPCIONES_TIPO_LIC_MAP.Office,
-    ];
+    return [...OPCIONES_TIPO_LIC_MAP.SAP, ...OPCIONES_TIPO_LIC_MAP.Office];
   }, [licenciaFilters.proveedor]);
 
   const fetchActivos = useCallback(async () => {
     const params = new URLSearchParams();
     params.set("limit", "500");
     if (activoFilters.soloSinAsignacion) params.set("soloSinAsignacion", "1");
-    if (activoFilters.categoria) params.set("categoria", activoFilters.categoria);
+    if (activoFilters.categoria)
+      params.set("categoria", activoFilters.categoria);
     if (activoFilters.sucursal) params.set("sucursal", activoFilters.sucursal);
-    if (activoFilters.desdeCompra) params.set("desdeCompra", activoFilters.desdeCompra);
-    if (activoFilters.hastaCompra) params.set("hastaCompra", activoFilters.hastaCompra);
-    if (activoFilters.desdeAsignacion) params.set("desdeAsign", activoFilters.desdeAsignacion);
-    if (activoFilters.hastaAsignacion) params.set("hastaAsign", activoFilters.hastaAsignacion);
+    if (activoFilters.desdeCompra)
+      params.set("desdeCompra", activoFilters.desdeCompra);
+    if (activoFilters.hastaCompra)
+      params.set("hastaCompra", activoFilters.hastaCompra);
+    if (activoFilters.desdeAsignacion)
+      params.set("desdeAsign", activoFilters.desdeAsignacion);
+    if (activoFilters.hastaAsignacion)
+      params.set("hastaAsign", activoFilters.hastaAsignacion);
 
     const response = await fetch(`${API_BASE}/activos?${params.toString()}`);
     const json = await response.json();
@@ -116,12 +114,17 @@ export function useGestionActivosState() {
     const params = new URLSearchParams();
     params.set("limit", "500");
     if (debouncedCuenta) params.set("cuenta", debouncedCuenta);
-    if (licenciaFilters.proveedor) params.set("proveedor", licenciaFilters.proveedor);
-    if (licenciaFilters.tipoLicencia) params.set("tipoLicencia", licenciaFilters.tipoLicencia);
+    if (licenciaFilters.proveedor)
+      params.set("proveedor", licenciaFilters.proveedor);
+    if (licenciaFilters.tipoLicencia)
+      params.set("tipoLicencia", licenciaFilters.tipoLicencia);
     if (debouncedAsignado) params.set("asignadoPara", debouncedAsignado);
-    if (licenciaFilters.desdeCompra) params.set("desdeCompra", licenciaFilters.desdeCompra);
-    if (licenciaFilters.hastaCompra) params.set("hastaCompra", licenciaFilters.hastaCompra);
-    if (licenciaFilters.sucursal) params.set("sucursal", licenciaFilters.sucursal);
+    if (licenciaFilters.desdeCompra)
+      params.set("desdeCompra", licenciaFilters.desdeCompra);
+    if (licenciaFilters.hastaCompra)
+      params.set("hastaCompra", licenciaFilters.hastaCompra);
+    if (licenciaFilters.sucursal)
+      params.set("sucursal", licenciaFilters.sucursal);
 
     const activosLicParams = new URLSearchParams();
     activosLicParams.set("categoria", "licencias");
@@ -162,7 +165,9 @@ export function useGestionActivosState() {
               sucursal: item?.sucursal,
               asignadoPara: item?.licencia?.usuarioNombre || item?.asignadoPara,
               fechaAsignacion:
-                item?.licencia?.asignadaEn || item?.fechaAsignacion || undefined,
+                item?.licencia?.asignadaEn ||
+                item?.fechaAsignacion ||
+                undefined,
               activoId: item?._id,
               notas: item?.notas,
               createdAt: item?.createdAt,
@@ -185,7 +190,9 @@ export function useGestionActivosState() {
     }
     if (debouncedCuenta) {
       const needle = debouncedCuenta.toLowerCase();
-      list = list.filter((lic) => (lic.cuenta || "").toLowerCase().includes(needle));
+      list = list.filter((lic) =>
+        (lic.cuenta || "").toLowerCase().includes(needle)
+      );
     }
     if (licenciaFilters.desdeCompra) {
       list = list.filter(
@@ -207,7 +214,9 @@ export function useGestionActivosState() {
     }
     if (licenciaFilters.proveedor) {
       const needle = licenciaFilters.proveedor.toLowerCase();
-      list = list.filter((lic) => (lic.proveedor || "").toLowerCase() === needle);
+      list = list.filter(
+        (lic) => (lic.proveedor || "").toLowerCase() === needle
+      );
     }
 
     setLicencias(list);
@@ -256,7 +265,12 @@ export function useGestionActivosState() {
 
   useEffect(() => {
     setVisibleLicencias(PAGE_SIZE);
-  }, [licencias, licenciaFilters.desdeAsignacion, licenciaFilters.hastaAsignacion, licenciaFilters.sucursal]);
+  }, [
+    licencias,
+    licenciaFilters.desdeAsignacion,
+    licenciaFilters.hastaAsignacion,
+    licenciaFilters.sucursal,
+  ]);
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -274,8 +288,7 @@ export function useGestionActivosState() {
   });
 
   const updateActivoForm = useCallback(
-    (changes: Partial<Activo>) =>
-      setForm((prev) => ({ ...prev, ...changes })),
+    (changes: Partial<Activo>) => setForm((prev) => ({ ...prev, ...changes })),
     []
   );
 
@@ -341,7 +354,9 @@ export function useGestionActivosState() {
       if (!payload.sucursal) delete payload.sucursal;
 
       const method = editId ? "PATCH" : "POST";
-      const url = editId ? `${API_BASE}/activos/${editId}` : `${API_BASE}/activos`;
+      const url = editId
+        ? `${API_BASE}/activos/${editId}`
+        : `${API_BASE}/activos`;
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -611,7 +626,11 @@ export function useGestionActivosState() {
         }
         return true;
       }),
-    [licencias, licenciaFilters.desdeAsignacion, licenciaFilters.hastaAsignacion]
+    [
+      licencias,
+      licenciaFilters.desdeAsignacion,
+      licenciaFilters.hastaAsignacion,
+    ]
   );
 
   const licenciasToRender = useMemo(
@@ -632,9 +651,7 @@ export function useGestionActivosState() {
 
   const statsPorProveedor = useMemo(
     () =>
-      Object.entries(licStats?.porProveedor || {}).sort(
-        (a, b) => b[1] - a[1]
-      ),
+      Object.entries(licStats?.porProveedor || {}).sort((a, b) => b[1] - a[1]),
     [licStats]
   );
 

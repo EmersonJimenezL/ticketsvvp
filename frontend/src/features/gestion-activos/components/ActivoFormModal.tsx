@@ -47,14 +47,12 @@ export function ActivoFormModal({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-neutral-300">
-              Categoria {(!isEdit) && <span className="text-orange-400">*</span>}
+              Categoria {!isEdit && <span className="text-orange-400">*</span>}
             </label>
             <select
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
               value={form.categoria || ""}
-              onChange={(event) =>
-                onChange({ categoria: event.target.value })
-              }
+              onChange={(event) => onChange({ categoria: event.target.value })}
             >
               <option value="">Seleccione</option>
               {OPCIONES_CATEGORIA.map((categoria) => (
@@ -67,7 +65,7 @@ export function ActivoFormModal({
 
           <div>
             <label className="block text-sm text-neutral-300">
-              Marca {(!isEdit) && <span className="text-orange-400">*</span>}
+              Marca {!isEdit && <span className="text-orange-400">*</span>}
             </label>
             <input
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
@@ -78,7 +76,7 @@ export function ActivoFormModal({
 
           <div>
             <label className="block text-sm text-neutral-300">
-              Modelo {(!isEdit) && <span className="text-orange-400">*</span>}
+              Modelo {!isEdit && <span className="text-orange-400">*</span>}
             </label>
             {isEdit ? (
               <input
@@ -96,7 +94,8 @@ export function ActivoFormModal({
                   onChange({
                     modelo: value,
                     marca: spec?.marca ?? form.marca,
-                    categoria: form.categoria || spec?.categoria || form.categoria,
+                    categoria:
+                      form.categoria || spec?.categoria || form.categoria,
                   });
                 }}
               >
@@ -110,14 +109,16 @@ export function ActivoFormModal({
             )}
             {!isEdit && specs.length === 0 && (
               <p className="mt-1 text-xs text-amber-300">
-                No hay modelos cargados. Use "Crear modelo" para agregar uno nuevo.
+                No hay modelos cargados. Use "Crear modelo" para agregar uno
+                nuevo.
               </p>
             )}
           </div>
 
           <div>
             <label className="block text-sm text-neutral-300">
-              Fecha de compra {(!isEdit) && <span className="text-orange-400">*</span>}
+              Fecha de compra{" "}
+              {!isEdit && <span className="text-orange-400">*</span>}
             </label>
             <input
               type="date"
@@ -131,7 +132,8 @@ export function ActivoFormModal({
 
           <div>
             <label className="block text-sm text-neutral-300">
-              Numero de serie {(!isEdit) && <span className="text-orange-400">*</span>}
+              Numero de serie{" "}
+              {!isEdit && <span className="text-orange-400">*</span>}
             </label>
             <input
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
@@ -143,11 +145,15 @@ export function ActivoFormModal({
           </div>
 
           <div>
-            <label className="block text-sm text-neutral-300">Numero de factura</label>
+            <label className="block text-sm text-neutral-300">
+              Numero de factura
+            </label>
             <input
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
               value={form.numeroFactura || ""}
-              onChange={(event) => onChange({ numeroFactura: event.target.value })}
+              onChange={(event) =>
+                onChange({ numeroFactura: event.target.value })
+              }
             />
           </div>
 
@@ -166,7 +172,9 @@ export function ActivoFormModal({
             <select
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
               value={form.sucursal || ""}
-              onChange={(event) => onChange({ sucursal: event.target.value as "" | Sucursal })}
+              onChange={(event) =>
+                onChange({ sucursal: event.target.value as "" | Sucursal })
+              }
             >
               <option value="">Seleccione</option>
               {OPCIONES_SUCURSAL.map((sucursal) => (
@@ -188,7 +196,9 @@ export function ActivoFormModal({
           </div>
 
           <div>
-            <label className="block text-sm text-neutral-300">Asignado el</label>
+            <label className="block text-sm text-neutral-300">
+              Asignado el
+            </label>
             <input
               type="date"
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
@@ -202,7 +212,8 @@ export function ActivoFormModal({
 
         {!isEdit && (
           <p className="text-xs text-neutral-400 mt-2">
-            * Obligatorios solo al crear: categoria, marca, modelo, fecha de compra y numero de serie.
+            * Obligatorios solo al crear: categoria, marca, modelo, fecha de
+            compra y numero de serie.
           </p>
         )}
 

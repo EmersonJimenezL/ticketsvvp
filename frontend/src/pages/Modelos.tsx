@@ -40,7 +40,9 @@ export default function Modelos() {
     return items.filter((m) => {
       const okCat = cat ? (m.categoria || "").toLowerCase() === cat : true;
       const okMarca = mar ? (m.marca || "").toLowerCase().includes(mar) : true;
-      const okModelo = mod ? (m.modelo || "").toLowerCase().includes(mod) : true;
+      const okModelo = mod
+        ? (m.modelo || "").toLowerCase().includes(mod)
+        : true;
       return okCat && okMarca && okModelo;
     });
   }, [items, fCategoria, fMarca, fModelo]);
@@ -112,7 +114,9 @@ export default function Modelos() {
     try {
       setLoading(true);
       setError(null);
-      const r = await fetch(`${API}/especificaciones/${id}`, { method: "DELETE" });
+      const r = await fetch(`${API}/especificaciones/${id}`, {
+        method: "DELETE",
+      });
       const j = await r.json();
       if (!j.ok) throw new Error(j.error || "No se pudo eliminar");
       await cargar();
@@ -244,26 +248,58 @@ export default function Modelos() {
               <div className="px-4 py-6 text-neutral-300">Cargando...</div>
             )}
             {!loading && filtered.length === 0 && (
-              <div className="px-4 py-6 text-neutral-300">No hay modelos cargados.</div>
+              <div className="px-4 py-6 text-neutral-300">
+                No hay modelos cargados.
+              </div>
             )}
             {filtered.map((m) => (
               <div key={m._id || m.modelo} className="p-4">
                 <div className="font-semibold truncate">{m.modelo}</div>
                 <ul className="mt-1 text-sm text-neutral-300 space-y-1">
-                  <li><span className="text-neutral-400">Categoría:</span> {m.categoria || '-'}</li>
-                  <li><span className="text-neutral-400">Marca:</span> {m.marca || '-'}</li>
-                  <li className="truncate"><span className="text-neutral-400">Procesador:</span> {m.procesador || '-'}</li>
-                  <li><span className="text-neutral-400">Frecuencia:</span> {m.frecuenciaGhz || '-'}</li>
-                  <li className="truncate"><span className="text-neutral-400">Almacenamiento:</span> {m.almacenamiento || '-'}</li>
-                  <li><span className="text-neutral-400">RAM:</span> {m.ram || '-'}</li>
-                  <li><span className="text-neutral-400">SO:</span> {m.so || '-'}</li>
-                  <li className="truncate"><span className="text-neutral-400">Gráficos:</span> {m.graficos || '-'}</li>
-                  <li className="truncate"><span className="text-neutral-400">Resolución:</span> {m.resolucion || '-'}</li>
+                  <li>
+                    <span className="text-neutral-400">Categoría:</span>{" "}
+                    {m.categoria || "-"}
+                  </li>
+                  <li>
+                    <span className="text-neutral-400">Marca:</span>{" "}
+                    {m.marca || "-"}
+                  </li>
+                  <li className="truncate">
+                    <span className="text-neutral-400">Procesador:</span>{" "}
+                    {m.procesador || "-"}
+                  </li>
+                  <li>
+                    <span className="text-neutral-400">Frecuencia:</span>{" "}
+                    {m.frecuenciaGhz || "-"}
+                  </li>
+                  <li className="truncate">
+                    <span className="text-neutral-400">Almacenamiento:</span>{" "}
+                    {m.almacenamiento || "-"}
+                  </li>
+                  <li>
+                    <span className="text-neutral-400">RAM:</span>{" "}
+                    {m.ram || "-"}
+                  </li>
+                  <li>
+                    <span className="text-neutral-400">SO:</span> {m.so || "-"}
+                  </li>
+                  <li className="truncate">
+                    <span className="text-neutral-400">Gráficos:</span>{" "}
+                    {m.graficos || "-"}
+                  </li>
+                  <li className="truncate">
+                    <span className="text-neutral-400">Resolución:</span>{" "}
+                    {m.resolucion || "-"}
+                  </li>
                 </ul>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => { setEditingId(m._id || null); setForm({ ...m }); setShowForm(true); }}
+                    onClick={() => {
+                      setEditingId(m._id || null);
+                      setForm({ ...m });
+                      setShowForm(true);
+                    }}
                     className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-neutral-100 hover:bg-white/10 transition"
                   >
                     Editar
@@ -382,7 +418,9 @@ export default function Modelos() {
                 </span>
                 <input
                   value={form.modelo || ""}
-                  onChange={(e) => setForm((f) => ({ ...f, modelo: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, modelo: e.target.value }))
+                  }
                   className="w-full rounded-xl bg-neutral-800 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
                 />
               </label>
@@ -391,7 +429,9 @@ export default function Modelos() {
                 <span className="text-sm text-neutral-300">Categoría</span>
                 <select
                   value={form.categoria || ""}
-                  onChange={(e) => setForm((f) => ({ ...f, categoria: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, categoria: e.target.value }))
+                  }
                   className="w-full rounded-xl bg-neutral-800 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
                 >
                   <option value="">Seleccione</option>
@@ -415,7 +455,9 @@ export default function Modelos() {
                 <span className="text-sm text-neutral-300">Marca</span>
                 <input
                   value={form.marca || ""}
-                  onChange={(e) => setForm((f) => ({ ...f, marca: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, marca: e.target.value }))
+                  }
                   className="w-full rounded-xl bg-neutral-800 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
                 />
               </label>
@@ -424,16 +466,22 @@ export default function Modelos() {
                 <span className="text-sm text-neutral-300">Procesador</span>
                 <input
                   value={form.procesador || ""}
-                  onChange={(e) => setForm((f) => ({ ...f, procesador: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, procesador: e.target.value }))
+                  }
                   className="w-full rounded-xl bg-neutral-800 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
                 />
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-neutral-300">Frecuencia (GHz)</span>
+                <span className="text-sm text-neutral-300">
+                  Frecuencia (GHz)
+                </span>
                 <input
                   value={form.frecuenciaGhz || ""}
-                  onChange={(e) => setForm((f) => ({ ...f, frecuenciaGhz: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, frecuenciaGhz: e.target.value }))
+                  }
                   className="w-full rounded-xl bg-neutral-800 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
                 />
               </label>
@@ -442,7 +490,9 @@ export default function Modelos() {
                 <span className="text-sm text-neutral-300">Almacenamiento</span>
                 <input
                   value={form.almacenamiento || ""}
-                  onChange={(e) => setForm((f) => ({ ...f, almacenamiento: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, almacenamiento: e.target.value }))
+                  }
                   className="w-full rounded-xl bg-neutral-800 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
                 />
               </label>
@@ -451,7 +501,9 @@ export default function Modelos() {
                 <span className="text-sm text-neutral-300">RAM</span>
                 <input
                   value={form.ram || ""}
-                  onChange={(e) => setForm((f) => ({ ...f, ram: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, ram: e.target.value }))
+                  }
                   className="w-full rounded-xl bg-neutral-800 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
                 />
               </label>
@@ -460,7 +512,9 @@ export default function Modelos() {
                 <span className="text-sm text-neutral-300">SO</span>
                 <input
                   value={form.so || ""}
-                  onChange={(e) => setForm((f) => ({ ...f, so: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, so: e.target.value }))
+                  }
                   className="w-full rounded-xl bg-neutral-800 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
                 />
               </label>
@@ -469,7 +523,9 @@ export default function Modelos() {
                 <span className="text-sm text-neutral-300">Gráficos</span>
                 <input
                   value={form.graficos || ""}
-                  onChange={(e) => setForm((f) => ({ ...f, graficos: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, graficos: e.target.value }))
+                  }
                   className="w-full rounded-xl bg-neutral-800 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
                 />
               </label>
@@ -478,7 +534,9 @@ export default function Modelos() {
                 <span className="text-sm text-neutral-300">Resolución</span>
                 <input
                   value={form.resolucion || ""}
-                  onChange={(e) => setForm((f) => ({ ...f, resolucion: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, resolucion: e.target.value }))
+                  }
                   className="w-full rounded-xl bg-neutral-800 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
                 />
               </label>
@@ -490,7 +548,11 @@ export default function Modelos() {
                 disabled={loading}
                 className="rounded-xl bg-orange-600 px-5 py-2 text-sm font-semibold hover:bg-orange-500 transition disabled:opacity-60"
               >
-                {loading ? "Guardando..." : editingId ? "Guardar cambios" : "Guardar modelo"}
+                {loading
+                  ? "Guardando..."
+                  : editingId
+                  ? "Guardar cambios"
+                  : "Guardar modelo"}
               </button>
               <button
                 onClick={() => setShowForm(false)}

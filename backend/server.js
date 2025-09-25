@@ -100,7 +100,9 @@ app.post("/api/activos", async (req, res) => {
 
     // Validar que el modelo exista en la colección de especificaciones técnicas
     if (req.body?.modelo) {
-      const spec = await EspecificacionModelo.findOne({ modelo: req.body.modelo })
+      const spec = await EspecificacionModelo.findOne({
+        modelo: req.body.modelo,
+      })
         .select({ _id: 1 })
         .lean();
       if (!spec) {
@@ -115,14 +117,17 @@ app.post("/api/activos", async (req, res) => {
     // Si existe especificación, tomar la marca del modelo (si se conoce)
     let payload = { ...req.body };
     if (req.body?.modelo) {
-      const fullSpec = await EspecificacionModelo.findOne({ modelo: req.body.modelo })
+      const fullSpec = await EspecificacionModelo.findOne({
+        modelo: req.body.modelo,
+      })
         .select({ marca: 1, categoria: 1 })
         .lean();
       if (fullSpec) {
         // marca desde especificación (forzamos para mantener consistencia)
         payload.marca = fullSpec.marca || payload.marca;
         // opcional: alinear categoría si no viene
-        if (!payload.categoria && fullSpec.categoria) payload.categoria = fullSpec.categoria;
+        if (!payload.categoria && fullSpec.categoria)
+          payload.categoria = fullSpec.categoria;
       }
     }
 
@@ -194,7 +199,8 @@ app.patch("/api/activos/:id", async (req, res) => {
 app.delete("/api/activos/:id", async (req, res) => {
   try {
     const doc = await Activo.findByIdAndDelete(req.params.id);
-    if (!doc) return res.status(404).json({ ok: false, error: "No encontrado" });
+    if (!doc)
+      return res.status(404).json({ ok: false, error: "No encontrado" });
     res.json({ ok: true, data: doc });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -259,7 +265,7 @@ app.post("/api/licencias", async (req, res) => {
     const payload = req.body;
 
     // Caso múltiple
-  if (Array.isArray(payload)) {
+    if (Array.isArray(payload)) {
       if (payload.length === 0) {
         return res.status(400).json({ ok: false, error: "Sin elementos" });
       }
@@ -284,14 +290,11 @@ app.post("/api/licencias", async (req, res) => {
       const keys = payload.map(
         (i) => `${String(i.cuenta)}||${String(i.tipoLicencia)}`
       );
-      const dupInBatch = keys.find(
-        (k, i) => keys.indexOf(k) !== i
-      );
+      const dupInBatch = keys.find((k, i) => keys.indexOf(k) !== i);
       if (dupInBatch) {
         return res.status(409).json({
           ok: false,
-          error:
-            "Duplicado en el lote: misma cuenta y tipoLicencia repetidos.",
+          error: "Duplicado en el lote: misma cuenta y tipoLicencia repetidos.",
         });
       }
 
@@ -390,7 +393,10 @@ app.patch("/api/licencias/:id", async (req, res) => {
     // Si se cambian proveedor/tipo, validar compatibilidad
     const prov = req.body.proveedor || before.proveedor;
     const tipo = req.body.tipoLicencia || before.tipoLicencia;
-    const errComp = assertCompatProveedorTipo({ proveedor: prov, tipoLicencia: tipo });
+    const errComp = assertCompatProveedorTipo({
+      proveedor: prov,
+      tipoLicencia: tipo,
+    });
     if (errComp) return res.status(400).json({ ok: false, error: errComp });
 
     const doc = await Licencia.findByIdAndUpdate(
@@ -429,7 +435,8 @@ app.patch("/api/licencias/:id", async (req, res) => {
 app.delete("/api/licencias/:id", async (req, res) => {
   try {
     const doc = await Licencia.findByIdAndDelete(req.params.id);
-    if (!doc) return res.status(404).json({ ok: false, error: "No encontrada" });
+    if (!doc)
+      return res.status(404).json({ ok: false, error: "No encontrada" });
     res.json({ ok: true, data: doc });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -484,7 +491,6 @@ app.get("/api/licencias", async (req, res) => {
   }
 });
 
-
 // Estadisticas de LICENCIAS
 app.get("/api/licencias/stats", async (_req, res) => {
   try {
@@ -503,7 +509,9 @@ app.get("/api/licencias/stats", async (_req, res) => {
     const addSample = (tipo, proveedor, cuenta) => {
       const keyTipo = tipo || "Sin tipo";
       const keyProv = proveedor || "Sin proveedor";
-      const cuentaStr = (cuenta == null ? "" : String(cuenta)).trim().toLowerCase();
+      const cuentaStr = (cuenta == null ? "" : String(cuenta))
+        .trim()
+        .toLowerCase();
       const disponible = cuentaStr === "disponible";
 
       stats.total += 1;
@@ -513,12 +521,20 @@ app.get("/api/licencias/stats", async (_req, res) => {
     };
 
     for (const lic of licDocs) {
-      addSample(lic.tipoLicencia || "Sin tipo", lic.proveedor || "Sin proveedor", lic.cuenta);
+      addSample(
+        lic.tipoLicencia || "Sin tipo",
+        lic.proveedor || "Sin proveedor",
+        lic.cuenta
+      );
     }
 
     for (const activo of activosLicDocs) {
       const lic = (activo && activo.licencia) || {};
-      addSample(lic.tipoLicencia || "Sin tipo", lic.proveedor || "Sin proveedor", lic.cuenta);
+      addSample(
+        lic.tipoLicencia || "Sin tipo",
+        lic.proveedor || "Sin proveedor",
+        lic.cuenta
+      );
     }
 
     const ocupadas = Math.max(stats.total - stats.disponibles, 0);
@@ -579,11 +595,14 @@ app.post("/api/especificaciones", async (req, res) => {
         .json({ ok: false, error: "Falta campo requerido: modelo" });
 
     // Evitar duplicados por modelo
-    const exists = await EspecificacionModelo.findOne({ modelo: b.modelo }).lean();
+    const exists = await EspecificacionModelo.findOne({
+      modelo: b.modelo,
+    }).lean();
     if (exists)
-      return res
-        .status(409)
-        .json({ ok: false, error: "Ya existe una especificación para ese modelo" });
+      return res.status(409).json({
+        ok: false,
+        error: "Ya existe una especificación para ese modelo",
+      });
 
     const doc = await EspecificacionModelo.create({
       modelo: b.modelo,
@@ -626,7 +645,8 @@ app.patch("/api/especificaciones/:id", async (req, res) => {
       { $set: set },
       { new: true, runValidators: true }
     );
-    if (!doc) return res.status(404).json({ ok: false, error: "No encontrado" });
+    if (!doc)
+      return res.status(404).json({ ok: false, error: "No encontrado" });
     res.json({ ok: true, data: doc });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -637,7 +657,8 @@ app.patch("/api/especificaciones/:id", async (req, res) => {
 app.delete("/api/especificaciones/:id", async (req, res) => {
   try {
     const doc = await EspecificacionModelo.findByIdAndDelete(req.params.id);
-    if (!doc) return res.status(404).json({ ok: false, error: "No encontrado" });
+    if (!doc)
+      return res.status(404).json({ ok: false, error: "No encontrado" });
     res.json({ ok: true, data: doc });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -726,11 +747,16 @@ app.patch("/api/ticketvvp/:ticketId", async (req, res) => {
       set.resolucionTime = new Date();
     }
 
-    const doc = await Ticket.findOneAndUpdate({ ticketId }, { $set: set }, {
-      new: true,
-      runValidators: true,
-    });
-    if (!doc) return res.status(404).json({ ok: false, error: "No encontrado" });
+    const doc = await Ticket.findOneAndUpdate(
+      { ticketId },
+      { $set: set },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+    if (!doc)
+      return res.status(404).json({ ok: false, error: "No encontrado" });
     res.json({ ok: true, data: doc });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });

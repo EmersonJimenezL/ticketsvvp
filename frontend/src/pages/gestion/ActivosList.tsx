@@ -9,7 +9,14 @@ type Props = {
   onHistorial: (a: Activo) => void;
 };
 
-export default function ActivosList({ items, loading, onEdit, onAssign, onDelete, onHistorial }: Props) {
+export default function ActivosList({
+  items,
+  loading,
+  onEdit,
+  onAssign,
+  onDelete,
+  onHistorial,
+}: Props) {
   const makeActionButtons = (a: Activo) => {
     const assignLabel = a.asignadoPara ? "Reasignar" : "Asignar";
 
@@ -22,8 +29,19 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
         aria-label="Editar"
         title="Editar"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.688-1.688a1.5 1.5 0 1 1 2.122 2.122L7.5 18.094l-3 1 1-3 11.362-11.607Z" />
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-4 w-4"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M16.862 4.487l1.688-1.688a1.5 1.5 0 1 1 2.122 2.122L7.5 18.094l-3 1 1-3 11.362-11.607Z"
+          />
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 19.5h12" />
         </svg>
       </button>,
@@ -35,8 +53,19 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
         aria-label={assignLabel}
         title={assignLabel}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m8 7-5 5m0 0 5 5M3 12h12m6 5v2a2 2 0 0 1-2 2h-3m5-18v2a2 2 0 0 1-2 2h-3" />
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-4 w-4"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="m8 7-5 5m0 0 5 5M3 12h12m6 5v2a2 2 0 0 1-2 2h-3m5-18v2a2 2 0 0 1-2 2h-3"
+          />
         </svg>
       </button>,
       <button
@@ -47,8 +76,19 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
         aria-label="Eliminar"
         title="Eliminar"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 9.5v7m5-7v7M4.5 6h15M7 6l.75-2h8.5L17 6m-1 0 .7 11.2a2 2 0 0 1-2 2.1H9.3a2 2 0 0 1-2-2.1L8 6" />
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-4 w-4"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M9.5 9.5v7m5-7v7M4.5 6h15M7 6l.75-2h8.5L17 6m-1 0 .7 11.2a2 2 0 0 1-2 2.1H9.3a2 2 0 0 1-2-2.1L8 6"
+          />
         </svg>
       </button>,
       <button
@@ -59,8 +99,19 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
         aria-label="Historial"
         title="Historial"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12a9 9 0 1 1 9 9M12 7.5V12l3 3" />
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-4 w-4"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3 12a9 9 0 1 1 9 9M12 7.5V12l3 3"
+          />
         </svg>
       </button>,
     ];
@@ -73,37 +124,53 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
           <div key={a._id} className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-sm text-neutral-300">{a.categoria || "-"}</div>
-                <div className="font-semibold truncate">{(a.marca || "") + " " + (a.modelo || "-")}</div>
+                <div className="text-sm text-neutral-300">
+                  {a.categoria || "-"}
+                </div>
+                <div className="font-semibold truncate">
+                  {(a.marca || "") + " " + (a.modelo || "-")}
+                </div>
                 <ul className="mt-1 text-sm text-neutral-300 space-y-1">
                   <li>
-                    <span className="text-neutral-400">Serie:</span> {a.numeroSerie || "-"}
+                    <span className="text-neutral-400">Serie:</span>{" "}
+                    {a.numeroSerie || "-"}
                   </li>
                   <li>
                     <span className="text-neutral-400">Compra:</span>{" "}
-                    {a.fechaCompra ? new Date(a.fechaCompra).toLocaleDateString() : "-"}
+                    {a.fechaCompra
+                      ? new Date(a.fechaCompra).toLocaleDateString()
+                      : "-"}
                   </li>
                   <li>
-                    <span className="text-neutral-400">Factura:</span> {a.numeroFactura || "-"}
+                    <span className="text-neutral-400">Factura:</span>{" "}
+                    {a.numeroFactura || "-"}
                   </li>
                   <li>
-                    <span className="text-neutral-400">Detalles:</span> {a.detalles || "-"}
+                    <span className="text-neutral-400">Detalles:</span>{" "}
+                    {a.detalles || "-"}
                   </li>
                   <li>
-                    <span className="text-neutral-400">Asignado a:</span> {a.asignadoPara || "-"}
+                    <span className="text-neutral-400">Asignado a:</span>{" "}
+                    {a.asignadoPara || "-"}
                   </li>
                   <li>
                     <span className="text-neutral-400">Asignación:</span>{" "}
-                    {a.fechaAsignacion ? new Date(a.fechaAsignacion).toLocaleDateString() : "-"}
+                    {a.fechaAsignacion
+                      ? new Date(a.fechaAsignacion).toLocaleDateString()
+                      : "-"}
                   </li>
                 </ul>
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-4 gap-1">{makeActionButtons(a)}</div>
+            <div className="mt-3 grid grid-cols-4 gap-1">
+              {makeActionButtons(a)}
+            </div>
           </div>
         ))}
         {items.length === 0 && !loading && (
-          <div className="px-4 py-6 text-center text-neutral-300">Sin resultados</div>
+          <div className="px-4 py-6 text-center text-neutral-300">
+            Sin resultados
+          </div>
         )}
       </div>
 
@@ -125,34 +192,65 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
           </thead>
           <tbody>
             {items.map((a) => (
-              <tr key={a._id} className="border-t border-white/10 odd:bg-white/[0.03] hover:bg-white/10 transition-colors">
+              <tr
+                key={a._id}
+                className="border-t border-white/10 odd:bg-white/[0.03] hover:bg-white/10 transition-colors"
+              >
                 <td className="px-4 py-2">{a.categoria || "-"}</td>
                 <td className="px-4 py-2">{a.marca || "-"}</td>
-                <td className="px-4 py-2 max-w-[200px] truncate" title={a.modelo || undefined}>
+                <td
+                  className="px-4 py-2 max-w-[200px] truncate"
+                  title={a.modelo || undefined}
+                >
                   {a.modelo || "-"}
                 </td>
-                <td className="px-4 py-2 max-w-[200px] truncate" title={a.numeroSerie || undefined}>
+                <td
+                  className="px-4 py-2 max-w-[200px] truncate"
+                  title={a.numeroSerie || undefined}
+                >
                   {a.numeroSerie || "-"}
                 </td>
-                <td className="px-4 py-2">{a.fechaCompra ? new Date(a.fechaCompra).toLocaleDateString() : "-"}</td>
-                <td className="px-4 py-2 max-w-[200px] truncate" title={a.numeroFactura || undefined}>
+                <td className="px-4 py-2">
+                  {a.fechaCompra
+                    ? new Date(a.fechaCompra).toLocaleDateString()
+                    : "-"}
+                </td>
+                <td
+                  className="px-4 py-2 max-w-[200px] truncate"
+                  title={a.numeroFactura || undefined}
+                >
                   {a.numeroFactura || "-"}
                 </td>
-                <td className="px-4 py-2 max-w-[260px] truncate" title={a.detalles || undefined}>
+                <td
+                  className="px-4 py-2 max-w-[260px] truncate"
+                  title={a.detalles || undefined}
+                >
                   {a.detalles || "-"}
                 </td>
-                <td className="px-4 py-2 max-w-[200px] truncate" title={a.asignadoPara || undefined}>
+                <td
+                  className="px-4 py-2 max-w-[200px] truncate"
+                  title={a.asignadoPara || undefined}
+                >
                   {a.asignadoPara || "-"}
                 </td>
-                <td className="px-4 py-2">{a.fechaAsignacion ? new Date(a.fechaAsignacion).toLocaleDateString() : "-"}</td>
                 <td className="px-4 py-2">
-                  <div className="flex flex-wrap items-center gap-1">{makeActionButtons(a)}</div>
+                  {a.fechaAsignacion
+                    ? new Date(a.fechaAsignacion).toLocaleDateString()
+                    : "-"}
+                </td>
+                <td className="px-4 py-2">
+                  <div className="flex flex-wrap items-center gap-1">
+                    {makeActionButtons(a)}
+                  </div>
                 </td>
               </tr>
             ))}
             {items.length === 0 && !loading && (
               <tr>
-                <td className="px-4 py-6 text-center text-neutral-300" colSpan={10}>
+                <td
+                  className="px-4 py-6 text-center text-neutral-300"
+                  colSpan={10}
+                >
                   Sin resultados
                 </td>
               </tr>
@@ -163,4 +261,3 @@ export default function ActivosList({ items, loading, onEdit, onAssign, onDelete
     </>
   );
 }
-

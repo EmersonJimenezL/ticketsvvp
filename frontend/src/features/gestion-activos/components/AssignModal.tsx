@@ -47,7 +47,9 @@ export function AssignModal({
             />
           </div>
           <div>
-            <label className="block text-sm text-neutral-300">Asignado el</label>
+            <label className="block text-sm text-neutral-300">
+              Asignado el
+            </label>
             <input
               type="date"
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"

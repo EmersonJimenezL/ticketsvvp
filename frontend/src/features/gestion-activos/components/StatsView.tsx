@@ -23,8 +23,16 @@ export function StatsView({ stats }: StatsViewProps) {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard label="Total licencias" value={stats.raw.total} />
-        <StatCard label="Disponibles" value={stats.raw.disponibles} color="bg-emerald-500" />
-        <StatCard label="Ocupadas" value={stats.raw.ocupadas} color="bg-orange-500" />
+        <StatCard
+          label="Disponibles"
+          value={stats.raw.disponibles}
+          color="bg-emerald-500"
+        />
+        <StatCard
+          label="Ocupadas"
+          value={stats.raw.ocupadas}
+          color="bg-orange-500"
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -86,7 +94,9 @@ function ListStat({ title, data, maxValue, barClassName }: ListStatProps) {
                 <div
                   className={`h-full rounded-full ${barClassName}`}
                   style={{
-                    width: `${maxValue ? Math.max((count / maxValue) * 100, 8) : 100}%`,
+                    width: `${
+                      maxValue ? Math.max((count / maxValue) * 100, 8) : 100
+                    }%`,
                   }}
                 />
               </div>

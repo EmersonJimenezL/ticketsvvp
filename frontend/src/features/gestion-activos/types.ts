@@ -100,4 +100,3 @@ export type HistMovimiento = {
   desde?: string;
   hasta?: string;
 };
-

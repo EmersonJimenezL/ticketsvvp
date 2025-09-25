@@ -24,9 +24,7 @@ export function ActivosFilters({
         <select
           className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
           value={values.categoria}
-          onChange={(event) =>
-            onChange({ categoria: event.target.value })
-          }
+          onChange={(event) => onChange({ categoria: event.target.value })}
         >
           <option value="">Todas</option>
           {OPCIONES_CATEGORIA.map((categoria) => (
@@ -45,9 +43,7 @@ export function ActivosFilters({
           <input
             type="date"
             value={values.desdeCompra}
-            onChange={(event) =>
-              onChange({ desdeCompra: event.target.value })
-            }
+            onChange={(event) => onChange({ desdeCompra: event.target.value })}
             className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
           />
         </div>
@@ -58,9 +54,7 @@ export function ActivosFilters({
           <input
             type="date"
             value={values.hastaCompra}
-            onChange={(event) =>
-              onChange({ hastaCompra: event.target.value })
-            }
+            onChange={(event) => onChange({ hastaCompra: event.target.value })}
             className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
           />
         </div>

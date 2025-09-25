@@ -7,7 +7,12 @@ type HistorialModalProps = {
   onClose: () => void;
 };
 
-export function HistorialModal({ open, title, movimientos, onClose }: HistorialModalProps) {
+export function HistorialModal({
+  open,
+  title,
+  movimientos,
+  onClose,
+}: HistorialModalProps) {
   if (!open) {
     return null;
   }
@@ -28,34 +33,37 @@ export function HistorialModal({ open, title, movimientos, onClose }: HistorialM
           <div className="text-neutral-300">Sin movimientos.</div>
         ) : (
           <ul className="space-y-2 max-h-[60vh] overflow-auto">
-            {[...movimientos]
-              .reverse()
-              .map((movimiento, index) => (
-                <li
-                  key={index}
-                  className="rounded-lg border border-white/10 p-3 bg-white/5"
-                >
-                  <div className="text-sm">
-                    <span className="font-medium">{movimiento.accion}</span> para {" "}
-                    <span className="font-medium">{movimiento.usuario || "-"}</span>
-                  </div>
-                  <div className="text-xs text-neutral-300">
-                    {movimiento.fecha
-                      ? new Date(movimiento.fecha).toLocaleString()
-                      : "sin fecha"}
-                    {(movimiento.desde || movimiento.hasta) && (
-                      <>
-                        {" "}- {movimiento.desde || ""}{" -> "}{movimiento.hasta || ""}
-                      </>
-                    )}
-                  </div>
-                  {movimiento.observacion && (
-                    <div className="text-xs text-neutral-400 mt-1">
-                      {movimiento.observacion}
-                    </div>
+            {[...movimientos].reverse().map((movimiento, index) => (
+              <li
+                key={index}
+                className="rounded-lg border border-white/10 p-3 bg-white/5"
+              >
+                <div className="text-sm">
+                  <span className="font-medium">{movimiento.accion}</span> para{" "}
+                  <span className="font-medium">
+                    {movimiento.usuario || "-"}
+                  </span>
+                </div>
+                <div className="text-xs text-neutral-300">
+                  {movimiento.fecha
+                    ? new Date(movimiento.fecha).toLocaleString()
+                    : "sin fecha"}
+                  {(movimiento.desde || movimiento.hasta) && (
+                    <>
+                      {" "}
+                      - {movimiento.desde || ""}
+                      {" -> "}
+                      {movimiento.hasta || ""}
+                    </>
                   )}
-                </li>
-              ))}
+                </div>
+                {movimiento.observacion && (
+                  <div className="text-xs text-neutral-400 mt-1">
+                    {movimiento.observacion}
+                  </div>
+                )}
+              </li>
+            ))}
           </ul>
         )}
       </div>

@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import type { Licencia } from "./types";
 
 type Props = {
@@ -12,7 +13,7 @@ type Props = {
 export default function LicenciasList({ items, loading, onEdit, onAssign, onDelete, onHistorial }: Props) {
   const makeActionButtons = (l: Licencia) => {
     const assignLabel = l.asignadoPara ? "Reasignar" : "Asignar";
-    const buttons = [] as JSX.Element[];
+    const buttons: ReactElement[] = [];
 
     if (!l.activoId) {
       buttons.push(

@@ -27,9 +27,7 @@ export function LicenciasFilters({
           placeholder="Nombre o parte del nombre"
           className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
           value={values.asignadoPara}
-          onChange={(event) =>
-            onChange({ asignadoPara: event.target.value })
-          }
+          onChange={(event) => onChange({ asignadoPara: event.target.value })}
         />
       </div>
       <div>
@@ -82,9 +80,7 @@ export function LicenciasFilters({
         <select
           className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
           value={values.tipoLicencia}
-          onChange={(event) =>
-            onChange({ tipoLicencia: event.target.value })
-          }
+          onChange={(event) => onChange({ tipoLicencia: event.target.value })}
         >
           <option value="">Todos</option>
           {tiposDisponibles.map((tipo) => (
@@ -103,9 +99,7 @@ export function LicenciasFilters({
           <input
             type="date"
             value={values.desdeCompra}
-            onChange={(event) =>
-              onChange({ desdeCompra: event.target.value })
-            }
+            onChange={(event) => onChange({ desdeCompra: event.target.value })}
             className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
           />
         </div>
@@ -116,9 +110,7 @@ export function LicenciasFilters({
           <input
             type="date"
             value={values.hastaCompra}
-            onChange={(event) =>
-              onChange({ hastaCompra: event.target.value })
-            }
+            onChange={(event) => onChange({ hastaCompra: event.target.value })}
             className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
           />
         </div>

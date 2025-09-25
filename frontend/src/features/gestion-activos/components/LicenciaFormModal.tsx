@@ -58,7 +58,7 @@ export function LicenciaFormModal({
               value={form.proveedor || ""}
               onChange={(event) => {
                 const value = event.target.value as Licencia["proveedor"];
-                const tiposValidos =
+                const tiposValidos: readonly string[] =
                   value === "SAP"
                     ? OPCIONES_TIPO_LIC_MAP.SAP
                     : value === "Office"
@@ -165,3 +165,4 @@ export function LicenciaFormModal({
     </div>
   );
 }
+
