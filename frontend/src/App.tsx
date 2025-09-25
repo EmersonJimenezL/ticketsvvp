@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
+import { NotificationsProvider } from "./notifications/NotificationsContext";
+import { NotificationsBell } from "./notifications/NotificationsBell";
 import RequireAuth from "./routes/RequireAuth";
 
 import Login from "./pages/Login";
@@ -9,46 +11,49 @@ import MisTickets from "./pages/MisTickets";
 import Admin from "./pages/Admin";
 import AdminHome from "./pages/AdminHome";
 import GestionActivos from "./pages/GestionActivos"; // nueva ruta
-import Modelos from "./pages/Modelos"; // especificaciones técnicas
+import Modelos from "./pages/Modelos"; // especificaciones tecnicas
 
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
+      <NotificationsProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
 
-          {/* protegidas */}
-          <Route element={<RequireAuth />}>
-            <Route path="/menu" element={<Menu />} />
-          </Route>
+            {/* protegidas */}
+            <Route element={<RequireAuth />}>
+              <Route path="/menu" element={<Menu />} />
+            </Route>
 
-          {/* fallback */}
-          <Route path="*" element={<Login />} />
+            {/* fallback */}
+            <Route path="*" element={<Login />} />
 
-          {/* crear tickets */}
-          <Route element={<RequireAuth />}>
-            <Route path="/tickets/nuevo" element={<NuevoTicket />} />
-          </Route>
+            {/* crear tickets */}
+            <Route element={<RequireAuth />}>
+              <Route path="/tickets/nuevo" element={<NuevoTicket />} />
+            </Route>
 
-          {/* mis tickets */}
-          <Route element={<RequireAuth />}>
-            <Route path="/tickets" element={<MisTickets />} />
-          </Route>
+            {/* mis tickets */}
+            <Route element={<RequireAuth />}>
+              <Route path="/tickets" element={<MisTickets />} />
+            </Route>
 
-          {/* admin */}
-          <Route element={<RequireAuth />}>
-            <Route path="/admin" element={<AdminHome />} />
-            <Route path="/admin/tickets" element={<Admin />} />
-            <Route path="/admin/modelos" element={<Modelos />} />
-          </Route>
+            {/* admin */}
+            <Route element={<RequireAuth />}>
+              <Route path="/admin" element={<AdminHome />} />
+              <Route path="/admin/tickets" element={<Admin />} />
+              <Route path="/admin/modelos" element={<Modelos />} />
+            </Route>
 
-          {/* gestión de activos */}
-          <Route element={<RequireAuth />}>
-            <Route path="/admin/gestion-activos" element={<GestionActivos />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+            {/* gestion de activos */}
+            <Route element={<RequireAuth />}>
+              <Route path="/admin/gestion-activos" element={<GestionActivos />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+        <NotificationsBell />
+      </NotificationsProvider>
     </AuthProvider>
   );
 }
