@@ -1,7 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { listTickets, patchTicket, type Ticket } from "../services/tickets";
+import {
+  fetchTicketsMetrics,
+  listTickets,
+  patchTicket,
+  type Ticket,
+  type TicketsMetrics,
+} from "../services/tickets";
 import { useAuth } from "../auth/AuthContext";
+import { getTicketsSocket } from "../lib/socket";
 
 const RISK_ORDER: Record<Ticket["risk"], number> = {
   alto: 3,
@@ -25,6 +32,232 @@ const stateOpts: Ticket["state"][] = [
   "conDificultades",
   "resuelto",
 ];
+const RISK_FILTER_OPTIONS = ["todos", ...riskOpts] as const;
+type RiskFilter = (typeof RISK_FILTER_OPTIONS)[number];
+
+type SortOption = "risk" | "createdAsc" | "createdDesc";
+const SORT_LABEL: Record<SortOption, string> = {
+  risk: "Riesgo (alto -> bajo)",
+  createdAsc: "Creacion (antiguo -> reciente)",
+  createdDesc: "Creacion (reciente -> antiguo)",
+};
+
+function getTicketDateValue(ticket: Ticket) {
+  return new Date(ticket.ticketTime || ticket.createdAt || 0).getTime();
+}
+
+function formatResolutionTime(hours: number | null) {
+  if (hours == null) return "Sin datos";
+  if (hours < 1) {
+    const minutes = Math.round(hours * 60);
+    return `${minutes} min`;
+  }
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    const remaining = Math.round(hours % 24);
+    if (remaining === 0) return `${days} d`;
+    return `${days} d ${remaining} h`;
+  }
+  if (hours >= 10) {
+    return `${Math.round(hours)} h`;
+  }
+  return `${hours.toFixed(1)} h`;
+}
+
+function formatDateLabel(dateString: string) {
+  const parts = dateString.split("-");
+  if (parts.length !== 3) return dateString;
+  return `${parts[2]}/${parts[1]}`;
+}
+
+type TrendChartProps = {
+  data: TicketsMetrics["trend"];
+};
+
+function TrendChart({ data }: TrendChartProps) {
+  if (!data.length) {
+    return (
+      <div className="flex h-40 items-center justify-center text-sm text-neutral-400">
+        Sin datos suficientes
+      </div>
+    );
+  }
+
+  const maxValue = Math.max(
+    ...data.map((item) => Math.max(item.created, item.resolved)),
+    1
+  );
+  const width = Math.max((data.length - 1) * 32, 240);
+  const height = 160;
+  const step = data.length > 1 ? width / (data.length - 1) : width;
+
+  const buildPoints = (key: "created" | "resolved") =>
+    data
+      .map((point, index) => {
+        const x = index * step;
+        const value = point[key];
+        const y = height - (value / maxValue) * height;
+        const safeY = Number.isFinite(y) ? y : height;
+        return `${x.toFixed(2)},${safeY.toFixed(2)}`;
+      })
+      .join(" ");
+
+  const createdPoints = buildPoints("created");
+  const resolvedPoints = buildPoints("resolved");
+
+  const lines = [0.25, 0.5, 0.75].map((ratio) => (
+    <line
+      key={ratio}
+      x1={0}
+      y1={height * ratio}
+      x2={width}
+      y2={height * ratio}
+      stroke="rgba(255,255,255,0.08)"
+      strokeDasharray="4 6"
+    />
+  ));
+
+  const firstLabel = formatDateLabel(data[0].date);
+  const midLabel = formatDateLabel(data[Math.floor(data.length / 2)].date);
+  const lastLabel = formatDateLabel(data[data.length - 1].date);
+
+  return (
+    <div>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="h-40 w-full"
+        preserveAspectRatio="none"
+      >
+        {lines}
+        <polyline
+          points={createdPoints}
+          fill="none"
+          stroke="#f97316"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+        />
+        <polyline
+          points={resolvedPoints}
+          fill="none"
+          stroke="#34d399"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="mt-2 flex justify-between text-xs text-neutral-500">
+        <span>{firstLabel}</span>
+        <span>{midLabel}</span>
+        <span>{lastLabel}</span>
+      </div>
+    </div>
+  );
+}
+
+type MetricsPanelProps = {
+  metrics: TicketsMetrics | null;
+  loading: boolean;
+  error: string | null;
+  onRefresh: () => void;
+};
+
+function MetricsPanel({ metrics, loading, error, onRefresh }: MetricsPanelProps) {
+  const showSkeleton = loading && !metrics;
+
+  if (showSkeleton) {
+    return (
+      <div className="mb-8 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-xl font-semibold">Resumen de tickets</h3>
+            <p className="text-sm text-neutral-400">Calculando metricas...</p>
+          </div>
+          <div className="h-10 w-32 rounded-xl border border-white/10 bg-white/10 animate-pulse" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-28 rounded-2xl border border-white/10 bg-white/5 animate-pulse"
+            />
+          ))}
+        </div>
+        <div className="h-48 rounded-2xl border border-white/10 bg-white/5 animate-pulse" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-8 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-xl font-semibold">Resumen de tickets</h3>
+          <p className="text-sm text-neutral-400">
+            Datos consolidados de los ultimos 30 dias
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition disabled:opacity-60"
+        >
+          {loading ? "Actualizando..." : "Actualizar metricas"}
+        </button>
+      </div>
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300">
+          {error}
+        </div>
+      )}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
+          <h4 className="text-sm text-neutral-400">Promedio de resolucion</h4>
+          <p className="mt-2 text-3xl font-bold text-neutral-100">
+            {formatResolutionTime(metrics?.avgResolutionTimeHours ?? null)}
+          </p>
+          <p className="mt-1 text-xs text-neutral-500">
+            Desde apertura hasta cierre de ticket
+          </p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
+          <h4 className="text-sm text-neutral-400">Riesgo alto abierto</h4>
+          <p className="mt-2 text-3xl font-bold text-red-300">
+            {metrics?.highRiskOpen ?? 0}
+          </p>
+          <p className="mt-1 text-xs text-neutral-500">Tickets por atender cuanto antes</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
+          <h4 className="text-sm text-neutral-400">Tickets por categoria</h4>
+          <ul className="mt-2 space-y-1 text-sm text-neutral-200">
+            {(metrics?.ticketsByCategory ?? []).slice(0, 4).map((item) => (
+              <li key={item.category} className="flex justify-between text-neutral-300">
+                <span className="truncate pr-2">{item.category}</span>
+                <span className="font-semibold text-neutral-100">{item.total}</span>
+              </li>
+            ))}
+            {metrics && metrics.ticketsByCategory.length === 0 && (
+              <li className="text-neutral-500">Sin informacion disponible</li>
+            )}
+          </ul>
+        </div>
+      </div>
+      <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <span className="text-sm text-neutral-300">Evolucion diaria (ultimos 30 dias)</span>
+          <div className="flex items-center gap-4 text-xs text-neutral-400">
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-full bg-orange-400" /> Creacion
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" /> Resolucion
+            </span>
+          </div>
+        </div>
+        <TrendChart data={metrics?.trend ?? []} />
+      </div>
+    </div>
+  );
+}
 
 export default function Admin() {
   const [items, setItems] = useState<Ticket[]>([]);
@@ -32,143 +265,218 @@ export default function Admin() {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
+  const [riskFilter, setRiskFilter] = useState<RiskFilter>("todos");
+  const [sortBy, setSortBy] = useState<SortOption>("risk");
+  const [metrics, setMetrics] = useState<TicketsMetrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
 
   const { logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout();
     navigate("/login", { replace: true });
-  };
+  }, [logout, navigate]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setError(null);
-        // Traer todos y filtrar pendientes en el cliente
-        const r = await listTickets({ limit: 500 });
-        if (r.ok && Array.isArray(r.data)) {
-          setItems(r.data);
-        } else {
-          setError(r.error || "No se pudieron cargar los tickets.");
-        }
-      } catch (e: any) {
-        setError(e?.message || "Error al obtener tickets.");
-      } finally {
-        setLoading(false);
+  const refreshTickets = useCallback(async () => {
+    try {
+      setError(null);
+      setLoading(true);
+      const response = await listTickets({ limit: 500 });
+      if (!response.ok) {
+        throw new Error(response.error || "No se pudieron cargar los tickets");
       }
-    })();
+      setItems(Array.isArray(response.data) ? response.data : []);
+    } catch (err: any) {
+      setError(err?.message || "Error al obtener tickets.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // pendientes ordenados: riesgo desc, luego ticketTime asc
-  const pendingSorted = useMemo(() => {
-    return items
-      .filter((t) => t.state !== "resuelto")
-      .sort(
-        (a, b) =>
-          RISK_ORDER[b.risk] - RISK_ORDER[a.risk] ||
-          new Date(a.ticketTime || 0).getTime() -
-            new Date(b.ticketTime || 0).getTime()
-      );
-  }, [items]);
+  const refreshMetrics = useCallback(async () => {
+    try {
+      setMetricsError(null);
+      setMetricsLoading(true);
+      const response = await fetchTicketsMetrics();
+      if (!response.ok) {
+        throw new Error(response.error || "No se pudieron obtener metricas");
+      }
+      setMetrics(response.data);
+    } catch (err: any) {
+      setMetricsError(err?.message || "Error al cargar metricas.");
+    } finally {
+      setMetricsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshTickets();
+    void refreshMetrics();
+  }, [refreshTickets, refreshMetrics]);
+
+  const handleIncomingTicket = useCallback(
+    (incoming: Ticket) => {
+      setItems((list) => {
+        const without = list.filter((item) => item.ticketId !== incoming.ticketId);
+        if (incoming.state === "resuelto") {
+          return without;
+        }
+        return [...without, incoming];
+      });
+      if (incoming.state === "resuelto") {
+        setCommentDraft((draft) => {
+          if (!(incoming.ticketId in draft)) return draft;
+          const { [incoming.ticketId]: _omit, ...rest } = draft;
+          return rest;
+        });
+      }
+      void refreshMetrics();
+    },
+    [refreshMetrics]
+  );
+
+  useEffect(() => {
+    const socket = getTicketsSocket();
+    if (!socket) return;
+
+    const listener = (ticket: Ticket) => {
+      handleIncomingTicket(ticket);
+    };
+
+    socket.on("ticket:created", listener);
+    socket.on("ticket:updated", listener);
+
+    return () => {
+      socket.off("ticket:created", listener);
+      socket.off("ticket:updated", listener);
+    };
+  }, [handleIncomingTicket]);
+
+  const visibleTickets = useMemo(() => {
+    const pending = items.filter((ticket) => ticket.state !== "resuelto");
+    const filtered =
+      riskFilter === "todos"
+        ? pending
+        : pending.filter((ticket) => ticket.risk === riskFilter);
+
+    const sorted = [...filtered];
+    switch (sortBy) {
+      case "createdAsc":
+        sorted.sort((a, b) => getTicketDateValue(a) - getTicketDateValue(b));
+        break;
+      case "createdDesc":
+        sorted.sort((a, b) => getTicketDateValue(b) - getTicketDateValue(a));
+        break;
+      default:
+        sorted.sort(
+          (a, b) =>
+            RISK_ORDER[b.risk] - RISK_ORDER[a.risk] ||
+            getTicketDateValue(a) - getTicketDateValue(b)
+        );
+        break;
+    }
+    return sorted;
+  }, [items, riskFilter, sortBy]);
 
   async function onPatch(
-    t: Ticket,
+    ticket: Ticket,
     patch: Partial<Pick<Ticket, "risk" | "state">>
   ) {
-    setSaving((s) => ({ ...s, [t.ticketId]: true }));
+    setSaving((state) => ({ ...state, [ticket.ticketId]: true }));
     setError(null);
-    const prev = { ...t };
+    const previous = { ...ticket };
+
     try {
-      // optimista
       setItems((list) =>
-        list.map((x) => (x.ticketId === t.ticketId ? { ...x, ...patch } : x))
+        list.map((item) => (item.ticketId === ticket.ticketId ? { ...item, ...patch } : item))
       );
-      const r = await patchTicket(t.ticketId, patch);
-      if (!r.ok) throw new Error(r.error || "No se pudo actualizar el ticket.");
-      if (patch.state === "resuelto") {
-        setItems((list) => list.filter((x) => x.ticketId !== t.ticketId));
+      const response = await patchTicket(ticket.ticketId, patch);
+      if (!response.ok) {
+        throw new Error(response.error || "No se pudo actualizar el ticket.");
       }
-    } catch (e: any) {
+      if (patch.state === "resuelto") {
+        setItems((list) => list.filter((item) => item.ticketId !== ticket.ticketId));
+        setCommentDraft((draft) => {
+          if (!(ticket.ticketId in draft)) return draft;
+          const { [ticket.ticketId]: _omit, ...rest } = draft;
+          return rest;
+        });
+      }
+      void refreshMetrics();
+    } catch (err: any) {
       setItems((list) =>
-        list.map((x) => (x.ticketId === prev.ticketId ? prev : x))
+        list.map((item) => (item.ticketId === previous.ticketId ? previous : item))
       );
-      setError(e?.message || "Error actualizando el ticket.");
+      setError(err?.message || "Error actualizando el ticket.");
     } finally {
-      setSaving((s) => ({ ...s, [t.ticketId]: false }));
+      setSaving((state) => ({ ...state, [ticket.ticketId]: false }));
     }
   }
 
-  async function onSaveComment(t: Ticket) {
-    const draft = commentDraft[t.ticketId] ?? t.comment ?? "";
-    setSaving((s) => ({ ...s, [t.ticketId]: true }));
+  async function onSaveComment(ticket: Ticket) {
+    const draft = commentDraft[ticket.ticketId] ?? ticket.comment ?? "";
+    setSaving((state) => ({ ...state, [ticket.ticketId]: true }));
     setError(null);
-    const prev = t.comment ?? "";
+    const previousComment = ticket.comment ?? "";
+
     try {
-      // optimista
       setItems((list) =>
-        list.map((x) =>
-          x.ticketId === t.ticketId ? { ...x, comment: draft } : x
+        list.map((item) =>
+          item.ticketId === ticket.ticketId ? { ...item, comment: draft } : item
         )
       );
-      const r = await patchTicket(t.ticketId, { comment: draft });
-      if (!r.ok)
-        throw new Error(r.error || "No se pudo guardar el comentario.");
-    } catch (e: any) {
-      // revertir
+      const response = await patchTicket(ticket.ticketId, { comment: draft });
+      if (!response.ok) {
+        throw new Error(response.error || "No se pudo guardar el comentario.");
+      }
+    } catch (err: any) {
       setItems((list) =>
-        list.map((x) =>
-          x.ticketId === t.ticketId ? { ...x, comment: prev } : x
+        list.map((item) =>
+          item.ticketId === ticket.ticketId ? { ...item, comment: previousComment } : item
         )
       );
-      setError(e?.message || "Error guardando comentario.");
+      setError(err?.message || "Error guardando comentario.");
     } finally {
-      setSaving((s) => ({ ...s, [t.ticketId]: false }));
+      setSaving((state) => ({ ...state, [ticket.ticketId]: false }));
     }
   }
 
-  if (loading) {
+  if (loading && !items.length) {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden px-4 py-10">
         <div className="pointer-events-none absolute inset-0 opacity-40">
           <div
             className="absolute -top-24 -left-24 h-80 w-80 rounded-full blur-3xl"
-            style={{
-              background:
-                "radial-gradient(circle, #f97316 0%, transparent 60%)",
-            }}
+            style={{ background: "radial-gradient(circle, #f97316 0%, transparent 60%)" }}
           />
           <div
             className="absolute bottom-0 right-0 h-96 w-96 rounded-full blur-3xl"
-            style={{
-              background:
-                "radial-gradient(circle, #ea580c 0%, transparent 65%)",
-            }}
+            style={{ background: "radial-gradient(circle, #ea580c 0%, transparent 65%)" }}
           />
         </div>
-
-        <div className="relative w-full max-w-6xl mx-auto">
-          <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex items-center justify-between">
+        <div className="relative mx-auto w-full max-w-6xl space-y-6">
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-extrabold tracking-tight">
-                Panel de Administración
-              </h2>
-              <p className="text-neutral-300 text-sm">Cargando tickets…</p>
+              <h2 className="text-2xl font-extrabold tracking-tight">Panel de administracion</h2>
+              <p className="text-sm text-neutral-400">Cargando tickets y metricas...</p>
             </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
-            >
-              Cerrar sesión
-            </button>
+            <div className="h-10 w-24 rounded-xl border border-white/10 bg-white/10 animate-pulse" />
           </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            {Array.from({ length: 3 }).map((_, i) => (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
               <div
-                key={i}
-                className="rounded-2xl border border-white/10 bg-white/5 p-4 animate-pulse h-36"
+                key={`metric-skel-${index}`}
+                className="h-28 rounded-2xl border border-white/10 bg-white/5 animate-pulse"
+              />
+            ))}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={`card-skel-${index}`}
+                className="h-48 rounded-2xl border border-white/10 bg-white/5 animate-pulse"
               />
             ))}
           </div>
@@ -179,37 +487,30 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden px-4 py-10">
-      {/* Fondos decorativos */}
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div
           className="absolute -top-24 -left-24 h-80 w-80 rounded-full blur-3xl"
-          style={{
-            background: "radial-gradient(circle, #f97316 0%, transparent 60%)",
-          }}
+          style={{ background: "radial-gradient(circle, #f97316 0%, transparent 60%)" }}
         />
         <div
           className="absolute bottom-0 right-0 h-96 w-96 rounded-full blur-3xl"
-          style={{
-            background: "radial-gradient(circle, #ea580c 0%, transparent 65%)",
-          }}
+          style={{ background: "radial-gradient(circle, #ea580c 0%, transparent 65%)" }}
         />
       </div>
 
-      <div className="relative w-full max-w-6xl mx-auto">
-        <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex items-center justify-between">
-          <h2 className="text-2xl font-extrabold tracking-tight">
-            Gestion de tickets
-          </h2>
-          <div className="flex items-center gap-3">
+      <div className="relative mx-auto w-full max-w-6xl">
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
+          <h2 className="text-2xl font-extrabold tracking-tight">Gestion de tickets</h2>
+          <div className="flex flex-wrap items-center gap-3">
             {error && (
-              <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded px-3 py-1.5">
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-sm text-red-300">
                 {error}
               </div>
             )}
             <button
+              type="button"
               onClick={() => navigate(-1)}
               className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
-              type="button"
             >
               Volver
             </button>
@@ -218,52 +519,96 @@ export default function Admin() {
               onClick={handleLogout}
               className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
             >
-              Cerrar sesión
+              Cerrar sesion
             </button>
           </div>
         </div>
 
+        <MetricsPanel
+          metrics={metrics}
+          loading={metricsLoading}
+          error={metricsError}
+          onRefresh={() => {
+            void refreshMetrics();
+          }}
+        />
+
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="text-sm text-neutral-300">
+              Riesgo
+              <select
+                value={riskFilter}
+                onChange={(event) => setRiskFilter(event.target.value as RiskFilter)}
+                className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                {RISK_FILTER_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm text-neutral-300">
+              Ordenar
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value as SortOption)}
+                className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                {(Object.keys(SORT_LABEL) as SortOption[]).map((option) => (
+                  <option key={option} value={option}>
+                    {SORT_LABEL[option]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="text-sm text-neutral-400">
+            Pendientes: {" "}
+            <span className="font-semibold text-neutral-100">{visibleTickets.length}</span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {pendingSorted.map((t) => (
+          {visibleTickets.map((ticket) => (
             <article
-              key={t.ticketId}
+              key={ticket.ticketId}
               className={`rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.5)] ring-1 ${
-                RISK_RING[t.risk]
+                RISK_RING[ticket.risk]
               } transition hover:bg-white/10`}
             >
               <header className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold truncate">
-                      {t.title}
-                    </h3>
+                    <h3 className="text-lg font-semibold truncate">{ticket.title}</h3>
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                        RISK_BADGE[t.risk]
+                        RISK_BADGE[ticket.risk]
                       }`}
                     >
-                      {t.risk}
+                      {ticket.risk}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-neutral-300 line-clamp-3">
-                    {t.description}
+                    {ticket.description}
                   </p>
-                  {Array.isArray(t.images) && t.images.length > 0 && (
-                    <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {t.images.map((src, i) => (
+                  {Array.isArray(ticket.images) && ticket.images.length > 0 && (
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {ticket.images.map((src, index) => (
                         <img
-                          key={i}
+                          key={index}
                           src={src}
-                          alt={`img-${i}`}
-                          className="h-24 w-full object-cover rounded-lg border border-white/10"
+                          alt={`img-${index}`}
+                          className="h-24 w-full rounded-lg border border-white/10 object-cover"
                         />
                       ))}
                     </div>
                   )}
                   <p className="mt-1 text-xs text-neutral-400">
-                    {t.userName} ·{" "}
-                    {t.ticketTime
-                      ? new Date(t.ticketTime).toLocaleString()
+                    {ticket.userName} -{" "}
+                    {ticket.ticketTime
+                      ? new Date(ticket.ticketTime).toLocaleString()
                       : "sin fecha"}
                   </p>
                 </div>
@@ -274,16 +619,16 @@ export default function Admin() {
                   <span className="text-xs text-neutral-400">Riesgo</span>
                   <select
                     aria-label="Cambiar riesgo"
-                    disabled={saving[t.ticketId]}
-                    value={t.risk}
-                    onChange={(e) =>
-                      onPatch(t, { risk: e.target.value as Ticket["risk"] })
+                    disabled={saving[ticket.ticketId]}
+                    value={ticket.risk}
+                    onChange={(event) =>
+                      onPatch(ticket, { risk: event.target.value as Ticket["risk"] })
                     }
-                    className="block w-full rounded-xl bg-neutral-900/70 border border-white/10 text-neutral-100 text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
+                    className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
                   >
-                    {riskOpts.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
+                    {riskOpts.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
                       </option>
                     ))}
                   </select>
@@ -293,51 +638,50 @@ export default function Admin() {
                   <span className="text-xs text-neutral-400">Estado</span>
                   <select
                     aria-label="Cambiar estado"
-                    disabled={saving[t.ticketId]}
-                    value={t.state}
-                    onChange={(e) =>
-                      onPatch(t, { state: e.target.value as Ticket["state"] })
+                    disabled={saving[ticket.ticketId]}
+                    value={ticket.state}
+                    onChange={(event) =>
+                      onPatch(ticket, { state: event.target.value as Ticket["state"] })
                     }
-                    className="block w-full rounded-xl bg-neutral-900/70 border border-white/10 text-neutral-100 text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
+                    className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
                   >
-                    {stateOpts.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
+                    {stateOpts.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
                       </option>
                     ))}
                   </select>
                 </label>
               </div>
 
-              {/* Comentario */}
               <div className="mt-4">
                 <label className="flex flex-col gap-1">
                   <span className="text-xs text-neutral-400">Comentario</span>
                   <textarea
                     rows={3}
-                    value={commentDraft[t.ticketId] ?? t.comment ?? ""}
-                    onChange={(e) =>
-                      setCommentDraft((m) => ({
-                        ...m,
-                        [t.ticketId]: e.target.value,
+                    value={commentDraft[ticket.ticketId] ?? ticket.comment ?? ""}
+                    onChange={(event) =>
+                      setCommentDraft((draft) => ({
+                        ...draft,
+                        [ticket.ticketId]: event.target.value,
                       }))
                     }
                     placeholder="Describe acciones realizadas, hallazgos o notas."
-                    className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 text-sm"
+                    className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
                   />
                 </label>
                 <div className="mt-2 flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => onSaveComment(t)}
-                    disabled={saving[t.ticketId]}
-                    className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold hover:bg-orange-500 transition disabled:opacity-60"
+                    onClick={() => onSaveComment(ticket)}
+                    disabled={saving[ticket.ticketId]}
+                    className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold transition hover:bg-orange-500 disabled:opacity-60"
                   >
-                    {saving[t.ticketId] ? "Guardando..." : "Guardar comentario"}
+                    {saving[ticket.ticketId] ? "Guardando..." : "Guardar comentario"}
                   </button>
-                  {t.resolucionTime && (
+                  {ticket.resolucionTime && (
                     <span className="text-xs text-neutral-400">
-                      Resuelto: {new Date(t.resolucionTime).toLocaleString()}
+                      Resuelto: {new Date(ticket.resolucionTime).toLocaleString()}
                     </span>
                   )}
                 </div>
@@ -346,7 +690,7 @@ export default function Admin() {
           ))}
         </div>
 
-        {pendingSorted.length === 0 && (
+        {visibleTickets.length === 0 && !loading && (
           <div className="mt-10 text-center text-neutral-400">
             No hay tickets pendientes.
           </div>
@@ -355,3 +699,7 @@ export default function Admin() {
     </div>
   );
 }
+
+
+
+

@@ -15,10 +15,12 @@ export type Ticket = {
   userName: string;
   risk: "alto" | "medio" | "bajo";
   state: "recibido" | "enProceso" | "resuelto" | "conDificultades";
-  ticketTime?: Date;
-  resolucionTime?: Date;
+  ticketTime?: string;
+  resolucionTime?: string;
   comment?: string;
-  images?: string[]; // data URLs de imágenes opcionales
+  images?: string[]; // data URLs de imagenes opcionales
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 // Para crear un ticket no pedimos campos automáticos como ticketTime/resolucionTime
@@ -32,6 +34,18 @@ export type ListResponse = {
   error?: string;
 };
 
+export type TicketsMetrics = {
+  avgResolutionTimeHours: number | null;
+  ticketsByCategory: { category: string; total: number }[];
+  highRiskOpen: number;
+  trend: { date: string; created: number; resolved: number }[];
+};
+
+export type TicketsMetricsResponse = {
+  ok: boolean;
+  data: TicketsMetrics;
+  error?: string;
+};
 export function createTicket(payload: TicketPayload) {
   return httpJSON<TicketResponse>("tickets", "/api/ticketvvp", {
     method: "POST",
@@ -60,6 +74,10 @@ export function listPendingTicketsAdmin() {
   return httpJSON<ListResponse>("tickets", "/api/admin/tickets/pendientes");
 }
 
+export function fetchTicketsMetrics() {
+  return httpJSON<TicketsMetricsResponse>("tickets", "/api/admin/tickets/metrics");
+}
+
 export function patchTicket(
   ticketId: string,
   payload: Partial<Pick<Ticket, "risk" | "state" | "comment">>
@@ -69,3 +87,4 @@ export function patchTicket(
     body: JSON.stringify(payload),
   });
 }
+

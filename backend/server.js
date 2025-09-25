@@ -3,6 +3,8 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const http = require("http");
+const { Server } = require("socket.io");
 
 const {
   Activo,
@@ -14,6 +16,18 @@ const {
 } = require("./db");
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: true, credentials: true } });
+
+app.set("io", io);
+
+io.on("connection", (socket) => {
+  console.log(`[socket] conectado ${socket.id}`);
+  socket.on("disconnect", () => {
+    console.log(`[socket] desconectado ${socket.id}`);
+  });
+});
+
 app.use(cors({ origin: true, credentials: true }));
 // Aumentar límite para permitir imágenes en base64 en tickets
 app.use(express.json({ limit: "10mb" }));
@@ -80,13 +94,37 @@ function assertCompatProveedorTipo({ proveedor, tipoLicencia }) {
 
 // upsert + push movimiento
 async function pushMovimiento({ tipo, refId, movimiento }) {
-  // compat: aseguramos activoId = refId para no chocar con índices antiguos
+  // compat: aseguramos activoId = refId para no chocar con indices antiguos
   return Historico.updateOne(
     { tipo, refId },
     { $setOnInsert: { activoId: refId }, $push: { movimientos: movimiento } },
     { upsert: true }
   );
 }
+
+function emitTicketEvent(appRef, event, doc) {
+  if (!doc || !appRef?.get) return;
+  const io = appRef.get("io");
+  if (!io) return;
+  const plain = typeof doc.toObject === "function" ? doc.toObject({ versionKey: false }) : doc;
+
+  const normalizeDate = (value) => {
+    if (!value) return null;
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === "string") return value;
+    return new Date(value).toISOString();
+  };
+
+  io.emit(event, {
+    ...plain,
+    ticketTime: normalizeDate(plain.ticketTime),
+    resolucionTime: normalizeDate(plain.resolucionTime),
+    createdAt: normalizeDate(plain.createdAt),
+    updatedAt: normalizeDate(plain.updatedAt),
+  });
+}
+
+
 
 /* =========================
  * ACTIVOS
@@ -708,6 +746,7 @@ app.post("/api/ticketvvp", async (req, res) => {
       ticketTime: b.ticketTime ? new Date(b.ticketTime) : new Date(),
     };
     const doc = await Ticket.create(payload);
+    emitTicketEvent(req.app, "ticket:created", doc);
     res.status(201).json({ ok: true, data: doc });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -757,6 +796,7 @@ app.patch("/api/ticketvvp/:ticketId", async (req, res) => {
     );
     if (!doc)
       return res.status(404).json({ ok: false, error: "No encontrado" });
+    emitTicketEvent(req.app, "ticket:updated", doc);
     res.json({ ok: true, data: doc });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -774,9 +814,119 @@ app.get("/api/admin/tickets/pendientes", async (_req, res) => {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
+app.get("/api/admin/tickets/metrics", async (_req, res) => {
+  try {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const since = new Date(now);
+    since.setDate(now.getDate() - 29);
+
+    const [resolutionStats] = await Ticket.aggregate([
+      { $match: { resolucionTime: { $ne: null } } },
+      {
+        $project: {
+          diff: {
+            $subtract: [
+              "$resolucionTime",
+              { $ifNull: ["$ticketTime", "$createdAt"] },
+            ],
+          },
+        },
+      },
+      { $match: { diff: { $gt: 0 } } },
+      { $group: { _id: null, avg: { $avg: "$diff" } } },
+    ]);
+
+    const perCategoryAgg = await Ticket.aggregate([
+      {
+        $group: {
+          _id: "$title",
+          total: { $sum: 1 },
+        },
+      },
+      { $sort: { total: -1, _id: 1 } },
+    ]);
+
+    const highRiskOpen = await Ticket.countDocuments({
+      risk: "alto",
+      state: { $ne: "resuelto" },
+    });
+
+    const createdAgg = await Ticket.aggregate([
+      {
+        $addFields: {
+          createdDate: { $ifNull: ["$ticketTime", "$createdAt"] },
+        },
+      },
+      { $match: { createdDate: { $gte: since } } },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$createdDate" },
+          },
+          total: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const resolvedAgg = await Ticket.aggregate([
+      { $match: { resolucionTime: { $ne: null } } },
+      { $match: { resolucionTime: { $gte: since } } },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$resolucionTime" },
+          },
+          total: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    const timeline = [];
+    for (let offset = 0; offset < 30; offset += 1) {
+      const day = new Date(since.getTime() + offset * dayMs);
+      timeline.push(day.toISOString().slice(0, 10));
+    }
+
+    const createdMap = new Map(createdAgg.map((item) => [item._id, item.total]));
+    const resolvedMap = new Map(
+      resolvedAgg.map((item) => [item._id, item.total])
+    );
+
+    const trend = timeline.map((date) => ({
+      date,
+      created: createdMap.get(date) || 0,
+      resolved: resolvedMap.get(date) || 0,
+    }));
+
+    const avgResolutionTimeHours =
+      typeof resolutionStats?.avg === "number"
+        ? Number((resolutionStats.avg / (1000 * 60 * 60)).toFixed(2))
+        : null;
+
+    res.json({
+      ok: true,
+      data: {
+        avgResolutionTimeHours,
+        ticketsByCategory: perCategoryAgg.map((item) => ({
+          category: item._id,
+          total: item.total,
+        })),
+        highRiskOpen,
+        trend,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
 
 /* =========================
  * Server
  * ========================= */
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`[server] listo en :${PORT}`));
+server.listen(PORT, () => console.log(`[server] listo en :${PORT}`));
+
