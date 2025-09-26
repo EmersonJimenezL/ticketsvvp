@@ -75,12 +75,20 @@ export default function NuevoTicket() {
     }
 
     const ticketId = genTicketId();
+    const firstName =
+      typeof user.primerNombre === "string" ? user.primerNombre.trim() : "";
+    const lastName =
+      typeof user.primerApellido === "string" ? user.primerApellido.trim() : "";
+    const fullName = [firstName, lastName].filter(Boolean).join(" ");
+
     const payload: TicketPayload = {
       ticketId,
       title,
       description: description.trim(),
       userId: user.nombreUsuario,
-      userName: user.primerNombre || user.nombreUsuario,
+      userName: firstName || user.nombreUsuario,
+      userLastName: lastName || undefined,
+      userFullName: fullName || undefined,
       risk,
       state: "recibido",
       images: images.length ? images : undefined,

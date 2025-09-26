@@ -13,6 +13,8 @@ export type Ticket = {
   description: string;
   userId: string;
   userName: string;
+  userLastName?: string;
+  userFullName?: string;
   risk: "alto" | "medio" | "bajo";
   state: "recibido" | "enProceso" | "resuelto" | "conDificultades";
   ticketTime?: string;
@@ -34,10 +36,18 @@ export type ListResponse = {
   error?: string;
 };
 
+export type TicketsByUserMetric = {
+  userId: string;
+  userName: string;
+  userLastName?: string;
+  userFullName?: string;
+  total: number;
+};
+
 export type TicketsMetrics = {
   avgResolutionTimeHours: number | null;
   ticketsByCategory: { category: string; total: number }[];
-  ticketsByUser: { userId: string; userName: string; total: number }[];
+  ticketsByUser: TicketsByUserMetric[];
   highRiskOpen: number;
   trend: { date: string; created: number; resolved: number }[];
 };

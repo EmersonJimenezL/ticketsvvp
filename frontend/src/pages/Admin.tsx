@@ -178,6 +178,26 @@ function MetricsPanel({
 }: MetricsPanelProps) {
   const showSkeleton = loading && !metrics;
 
+  const resolveUserDisplayName = (
+    item: TicketsMetrics["ticketsByUser"][number]
+  ) => {
+    const fallback = "Sin usuario";
+    if (!item) return fallback;
+
+    const fullName = (item.userFullName ?? "").trim();
+    if (fullName) return fullName;
+
+    const firstName = (item.userName ?? "").trim();
+    const lastName = (item.userLastName ?? "").trim();
+    const combined = [firstName, lastName].filter(Boolean).join(" ");
+    if (combined) return combined;
+
+    if (item.userId && item.userId.trim()) {
+      return item.userId.trim();
+    }
+
+    return fallback;
+  };
   if (showSkeleton) {
     return (
       <div className="mb-8 space-y-4">
@@ -265,19 +285,20 @@ function MetricsPanel({
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
           <h4 className="text-sm text-neutral-400">Tickets por usuario</h4>
           <ul className="mt-2 space-y-1 text-sm text-neutral-200">
-            {(metrics?.ticketsByUser ?? []).slice(0, 5).map((item) => (
-              <li
-                key={`${item.userId || item.userName || "desconocido"}-user`}
-                className="flex justify-between text-neutral-300"
-              >
-                <span className="truncate pr-2">
-                  {item.userName || item.userId || "Sin usuario"}
-                </span>
-                <span className="font-semibold text-neutral-100">
-                  {item.total}
-                </span>
-              </li>
-            ))}
+            {(metrics?.ticketsByUser ?? []).slice(0, 5).map((item) => {
+              const displayName = resolveUserDisplayName(item);
+              const key = `${item.userId || displayName || "desconocido"}-user`;
+              return (
+                <li key={key} className="flex justify-between text-neutral-300">
+                  <span className="truncate pr-2" title={displayName}>
+                    {displayName}
+                  </span>
+                  <span className="font-semibold text-neutral-100">
+                    {item.total}
+                  </span>
+                </li>
+              );
+            })}
             {metrics && metrics.ticketsByUser.length === 0 && (
               <li className="text-neutral-500">Sin informacion disponible</li>
             )}
@@ -524,121 +545,139 @@ export default function Admin() {
     }
   }
 
-  const renderTicketCard = (ticket: Ticket) => (
-    <article
-      key={ticket.ticketId}
-      className={`rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.5)] ring-1 ${
-        RISK_RING[ticket.risk]
-      } transition hover:bg-white/10`}
-    >
-      <header className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold truncate">{ticket.title}</h3>
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                RISK_BADGE[ticket.risk]
-              }`}
-            >
-              {ticket.risk}
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-neutral-300">{ticket.description}</p>
-          {Array.isArray(ticket.images) && ticket.images.length > 0 && (
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {ticket.images.map((src, index) => (
-                <img
-                  key={index}
-                  src={src}
-                  alt={`img-${index}`}
-                  className="h-24 w-full rounded-lg border border-white/10 object-cover"
-                />
-              ))}
+  const renderTicketCard = (ticket: Ticket) => {
+    const ownerFullName =
+      (ticket.userFullName ?? "").trim() ||
+      [ticket.userName ?? "", ticket.userLastName ?? ""]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+    const ownerDisplay =
+      ownerFullName ||
+      (ticket.userName ?? "").trim() ||
+      ticket.userId ||
+      "Sin usuario";
+
+    return (
+      <article
+        key={ticket.ticketId}
+        className={`rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.5)] ring-1 ${
+          RISK_RING[ticket.risk]
+        } transition hover:bg-white/10`}
+      >
+        <header className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold truncate">{ticket.title}</h3>
+              <span
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                  RISK_BADGE[ticket.risk]
+                }`}
+              >
+                {ticket.risk}
+              </span>
             </div>
-          )}
-          <p className="mt-1 text-xs text-neutral-400">
-            {ticket.userName} -{" "}
-            {ticket.ticketTime
-              ? new Date(ticket.ticketTime).toLocaleString()
-              : "sin fecha"}
-          </p>
+            <p className="mt-1 text-sm text-neutral-300">
+              {ticket.description}
+            </p>
+            {Array.isArray(ticket.images) && ticket.images.length > 0 && (
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {ticket.images.map((src, index) => (
+                  <img
+                    key={index}
+                    src={src}
+                    alt={`img-${index}`}
+                    className="h-24 w-full rounded-lg border border-white/10 object-cover"
+                  />
+                ))}
+              </div>
+            )}
+            <p className="mt-1 text-xs text-neutral-400">
+              {ownerDisplay} -{" "}
+              {ticket.ticketTime
+                ? new Date(ticket.ticketTime).toLocaleString()
+                : "sin fecha"}
+            </p>
+          </div>
+        </header>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-neutral-400">Riesgo</span>
+            <select
+              aria-label="Cambiar riesgo"
+              disabled={saving[ticket.ticketId]}
+              value={ticket.risk}
+              onChange={(event) =>
+                onPatch(ticket, { risk: event.target.value as Ticket["risk"] })
+              }
+              className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
+            >
+              {riskOpts.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-neutral-400">Estado</span>
+            <select
+              aria-label="Cambiar estado"
+              disabled={saving[ticket.ticketId]}
+              value={ticket.state}
+              onChange={(event) =>
+                onPatch(ticket, {
+                  state: event.target.value as Ticket["state"],
+                })
+              }
+              className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
+            >
+              {stateOpts.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-      </header>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-neutral-400">Riesgo</span>
-          <select
-            aria-label="Cambiar riesgo"
-            disabled={saving[ticket.ticketId]}
-            value={ticket.risk}
-            onChange={(event) =>
-              onPatch(ticket, { risk: event.target.value as Ticket["risk"] })
-            }
-            className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
-          >
-            {riskOpts.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-neutral-400">Estado</span>
-          <select
-            aria-label="Cambiar estado"
-            disabled={saving[ticket.ticketId]}
-            value={ticket.state}
-            onChange={(event) =>
-              onPatch(ticket, { state: event.target.value as Ticket["state"] })
-            }
-            className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
-          >
-            {stateOpts.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <div className="mt-4">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-neutral-400">Comentario</span>
-          <textarea
-            rows={3}
-            value={commentDraft[ticket.ticketId] ?? ticket.comment ?? ""}
-            onChange={(event) =>
-              setCommentDraft((draft) => ({
-                ...draft,
-                [ticket.ticketId]: event.target.value,
-              }))
-            }
-            placeholder="Describe acciones realizadas, hallazgos o notas."
-            className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-          />
-        </label>
-        <div className="mt-2 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => onSaveComment(ticket)}
-            disabled={saving[ticket.ticketId]}
-            className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold transition hover:bg-orange-500 disabled:opacity-60"
-          >
-            {saving[ticket.ticketId] ? "Guardando..." : "Guardar comentario"}
-          </button>
-          {ticket.resolucionTime && (
-            <span className="text-xs text-neutral-400">
-              Resuelto: {new Date(ticket.resolucionTime).toLocaleString()}
-            </span>
-          )}
+        <div className="mt-4">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-neutral-400">Comentario</span>
+            <textarea
+              rows={3}
+              value={commentDraft[ticket.ticketId] ?? ticket.comment ?? ""}
+              onChange={(event) =>
+                setCommentDraft((draft) => ({
+                  ...draft,
+                  [ticket.ticketId]: event.target.value,
+                }))
+              }
+              placeholder="Describe acciones realizadas, hallazgos o notas."
+              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+            />
+          </label>
+          <div className="mt-2 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onSaveComment(ticket)}
+              disabled={saving[ticket.ticketId]}
+              className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold transition hover:bg-orange-500 disabled:opacity-60"
+            >
+              {saving[ticket.ticketId] ? "Guardando..." : "Guardar comentario"}
+            </button>
+            {ticket.resolucionTime && (
+              <span className="text-xs text-neutral-400">
+                Resuelto: {new Date(ticket.resolucionTime).toLocaleString()}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-    </article>
-  );
+      </article>
+    );
+  };
 
   if (loading && !items.length) {
     return (

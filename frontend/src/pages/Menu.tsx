@@ -5,7 +5,9 @@ import logo from "../assets/vivipra.png";
 
 export default function Menu() {
   const { user, logout } = useAuth();
-  const nombre = user?.primerNombre || user?.nombreUsuario || "Usuario";
+  const nombre =
+    [user?.primerNombre, user?.primerApellido].filter((part) => part && part.trim())
+      .join(" ") || user?.nombreUsuario || "Usuario";
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden flex items-center justify-center">

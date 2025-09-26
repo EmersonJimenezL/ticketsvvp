@@ -734,12 +734,20 @@ app.post("/api/ticketvvp", async (req, res) => {
         .slice(0, 5);
     }
 
+    const firstName = typeof b.userName === "string" ? b.userName.trim() : "";
+    const lastName = typeof b.userLastName === "string" ? b.userLastName.trim() : "";
+    const providedFullName =
+      typeof b.userFullName === "string" ? b.userFullName.trim() : "";
+    const inferredFullName = [firstName, lastName].filter(Boolean).join(" ");
+
     const payload = {
       ticketId: b.ticketId,
       title: b.title,
       description: String(b.description || "").trim(),
       userId: b.userId,
-      userName: b.userName,
+      userName: firstName || b.userId,
+      userLastName: lastName || undefined,
+      userFullName: providedFullName || inferredFullName || undefined,
       risk: b.risk,
       state: b.state,
       images,
@@ -853,6 +861,8 @@ app.get("/api/admin/tickets/metrics", async (_req, res) => {
           _id: { $ifNull: ["$userId", "desconocido"] },
           total: { $sum: 1 },
           userName: { $first: { $ifNull: ["$userName", ""] } },
+          userLastName: { $first: { $ifNull: ["$userLastName", ""] } },
+          userFullName: { $first: { $ifNull: ["$userFullName", ""] } },
         },
       },
       { $sort: { total: -1, _id: 1 } },
@@ -923,14 +933,27 @@ app.get("/api/admin/tickets/metrics", async (_req, res) => {
       ok: true,
       data: {
         avgResolutionTimeHours,
-        ticketsByUser: perUserAgg.map((item) => ({
-          userId: item._id === "desconocido" ? "" : item._id,
-          userName:
-            item._id === "desconocido"
-              ? "Sin usuario"
-              : item.userName || item._id,
-          total: item.total,
-        })),
+        ticketsByUser: perUserAgg.map((item) => {
+          const isUnknown = item._id === "desconocido";
+          const userId = isUnknown ? "" : item._id;
+          const firstName =
+            typeof item.userName === "string" ? item.userName.trim() : "";
+          const lastName =
+            typeof item.userLastName === "string" ? item.userLastName.trim() : "";
+          const storedFullName =
+            typeof item.userFullName === "string" ? item.userFullName.trim() : "";
+          const computedFullName =
+            storedFullName || [firstName, lastName].filter(Boolean).join(" ");
+          const fallbackName = isUnknown ? "Sin usuario" : userId;
+
+          return {
+            userId,
+            userName: firstName || fallbackName,
+            userLastName: lastName || undefined,
+            userFullName: computedFullName || undefined,
+            total: item.total,
+          };
+        }),
 
         ticketsByCategory: perCategoryAgg.map((item) => ({
           category: item._id,

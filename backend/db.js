@@ -32,7 +32,9 @@ const ticketSchema = new Schema(
     },
     description: { type: String, required: true, trim: true },
     userId: { type: String, required: true },
-    userName: { type: String, required: true },
+    userName: { type: String, required: true, trim: true },
+    userLastName: { type: String, trim: true },
+    userFullName: { type: String, trim: true },
     risk: { type: String, enum: ["alto", "medio", "bajo"], default: "bajo" },
     state: {
       type: String,
