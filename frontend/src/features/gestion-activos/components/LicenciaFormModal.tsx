@@ -1,5 +1,9 @@
 import type { Licencia } from "../types";
-import { OPCIONES_PROVEEDOR, OPCIONES_SUCURSAL, OPCIONES_TIPO_LIC_MAP } from "../constants";
+import {
+  OPCIONES_PROVEEDOR,
+  OPCIONES_SUCURSAL,
+  OPCIONES_TIPO_LIC_MAP,
+} from "../constants";
 import type { Sucursal } from "../constants";
 
 type LicenciaFormModalProps = {
@@ -52,7 +56,9 @@ export function LicenciaFormModal({
             />
           </div>
           <div>
-            <label className="block text-sm text-neutral-300">Proveedor *</label>
+            <label className="block text-sm text-neutral-300">
+              Proveedor *
+            </label>
             <select
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
               value={form.proveedor || ""}
@@ -81,7 +87,9 @@ export function LicenciaFormModal({
             </select>
           </div>
           <div>
-            <label className="block text-sm text-neutral-300">Tipo licencia *</label>
+            <label className="block text-sm text-neutral-300">
+              Tipo licencia *
+            </label>
             <select
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
               value={form.tipoLicencia || ""}
@@ -98,7 +106,9 @@ export function LicenciaFormModal({
             </select>
           </div>
           <div>
-            <label className="block text-sm text-neutral-300">Fecha de compra</label>
+            <label className="block text-sm text-neutral-300">
+              Fecha de compra
+            </label>
             <input
               type="date"
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
@@ -113,7 +123,9 @@ export function LicenciaFormModal({
             <select
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
               value={form.sucursal || ""}
-              onChange={(event) => onChange({ sucursal: event.target.value as "" | Sucursal })}
+              onChange={(event) =>
+                onChange({ sucursal: event.target.value as "" | Sucursal })
+              }
             >
               <option value="">Seleccione</option>
               {OPCIONES_SUCURSAL.map((sucursal) => (
@@ -134,7 +146,9 @@ export function LicenciaFormModal({
             />
           </div>
           <div>
-            <label className="block text-sm text-neutral-300">Asignado el</label>
+            <label className="block text-sm text-neutral-300">
+              Asignado el
+            </label>
             <input
               type="date"
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
@@ -165,4 +179,3 @@ export function LicenciaFormModal({
     </div>
   );
 }
-

@@ -46,6 +46,16 @@ function getTicketDateValue(ticket: Ticket) {
   return new Date(ticket.ticketTime || ticket.createdAt || 0).getTime();
 }
 
+function getResolvedDateValue(ticket: Ticket) {
+  return new Date(
+    ticket.resolucionTime ||
+      ticket.updatedAt ||
+      ticket.ticketTime ||
+      ticket.createdAt ||
+      0
+  ).getTime();
+}
+
 function formatResolutionTime(hours: number | null) {
   if (hours == null) return "Sin datos";
   if (hours < 1) {
@@ -160,7 +170,12 @@ type MetricsPanelProps = {
   onRefresh: () => void;
 };
 
-function MetricsPanel({ metrics, loading, error, onRefresh }: MetricsPanelProps) {
+function MetricsPanel({
+  metrics,
+  loading,
+  error,
+  onRefresh,
+}: MetricsPanelProps) {
   const showSkeleton = loading && !metrics;
 
   if (showSkeleton) {
@@ -224,15 +239,22 @@ function MetricsPanel({ metrics, loading, error, onRefresh }: MetricsPanelProps)
           <p className="mt-2 text-3xl font-bold text-red-300">
             {metrics?.highRiskOpen ?? 0}
           </p>
-          <p className="mt-1 text-xs text-neutral-500">Tickets por atender cuanto antes</p>
+          <p className="mt-1 text-xs text-neutral-500">
+            Tickets por atender cuanto antes
+          </p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
           <h4 className="text-sm text-neutral-400">Tickets por categoria</h4>
           <ul className="mt-2 space-y-1 text-sm text-neutral-200">
             {(metrics?.ticketsByCategory ?? []).slice(0, 4).map((item) => (
-              <li key={item.category} className="flex justify-between text-neutral-300">
+              <li
+                key={item.category}
+                className="flex justify-between text-neutral-300"
+              >
                 <span className="truncate pr-2">{item.category}</span>
-                <span className="font-semibold text-neutral-100">{item.total}</span>
+                <span className="font-semibold text-neutral-100">
+                  {item.total}
+                </span>
               </li>
             ))}
             {metrics && metrics.ticketsByCategory.length === 0 && (
@@ -240,16 +262,41 @@ function MetricsPanel({ metrics, loading, error, onRefresh }: MetricsPanelProps)
             )}
           </ul>
         </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
+          <h4 className="text-sm text-neutral-400">Tickets por usuario</h4>
+          <ul className="mt-2 space-y-1 text-sm text-neutral-200">
+            {(metrics?.ticketsByUser ?? []).slice(0, 5).map((item) => (
+              <li
+                key={`${item.userId || item.userName || "desconocido"}-user`}
+                className="flex justify-between text-neutral-300"
+              >
+                <span className="truncate pr-2">
+                  {item.userName || item.userId || "Sin usuario"}
+                </span>
+                <span className="font-semibold text-neutral-100">
+                  {item.total}
+                </span>
+              </li>
+            ))}
+            {metrics && metrics.ticketsByUser.length === 0 && (
+              <li className="text-neutral-500">Sin informacion disponible</li>
+            )}
+          </ul>
+        </div>
       </div>
       <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <span className="text-sm text-neutral-300">Evolucion diaria (ultimos 30 dias)</span>
+          <span className="text-sm text-neutral-300">
+            Evolucion diaria (ultimos 30 dias)
+          </span>
           <div className="flex items-center gap-4 text-xs text-neutral-400">
             <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full bg-orange-400" /> Creacion
+              <span className="inline-block h-2 w-2 rounded-full bg-orange-400" />{" "}
+              Creacion
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" /> Resolucion
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />{" "}
+              Resolucion
             </span>
           </div>
         </div>
@@ -270,6 +317,7 @@ export default function Admin() {
   const [metrics, setMetrics] = useState<TicketsMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [metricsError, setMetricsError] = useState<string | null>(null);
+  const [showResolved, setShowResolved] = useState(false);
 
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -319,10 +367,9 @@ export default function Admin() {
   const handleIncomingTicket = useCallback(
     (incoming: Ticket) => {
       setItems((list) => {
-        const without = list.filter((item) => item.ticketId !== incoming.ticketId);
-        if (incoming.state === "resuelto") {
-          return without;
-        }
+        const without = list.filter(
+          (item) => item.ticketId !== incoming.ticketId
+        );
         return [...without, incoming];
       });
       if (incoming.state === "resuelto") {
@@ -354,7 +401,7 @@ export default function Admin() {
     };
   }, [handleIncomingTicket]);
 
-  const visibleTickets = useMemo(() => {
+  const pendingTickets = useMemo(() => {
     const pending = items.filter((ticket) => ticket.state !== "resuelto");
     const filtered =
       riskFilter === "todos"
@@ -379,6 +426,35 @@ export default function Admin() {
     }
     return sorted;
   }, [items, riskFilter, sortBy]);
+  const resolvedTickets = useMemo(() => {
+    const resolved = items.filter((ticket) => ticket.state === "resuelto");
+    const filtered =
+      riskFilter === "todos"
+        ? resolved
+        : resolved.filter((ticket) => ticket.risk === riskFilter);
+
+    const sorted = [...filtered];
+    switch (sortBy) {
+      case "createdAsc":
+        sorted.sort(
+          (a, b) => getResolvedDateValue(a) - getResolvedDateValue(b)
+        );
+        break;
+      case "createdDesc":
+        sorted.sort(
+          (a, b) => getResolvedDateValue(b) - getResolvedDateValue(a)
+        );
+        break;
+      default:
+        sorted.sort(
+          (a, b) =>
+            RISK_ORDER[b.risk] - RISK_ORDER[a.risk] ||
+            getResolvedDateValue(b) - getResolvedDateValue(a)
+        );
+        break;
+    }
+    return sorted;
+  }, [items, riskFilter, sortBy]);
 
   async function onPatch(
     ticket: Ticket,
@@ -390,14 +466,15 @@ export default function Admin() {
 
     try {
       setItems((list) =>
-        list.map((item) => (item.ticketId === ticket.ticketId ? { ...item, ...patch } : item))
+        list.map((item) =>
+          item.ticketId === ticket.ticketId ? { ...item, ...patch } : item
+        )
       );
       const response = await patchTicket(ticket.ticketId, patch);
       if (!response.ok) {
         throw new Error(response.error || "No se pudo actualizar el ticket.");
       }
       if (patch.state === "resuelto") {
-        setItems((list) => list.filter((item) => item.ticketId !== ticket.ticketId));
         setCommentDraft((draft) => {
           if (!(ticket.ticketId in draft)) return draft;
           const { [ticket.ticketId]: _omit, ...rest } = draft;
@@ -407,7 +484,9 @@ export default function Admin() {
       void refreshMetrics();
     } catch (err: any) {
       setItems((list) =>
-        list.map((item) => (item.ticketId === previous.ticketId ? previous : item))
+        list.map((item) =>
+          item.ticketId === previous.ticketId ? previous : item
+        )
       );
       setError(err?.message || "Error actualizando el ticket.");
     } finally {
@@ -434,7 +513,9 @@ export default function Admin() {
     } catch (err: any) {
       setItems((list) =>
         list.map((item) =>
-          item.ticketId === ticket.ticketId ? { ...item, comment: previousComment } : item
+          item.ticketId === ticket.ticketId
+            ? { ...item, comment: previousComment }
+            : item
         )
       );
       setError(err?.message || "Error guardando comentario.");
@@ -443,24 +524,150 @@ export default function Admin() {
     }
   }
 
+  const renderTicketCard = (ticket: Ticket) => (
+    <article
+      key={ticket.ticketId}
+      className={`rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.5)] ring-1 ${
+        RISK_RING[ticket.risk]
+      } transition hover:bg-white/10`}
+    >
+      <header className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold truncate">{ticket.title}</h3>
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                RISK_BADGE[ticket.risk]
+              }`}
+            >
+              {ticket.risk}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-neutral-300">{ticket.description}</p>
+          {Array.isArray(ticket.images) && ticket.images.length > 0 && (
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {ticket.images.map((src, index) => (
+                <img
+                  key={index}
+                  src={src}
+                  alt={`img-${index}`}
+                  className="h-24 w-full rounded-lg border border-white/10 object-cover"
+                />
+              ))}
+            </div>
+          )}
+          <p className="mt-1 text-xs text-neutral-400">
+            {ticket.userName} -{" "}
+            {ticket.ticketTime
+              ? new Date(ticket.ticketTime).toLocaleString()
+              : "sin fecha"}
+          </p>
+        </div>
+      </header>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-400">Riesgo</span>
+          <select
+            aria-label="Cambiar riesgo"
+            disabled={saving[ticket.ticketId]}
+            value={ticket.risk}
+            onChange={(event) =>
+              onPatch(ticket, { risk: event.target.value as Ticket["risk"] })
+            }
+            className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
+          >
+            {riskOpts.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-400">Estado</span>
+          <select
+            aria-label="Cambiar estado"
+            disabled={saving[ticket.ticketId]}
+            value={ticket.state}
+            onChange={(event) =>
+              onPatch(ticket, { state: event.target.value as Ticket["state"] })
+            }
+            className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
+          >
+            {stateOpts.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="mt-4">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-400">Comentario</span>
+          <textarea
+            rows={3}
+            value={commentDraft[ticket.ticketId] ?? ticket.comment ?? ""}
+            onChange={(event) =>
+              setCommentDraft((draft) => ({
+                ...draft,
+                [ticket.ticketId]: event.target.value,
+              }))
+            }
+            placeholder="Describe acciones realizadas, hallazgos o notas."
+            className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+          />
+        </label>
+        <div className="mt-2 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onSaveComment(ticket)}
+            disabled={saving[ticket.ticketId]}
+            className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold transition hover:bg-orange-500 disabled:opacity-60"
+          >
+            {saving[ticket.ticketId] ? "Guardando..." : "Guardar comentario"}
+          </button>
+          {ticket.resolucionTime && (
+            <span className="text-xs text-neutral-400">
+              Resuelto: {new Date(ticket.resolucionTime).toLocaleString()}
+            </span>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+
   if (loading && !items.length) {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden px-4 py-10">
         <div className="pointer-events-none absolute inset-0 opacity-40">
           <div
             className="absolute -top-24 -left-24 h-80 w-80 rounded-full blur-3xl"
-            style={{ background: "radial-gradient(circle, #f97316 0%, transparent 60%)" }}
+            style={{
+              background:
+                "radial-gradient(circle, #f97316 0%, transparent 60%)",
+            }}
           />
           <div
             className="absolute bottom-0 right-0 h-96 w-96 rounded-full blur-3xl"
-            style={{ background: "radial-gradient(circle, #ea580c 0%, transparent 65%)" }}
+            style={{
+              background:
+                "radial-gradient(circle, #ea580c 0%, transparent 65%)",
+            }}
           />
         </div>
         <div className="relative mx-auto w-full max-w-6xl space-y-6">
           <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-extrabold tracking-tight">Panel de administracion</h2>
-              <p className="text-sm text-neutral-400">Cargando tickets y metricas...</p>
+              <h2 className="text-2xl font-extrabold tracking-tight">
+                Panel de administracion
+              </h2>
+              <p className="text-sm text-neutral-400">
+                Cargando tickets y metricas...
+              </p>
             </div>
             <div className="h-10 w-24 rounded-xl border border-white/10 bg-white/10 animate-pulse" />
           </div>
@@ -490,17 +697,23 @@ export default function Admin() {
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div
           className="absolute -top-24 -left-24 h-80 w-80 rounded-full blur-3xl"
-          style={{ background: "radial-gradient(circle, #f97316 0%, transparent 60%)" }}
+          style={{
+            background: "radial-gradient(circle, #f97316 0%, transparent 60%)",
+          }}
         />
         <div
           className="absolute bottom-0 right-0 h-96 w-96 rounded-full blur-3xl"
-          style={{ background: "radial-gradient(circle, #ea580c 0%, transparent 65%)" }}
+          style={{
+            background: "radial-gradient(circle, #ea580c 0%, transparent 65%)",
+          }}
         />
       </div>
 
       <div className="relative mx-auto w-full max-w-6xl">
         <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
-          <h2 className="text-2xl font-extrabold tracking-tight">Gestion de tickets</h2>
+          <h2 className="text-2xl font-extrabold tracking-tight">
+            Gestion de tickets
+          </h2>
           <div className="flex flex-wrap items-center gap-3">
             {error && (
               <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-sm text-red-300">
@@ -539,7 +752,9 @@ export default function Admin() {
               Riesgo
               <select
                 value={riskFilter}
-                onChange={(event) => setRiskFilter(event.target.value as RiskFilter)}
+                onChange={(event) =>
+                  setRiskFilter(event.target.value as RiskFilter)
+                }
                 className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
               >
                 {RISK_FILTER_OPTIONS.map((option) => (
@@ -553,7 +768,9 @@ export default function Admin() {
               Ordenar
               <select
                 value={sortBy}
-                onChange={(event) => setSortBy(event.target.value as SortOption)}
+                onChange={(event) =>
+                  setSortBy(event.target.value as SortOption)
+                }
                 className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
               >
                 {(Object.keys(SORT_LABEL) as SortOption[]).map((option) => (
@@ -565,141 +782,49 @@ export default function Admin() {
             </label>
           </div>
           <div className="text-sm text-neutral-400">
-            Pendientes: {" "}
-            <span className="font-semibold text-neutral-100">{visibleTickets.length}</span>
+            Pendientes:{" "}
+            <span className="font-semibold text-neutral-100">
+              {pendingTickets.length}
+            </span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {visibleTickets.map((ticket) => (
-            <article
-              key={ticket.ticketId}
-              className={`rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.5)] ring-1 ${
-                RISK_RING[ticket.risk]
-              } transition hover:bg-white/10`}
-            >
-              <header className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold truncate">{ticket.title}</h3>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                        RISK_BADGE[ticket.risk]
-                      }`}
-                    >
-                      {ticket.risk}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-neutral-300 line-clamp-3">
-                    {ticket.description}
-                  </p>
-                  {Array.isArray(ticket.images) && ticket.images.length > 0 && (
-                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      {ticket.images.map((src, index) => (
-                        <img
-                          key={index}
-                          src={src}
-                          alt={`img-${index}`}
-                          className="h-24 w-full rounded-lg border border-white/10 object-cover"
-                        />
-                      ))}
-                    </div>
-                  )}
-                  <p className="mt-1 text-xs text-neutral-400">
-                    {ticket.userName} -{" "}
-                    {ticket.ticketTime
-                      ? new Date(ticket.ticketTime).toLocaleString()
-                      : "sin fecha"}
-                  </p>
-                </div>
-              </header>
-
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="flex flex-col gap-1">
-                  <span className="text-xs text-neutral-400">Riesgo</span>
-                  <select
-                    aria-label="Cambiar riesgo"
-                    disabled={saving[ticket.ticketId]}
-                    value={ticket.risk}
-                    onChange={(event) =>
-                      onPatch(ticket, { risk: event.target.value as Ticket["risk"] })
-                    }
-                    className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
-                  >
-                    {riskOpts.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="flex flex-col gap-1">
-                  <span className="text-xs text-neutral-400">Estado</span>
-                  <select
-                    aria-label="Cambiar estado"
-                    disabled={saving[ticket.ticketId]}
-                    value={ticket.state}
-                    onChange={(event) =>
-                      onPatch(ticket, { state: event.target.value as Ticket["state"] })
-                    }
-                    className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
-                  >
-                    {stateOpts.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="mt-4">
-                <label className="flex flex-col gap-1">
-                  <span className="text-xs text-neutral-400">Comentario</span>
-                  <textarea
-                    rows={3}
-                    value={commentDraft[ticket.ticketId] ?? ticket.comment ?? ""}
-                    onChange={(event) =>
-                      setCommentDraft((draft) => ({
-                        ...draft,
-                        [ticket.ticketId]: event.target.value,
-                      }))
-                    }
-                    placeholder="Describe acciones realizadas, hallazgos o notas."
-                    className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-                  />
-                </label>
-                <div className="mt-2 flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => onSaveComment(ticket)}
-                    disabled={saving[ticket.ticketId]}
-                    className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold transition hover:bg-orange-500 disabled:opacity-60"
-                  >
-                    {saving[ticket.ticketId] ? "Guardando..." : "Guardar comentario"}
-                  </button>
-                  {ticket.resolucionTime && (
-                    <span className="text-xs text-neutral-400">
-                      Resuelto: {new Date(ticket.resolucionTime).toLocaleString()}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </article>
-          ))}
+          {pendingTickets.map(renderTicketCard)}
         </div>
 
-        {visibleTickets.length === 0 && !loading && (
+        {pendingTickets.length === 0 && !loading && (
           <div className="mt-10 text-center text-neutral-400">
             No hay tickets pendientes.
           </div>
         )}
+
+        <div className="mt-10">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-lg font-semibold text-neutral-100">
+              Tickets resueltos ({resolvedTickets.length})
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowResolved((open) => !open)}
+              className="rounded-xl border border-white/10 px-3 py-1.5 text-sm text-neutral-200 hover:bg-white/10 transition"
+            >
+              {showResolved ? "Ocultar" : "Ver resueltos"}
+            </button>
+          </div>
+
+          {showResolved &&
+            (resolvedTickets.length === 0 ? (
+              <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
+                No hay tickets resueltos con los filtros seleccionados.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {resolvedTickets.map(renderTicketCard)}
+              </div>
+            ))}
+        </div>
       </div>
     </div>
   );
 }
-
-
-
-

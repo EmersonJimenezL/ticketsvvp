@@ -37,6 +37,7 @@ export type ListResponse = {
 export type TicketsMetrics = {
   avgResolutionTimeHours: number | null;
   ticketsByCategory: { category: string; total: number }[];
+  ticketsByUser: { userId: string; userName: string; total: number }[];
   highRiskOpen: number;
   trend: { date: string; created: number; resolved: number }[];
 };
@@ -75,7 +76,10 @@ export function listPendingTicketsAdmin() {
 }
 
 export function fetchTicketsMetrics() {
-  return httpJSON<TicketsMetricsResponse>("tickets", "/api/admin/tickets/metrics");
+  return httpJSON<TicketsMetricsResponse>(
+    "tickets",
+    "/api/admin/tickets/metrics"
+  );
 }
 
 export function patchTicket(
@@ -87,4 +91,3 @@ export function patchTicket(
     body: JSON.stringify(payload),
   });
 }
-

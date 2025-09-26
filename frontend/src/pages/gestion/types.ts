@@ -71,4 +71,3 @@ export const OPCIONES_TIPO_LIC_MAP = {
 } as const;
 
 export const OPCIONES_PROVEEDOR = ["SAP", "Office"] as const;
-

@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getTicketsSocket } from "../lib/socket";
+import { useAuth } from "../auth/AuthContext";
+import { isTicketAdmin } from "../auth/isTicketAdmin";
 import type { Ticket } from "../services/tickets";
 
 type TicketEvent = "ticket:created" | "ticket:updated";
@@ -75,6 +77,8 @@ type NotificationsProviderProps = {
 export function NotificationsProvider({ children, maxItems = 30 }: NotificationsProviderProps) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unread, setUnread] = useState(0);
+  const { user } = useAuth();
+  const isAdmin = isTicketAdmin(user ?? undefined);
 
   useEffect(() => {
     const socket = getTicketsSocket();
@@ -83,6 +87,9 @@ export function NotificationsProvider({ children, maxItems = 30 }: Notifications
     }
 
     const handler = (event: TicketEvent, ticket: Ticket) => {
+      if (isAdmin && event !== "ticket:created") {
+        return;
+      }
       setNotifications((current) => {
         const next = [buildMessage(event, ticket), ...current];
         return next.slice(0, maxItems);
@@ -92,16 +99,21 @@ export function NotificationsProvider({ children, maxItems = 30 }: Notifications
     };
 
     const createdListener = (ticket: Ticket) => handler("ticket:created", ticket);
-    const updatedListener = (ticket: Ticket) => handler("ticket:updated", ticket);
-
     socket.on("ticket:created", createdListener);
-    socket.on("ticket:updated", updatedListener);
+
+    let updatedListener: ((ticket: Ticket) => void) | undefined;
+    if (!isAdmin) {
+      updatedListener = (ticket: Ticket) => handler("ticket:updated", ticket);
+      socket.on("ticket:updated", updatedListener);
+    }
 
     return () => {
       socket.off("ticket:created", createdListener);
-      socket.off("ticket:updated", updatedListener);
+      if (updatedListener) {
+        socket.off("ticket:updated", updatedListener);
+      }
     };
-  }, [maxItems]);
+  }, [maxItems, isAdmin]);
 
   const value = useMemo<NotificationsContextValue>(
     () => ({
@@ -124,3 +136,4 @@ export function useNotifications() {
   }
   return ctx;
 }
+

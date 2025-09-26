@@ -847,6 +847,18 @@ app.get("/api/admin/tickets/metrics", async (_req, res) => {
       { $sort: { total: -1, _id: 1 } },
     ]);
 
+    const perUserAgg = await Ticket.aggregate([
+      {
+        $group: {
+          _id: { $ifNull: ["$userId", "desconocido"] },
+          total: { $sum: 1 },
+          userName: { $first: { $ifNull: ["$userName", ""] } },
+        },
+      },
+      { $sort: { total: -1, _id: 1 } },
+      { $limit: 50 },
+    ]);
+
     const highRiskOpen = await Ticket.countDocuments({
       risk: "alto",
       state: { $ne: "resuelto" },
@@ -911,6 +923,15 @@ app.get("/api/admin/tickets/metrics", async (_req, res) => {
       ok: true,
       data: {
         avgResolutionTimeHours,
+        ticketsByUser: perUserAgg.map((item) => ({
+          userId: item._id === "desconocido" ? "" : item._id,
+          userName:
+            item._id === "desconocido"
+              ? "Sin usuario"
+              : item.userName || item._id,
+          total: item.total,
+        })),
+
         ticketsByCategory: perCategoryAgg.map((item) => ({
           category: item._id,
           total: item.total,

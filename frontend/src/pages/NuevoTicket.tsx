@@ -103,7 +103,7 @@ export default function NuevoTicket() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden flex items-center justify-center px-4">
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden flex items-center justify-center px-4 py-16 md:py-24">
       {/* Fondos decorativos */}
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div
@@ -120,7 +120,7 @@ export default function NuevoTicket() {
         />
       </div>
 
-      <div className="relative w-full max-w-2xl">
+      <div className="relative w-full max-w-2xl my-10">
         <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
           <h1 className="text-2xl font-extrabold tracking-tight">
             Crear ticket
