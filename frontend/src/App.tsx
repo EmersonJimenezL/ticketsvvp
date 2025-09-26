@@ -12,6 +12,7 @@ import Admin from "./pages/Admin";
 import AdminHome from "./pages/AdminHome";
 import GestionActivos from "./pages/GestionActivos"; // nueva ruta
 import Modelos from "./pages/Modelos"; // especificaciones tecnicas
+import AdminTicketsHistorico from "./pages/AdminTicketsHistorico";
 
 export default function App() {
   return (
@@ -43,12 +44,19 @@ export default function App() {
             <Route element={<RequireAuth />}>
               <Route path="/admin" element={<AdminHome />} />
               <Route path="/admin/tickets" element={<Admin />} />
+              <Route
+                path="/admin/tickets/historico"
+                element={<AdminTicketsHistorico />}
+              />
               <Route path="/admin/modelos" element={<Modelos />} />
             </Route>
 
             {/* gestion de activos */}
             <Route element={<RequireAuth />}>
-              <Route path="/admin/gestion-activos" element={<GestionActivos />} />
+              <Route
+                path="/admin/gestion-activos"
+                element={<GestionActivos />}
+              />
             </Route>
           </Routes>
         </BrowserRouter>

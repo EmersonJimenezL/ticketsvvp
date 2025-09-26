@@ -739,13 +739,14 @@ app.post("/api/ticketvvp", async (req, res) => {
     const providedFullName =
       typeof b.userFullName === "string" ? b.userFullName.trim() : "";
     const inferredFullName = [firstName, lastName].filter(Boolean).join(" ");
+    const displayName = providedFullName || inferredFullName || firstName || b.userId;
 
     const payload = {
       ticketId: b.ticketId,
       title: b.title,
       description: String(b.description || "").trim(),
       userId: b.userId,
-      userName: firstName || b.userId,
+      userName: displayName,
       userLastName: lastName || undefined,
       userFullName: providedFullName || inferredFullName || undefined,
       risk: b.risk,
@@ -946,9 +947,11 @@ app.get("/api/admin/tickets/metrics", async (_req, res) => {
             storedFullName || [firstName, lastName].filter(Boolean).join(" ");
           const fallbackName = isUnknown ? "Sin usuario" : userId;
 
+          const displayName = computedFullName || fallbackName;
+
           return {
             userId,
-            userName: firstName || fallbackName,
+            userName: displayName,
             userLastName: lastName || undefined,
             userFullName: computedFullName || undefined,
             total: item.total,
@@ -973,4 +976,3 @@ app.get("/api/admin/tickets/metrics", async (_req, res) => {
  * ========================= */
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => console.log(`[server] listo en :${PORT}`));
-

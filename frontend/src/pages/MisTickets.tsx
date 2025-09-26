@@ -250,6 +250,13 @@ export default function MisTickets() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
+              onClick={() => navigate(-1)}
+              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
+            >
+              Volver
+            </button>
+            <button
+              type="button"
               onClick={() => navigate("/tickets/nuevo")}
               className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold transition hover:bg-orange-500"
             >
@@ -339,11 +346,3 @@ export default function MisTickets() {
     </div>
   );
 }
-
-
-
-
-
-
-
-

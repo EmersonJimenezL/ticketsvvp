@@ -10,6 +10,8 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import { getTicketsSocket } from "../lib/socket";
 
+// const navigate = useNavigate();
+
 const RISK_ORDER: Record<Ticket["risk"], number> = {
   alto: 3,
   medio: 2,
@@ -74,12 +76,6 @@ function formatResolutionTime(hours: number | null) {
   return `${hours.toFixed(1)} h`;
 }
 
-function formatDateLabel(dateString: string) {
-  const parts = dateString.split("-");
-  if (parts.length !== 3) return dateString;
-  return `${parts[2]}/${parts[1]}`;
-}
-
 type TrendChartProps = {
   data: TicketsMetrics["trend"];
 };
@@ -93,71 +89,144 @@ function TrendChart({ data }: TrendChartProps) {
     );
   }
 
+  const toUtcDate = (value: string) => new Date(`${value}T00:00:00Z`);
+
+  const formatShortDate = (value: Date) => {
+    const day = String(value.getUTCDate()).padStart(2, "0");
+    const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+    return `${day}/${month}`;
+  };
+
+  const weeksMap = new Map<
+    string,
+    { start: Date; end: Date; created: number; resolved: number }
+  >();
+
+  const dailyWindow = data.slice(-70);
+
+  for (const item of dailyWindow) {
+    const date = toUtcDate(item.date);
+    if (Number.isNaN(date.getTime())) continue;
+    const weekday = date.getUTCDay();
+    const daysFromMonday = (weekday + 6) % 7;
+    const start = new Date(date);
+    start.setUTCDate(date.getUTCDate() - daysFromMonday);
+    start.setUTCHours(0, 0, 0, 0);
+    const key = start.toISOString().slice(0, 10);
+    const end = new Date(start);
+    end.setUTCDate(start.getUTCDate() + 6);
+
+    const current = weeksMap.get(key) ?? {
+      start,
+      end,
+      created: 0,
+      resolved: 0,
+    };
+
+    current.created += item.created;
+    current.resolved += item.resolved;
+    weeksMap.set(key, current);
+  }
+
+  const weeks = Array.from(weeksMap.values())
+    .sort((a, b) => a.start.getTime() - b.start.getTime())
+    .slice(-12);
+
+  if (!weeks.length) {
+    return (
+      <div className="flex h-40 items-center justify-center text-sm text-neutral-400">
+        Sin datos suficientes
+      </div>
+    );
+  }
+
   const maxValue = Math.max(
-    ...data.map((item) => Math.max(item.created, item.resolved)),
-    1
+    ...weeks.map((item) => Math.max(item.created, item.resolved)),
+    0
   );
-  const width = Math.max((data.length - 1) * 32, 240);
-  const height = 160;
-  const step = data.length > 1 ? width / (data.length - 1) : width;
+  const safeMax = maxValue || 1;
 
-  const buildPoints = (key: "created" | "resolved") =>
-    data
-      .map((point, index) => {
-        const x = index * step;
-        const value = point[key];
-        const y = height - (value / maxValue) * height;
-        const safeY = Number.isFinite(y) ? y : height;
-        return `${x.toFixed(2)},${safeY.toFixed(2)}`;
-      })
-      .join(" ");
+  const tickCandidates = [
+    maxValue,
+    Math.ceil((safeMax * 3) / 4),
+    Math.ceil(safeMax / 2),
+    Math.ceil(safeMax / 4),
+    0,
+  ];
 
-  const createdPoints = buildPoints("created");
-  const resolvedPoints = buildPoints("resolved");
+  const yTicks = Array.from(new Set(tickCandidates))
+    .filter((value) => value >= 0)
+    .sort((a, b) => b - a);
 
-  const lines = [0.25, 0.5, 0.75].map((ratio) => (
-    <line
-      key={ratio}
-      x1={0}
-      y1={height * ratio}
-      x2={width}
-      y2={height * ratio}
-      stroke="rgba(255,255,255,0.08)"
-      strokeDasharray="4 6"
-    />
-  ));
-
-  const firstLabel = formatDateLabel(data[0].date);
-  const midLabel = formatDateLabel(data[Math.floor(data.length / 2)].date);
-  const lastLabel = formatDateLabel(data[data.length - 1].date);
+  const barGroupWidth = 48;
+  const minWidth = Math.max(weeks.length * barGroupWidth + 32, 360);
 
   return (
-    <div>
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="h-40 w-full"
-        preserveAspectRatio="none"
+    <div className="overflow-x-auto">
+      <div
+        className="relative ml-8 h-48 pb-8"
+        style={{ minWidth: `${minWidth}px` }}
       >
-        {lines}
-        <polyline
-          points={createdPoints}
-          fill="none"
-          stroke="#f97316"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-        />
-        <polyline
-          points={resolvedPoints}
-          fill="none"
-          stroke="#34d399"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-        />
-      </svg>
-      <div className="mt-2 flex justify-between text-xs text-neutral-500">
-        <span>{firstLabel}</span>
-        <span>{midLabel}</span>
-        <span>{lastLabel}</span>
+        <div className="absolute left-0 top-0 bottom-8 flex flex-col justify-between text-xs text-neutral-500">
+          {yTicks.map((value) => (
+            <span key={`label-${value}`}>{value}</span>
+          ))}
+        </div>
+        <div className="absolute inset-x-0 bottom-8 top-0">
+          {yTicks
+            .filter((value) => value > 0 && maxValue > 0)
+            .map((value) => (
+              <div
+                key={`grid-${value}`}
+                className="absolute inset-x-0 border-t border-white/10"
+                style={{ bottom: `${(value / safeMax) * 100}%` }}
+              />
+            ))}
+        </div>
+        <div className="ml-6 flex h-full items-end gap-4">
+          {weeks.map((item) => {
+            const createdRatio = item.created / safeMax;
+            const resolvedRatio = item.resolved / safeMax;
+            const createdHeight =
+              item.created === 0 ? 0 : Math.max(createdRatio * 100, 6);
+            const resolvedHeight =
+              item.resolved === 0 ? 0 : Math.max(resolvedRatio * 100, 6);
+            const label = `${formatShortDate(item.start)}-${formatShortDate(
+              item.end
+            )}`;
+
+            return (
+              <div
+                key={item.start.toISOString()}
+                className="flex min-w-[40px] flex-col items-center gap-2"
+              >
+                <div className="flex h-36 w-full items-end justify-center gap-2">
+                  <div className="group flex flex-col items-center">
+                    <div
+                      title={`Creados: ${item.created}`}
+                      className="w-4 rounded-t bg-orange-500/70 transition-colors group-hover:bg-orange-400"
+                      style={{ height: `${createdHeight}%` }}
+                    />
+                    <span className="mt-1 text-[10px] text-orange-300">
+                      {item.created}
+                    </span>
+                  </div>
+                  <div className="group flex flex-col items-center">
+                    <div
+                      title={`Resueltos: ${item.resolved}`}
+                      className="w-4 rounded-t bg-emerald-500/70 transition-colors group-hover:bg-emerald-400"
+                      style={{ height: `${resolvedHeight}%` }}
+                    />
+                    <span className="mt-1 text-[10px] text-emerald-300">
+                      {item.resolved}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-neutral-500">{label}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -168,6 +237,7 @@ type MetricsPanelProps = {
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
+  onOpenHistoric: () => void;
 };
 
 function MetricsPanel({
@@ -175,29 +245,30 @@ function MetricsPanel({
   loading,
   error,
   onRefresh,
+  onOpenHistoric,
 }: MetricsPanelProps) {
   const showSkeleton = loading && !metrics;
 
   const resolveUserDisplayName = (
     item: TicketsMetrics["ticketsByUser"][number]
   ) => {
-    const fallback = "Sin usuario";
-    if (!item) return fallback;
+    if (!item) return "Sin usuario";
 
     const fullName = (item.userFullName ?? "").trim();
     if (fullName) return fullName;
 
     const firstName = (item.userName ?? "").trim();
     const lastName = (item.userLastName ?? "").trim();
-    const combined = [firstName, lastName].filter(Boolean).join(" ");
+    const combined = [firstName, lastName].filter(Boolean).join(" ").trim();
     if (combined) return combined;
 
     if (item.userId && item.userId.trim()) {
       return item.userId.trim();
     }
 
-    return fallback;
+    return "Sin usuario";
   };
+
   if (showSkeleton) {
     return (
       <div className="mb-8 space-y-4">
@@ -308,17 +379,26 @@ function MetricsPanel({
       <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <span className="text-sm text-neutral-300">
-            Evolucion diaria (ultimos 30 dias)
+            Evolucion semanal (ultimas 12 semanas)
           </span>
-          <div className="flex items-center gap-4 text-xs text-neutral-400">
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full bg-orange-400" />{" "}
-              Creacion
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />{" "}
-              Resolucion
-            </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-4 text-xs text-neutral-400">
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-2 w-2 rounded-full bg-orange-400" />{" "}
+                Creacion
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />{" "}
+                Resolucion
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenHistoric}
+              className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-neutral-200 transition hover:bg-white/10"
+            >
+              Ver historico completo
+            </button>
           </div>
         </div>
         <TrendChart data={metrics?.trend ?? []} />
@@ -783,6 +863,7 @@ export default function Admin() {
           onRefresh={() => {
             void refreshMetrics();
           }}
+          onOpenHistoric={() => navigate("/admin/tickets/historico")}
         />
 
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">

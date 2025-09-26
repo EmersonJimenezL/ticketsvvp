@@ -86,7 +86,7 @@ export default function NuevoTicket() {
       title,
       description: description.trim(),
       userId: user.nombreUsuario,
-      userName: firstName || user.nombreUsuario,
+      userName: fullName || firstName || user.nombreUsuario,
       userLastName: lastName || undefined,
       userFullName: fullName || undefined,
       risk,
