@@ -106,7 +106,10 @@ function emitTicketEvent(appRef, event, doc) {
   if (!doc || !appRef?.get) return;
   const io = appRef.get("io");
   if (!io) return;
-  const plain = typeof doc.toObject === "function" ? doc.toObject({ versionKey: false }) : doc;
+  const plain =
+    typeof doc.toObject === "function"
+      ? doc.toObject({ versionKey: false })
+      : doc;
 
   const normalizeDate = (value) => {
     if (!value) return null;
@@ -123,8 +126,6 @@ function emitTicketEvent(appRef, event, doc) {
     updatedAt: normalizeDate(plain.updatedAt),
   });
 }
-
-
 
 /* =========================
  * ACTIVOS
@@ -735,11 +736,13 @@ app.post("/api/ticketvvp", async (req, res) => {
     }
 
     const firstName = typeof b.userName === "string" ? b.userName.trim() : "";
-    const lastName = typeof b.userLastName === "string" ? b.userLastName.trim() : "";
+    const lastName =
+      typeof b.userLastName === "string" ? b.userLastName.trim() : "";
     const providedFullName =
       typeof b.userFullName === "string" ? b.userFullName.trim() : "";
     const inferredFullName = [firstName, lastName].filter(Boolean).join(" ");
-    const displayName = providedFullName || inferredFullName || firstName || b.userId;
+    const displayName =
+      providedFullName || inferredFullName || firstName || b.userId;
 
     const payload = {
       ticketId: b.ticketId,
@@ -914,7 +917,9 @@ app.get("/api/admin/tickets/metrics", async (_req, res) => {
       timeline.push(day.toISOString().slice(0, 10));
     }
 
-    const createdMap = new Map(createdAgg.map((item) => [item._id, item.total]));
+    const createdMap = new Map(
+      createdAgg.map((item) => [item._id, item.total])
+    );
     const resolvedMap = new Map(
       resolvedAgg.map((item) => [item._id, item.total])
     );
@@ -940,9 +945,13 @@ app.get("/api/admin/tickets/metrics", async (_req, res) => {
           const firstName =
             typeof item.userName === "string" ? item.userName.trim() : "";
           const lastName =
-            typeof item.userLastName === "string" ? item.userLastName.trim() : "";
+            typeof item.userLastName === "string"
+              ? item.userLastName.trim()
+              : "";
           const storedFullName =
-            typeof item.userFullName === "string" ? item.userFullName.trim() : "";
+            typeof item.userFullName === "string"
+              ? item.userFullName.trim()
+              : "";
           const computedFullName =
             storedFullName || [firstName, lastName].filter(Boolean).join(" ");
           const fallbackName = isUnknown ? "Sin usuario" : userId;
