@@ -168,6 +168,10 @@ export function LicenciasTable({
                     {licencia.sucursal || "-"}
                   </li>
                   <li>
+                    <span className="text-neutral-400">Centro de Costo:</span>{" "}
+                    {licencia.centroCosto || "-"}
+                  </li>
+                  <li>
                     <span className="text-neutral-400">Asignado a:</span>{" "}
                     {licencia.asignadoPara || "-"}
                   </li>
@@ -200,6 +204,7 @@ export function LicenciasTable({
                 <th className="text-left px-4 py-3">Tipo licencia</th>
                 <th className="text-left px-4 py-3">Compra</th>
                 <th className="text-left px-4 py-3">Sucursal</th>
+                <th className="text-left px-4 py-3">Centro Costo</th>
                 <th className="text-left px-4 py-3">Asignado a</th>
                 <th className="text-left px-4 py-3">Asignación</th>
                 <th className="text-left px-4 py-3">Acciones</th>
@@ -236,6 +241,12 @@ export function LicenciasTable({
                     {licencia.sucursal || "-"}
                   </td>
                   <td
+                    className="px-4 py-2 max-w-[150px] truncate"
+                    title={licencia.centroCosto || undefined}
+                  >
+                    {licencia.centroCosto || "-"}
+                  </td>
+                  <td
                     className="px-4 py-2 max-w-[200px] truncate"
                     title={licencia.asignadoPara || undefined}
                   >
@@ -257,7 +268,7 @@ export function LicenciasTable({
                 <tr>
                   <td
                     className="px-4 py-6 text-center text-neutral-300"
-                    colSpan={8}
+                    colSpan={9}
                   >
                     Sin resultados
                   </td>

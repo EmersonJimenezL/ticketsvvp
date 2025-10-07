@@ -150,6 +150,10 @@ export function ActivosTable({
                       {activo.sucursal || "-"}
                     </li>
                     <li>
+                      <span className="text-neutral-400">Centro de Costo:</span>{" "}
+                      {activo.centroCosto || "-"}
+                    </li>
+                    <li>
                       <span className="text-neutral-400">Compra:</span>{" "}
                       {activo.fechaCompra
                         ? new Date(activo.fechaCompra).toLocaleDateString()
@@ -197,6 +201,7 @@ export function ActivosTable({
                 <th className="text-left px-4 py-3">Modelo</th>
                 <th className="text-left px-4 py-3">Serie</th>
                 <th className="text-left px-4 py-3">Sucursal</th>
+                <th className="text-left px-4 py-3">Centro Costo</th>
                 <th className="text-left px-4 py-3">Compra</th>
                 <th className="text-left px-4 py-3">Factura</th>
                 <th className="text-left px-4 py-3">Detalles</th>
@@ -230,6 +235,12 @@ export function ActivosTable({
                     title={activo.sucursal || undefined}
                   >
                     {activo.sucursal || "-"}
+                  </td>
+                  <td
+                    className="px-4 py-2 max-w-[150px] truncate"
+                    title={activo.centroCosto || undefined}
+                  >
+                    {activo.centroCosto || "-"}
                   </td>
                   <td className="px-4 py-2">
                     {activo.fechaCompra
@@ -270,7 +281,7 @@ export function ActivosTable({
                 <tr>
                   <td
                     className="px-4 py-6 text-center text-neutral-300"
-                    colSpan={11}
+                    colSpan={12}
                   >
                     Sin resultados
                   </td>

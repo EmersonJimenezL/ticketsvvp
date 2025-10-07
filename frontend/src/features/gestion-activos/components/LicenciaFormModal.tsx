@@ -3,8 +3,10 @@ import {
   OPCIONES_PROVEEDOR,
   OPCIONES_SUCURSAL,
   OPCIONES_TIPO_LIC_MAP,
+  OPCIONES_CENTRO_COSTO,
 } from "../constants";
 import type { Sucursal } from "../constants";
+import type { CentroCosto } from "../types";
 
 type LicenciaFormModalProps = {
   open: boolean;
@@ -131,6 +133,23 @@ export function LicenciaFormModal({
               {OPCIONES_SUCURSAL.map((sucursal) => (
                 <option key={sucursal} value={sucursal}>
                   {sucursal}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-neutral-300">Centro de Costo</label>
+            <select
+              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              value={form.centroCosto || ""}
+              onChange={(event) =>
+                onChange({ centroCosto: event.target.value as "" | CentroCosto })
+              }
+            >
+              <option value="">Seleccione</option>
+              {OPCIONES_CENTRO_COSTO.map((centro) => (
+                <option key={centro} value={centro}>
+                  {centro}
                 </option>
               ))}
             </select>

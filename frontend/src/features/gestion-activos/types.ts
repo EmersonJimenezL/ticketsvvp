@@ -2,6 +2,8 @@ import type { Sucursal } from "./constants";
 
 export type TabKey = "activos" | "licencias" | "estadisticas";
 
+export type CentroCosto = "Adm. y Finanzas" | "Comercial" | "Operaciones" | "PostVenta" | "Repuestos" | "Logistica";
+
 export type Activo = {
   _id?: string;
   categoria?: string;
@@ -12,6 +14,7 @@ export type Activo = {
   numeroFactura?: string;
   detalles?: string;
   sucursal?: "" | Sucursal;
+  centroCosto?: "" | CentroCosto;
   asignadoPara?: string;
   fechaAsignacion?: string;
   createdAt?: string;
@@ -25,6 +28,7 @@ export type Licencia = {
   tipoLicencia?: string;
   fechaCompra?: string;
   sucursal?: "" | Sucursal;
+  centroCosto?: "" | CentroCosto;
   asignadoPara?: string;
   fechaAsignacion?: string;
   activoId?: string;

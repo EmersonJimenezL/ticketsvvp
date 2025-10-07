@@ -40,4 +40,13 @@ export const OPCIONES_SUCURSAL = [
   "Sucursal Copiapo",
 ] as const;
 
+export const OPCIONES_CENTRO_COSTO = [
+  "Adm. y Finanzas",
+  "Comercial",
+  "Operaciones",
+  "PostVenta",
+  "Repuestos",
+  "Logistica",
+] as const;
+
 export type Sucursal = (typeof OPCIONES_SUCURSAL)[number];
