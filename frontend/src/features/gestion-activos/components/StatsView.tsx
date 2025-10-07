@@ -94,7 +94,7 @@ export function StatsView({ stats }: StatsViewProps) {
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 15;
-      const contentWidth = pageWidth - (margin * 2);
+      const contentWidth = pageWidth - margin * 2;
       let y = margin;
 
       // Función helper para agregar encabezado
@@ -111,7 +111,14 @@ export function StatsView({ stats }: StatsViewProps) {
         // Agregar logo si está disponible
         if (logoBase64) {
           const logoSize = 15;
-          pdf.addImage(logoBase64, "PNG", pageWidth - margin - logoSize, 5, logoSize, logoSize);
+          pdf.addImage(
+            logoBase64,
+            "PNG",
+            pageWidth - margin - logoSize,
+            5,
+            logoSize,
+            logoSize
+          );
         } else {
           pdf.setFontSize(10);
           pdf.setFont("helvetica", "normal");
@@ -144,7 +151,16 @@ export function StatsView({ stats }: StatsViewProps) {
       pdf.setFontSize(8);
       pdf.setFont("helvetica", "normal");
       const fecha = new Date();
-      pdf.text(`Fecha: ${fecha.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}`, pageWidth - margin, y, { align: "right" });
+      pdf.text(
+        `Fecha: ${fecha.toLocaleDateString("es-ES", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })}`,
+        pageWidth - margin,
+        y,
+        { align: "right" }
+      );
       y += 8;
 
       // Título del tipo de informe
@@ -164,10 +180,15 @@ export function StatsView({ stats }: StatsViewProps) {
 
       // RESUMEN GENERAL - TABLA PROFESIONAL
       const totalGeneral = todasLicencias.length;
-      const sapTotal = todasLicencias.filter((lic: any) => lic.proveedor === "SAP").length;
-      const officeTotal = todasLicencias.filter((lic: any) => lic.proveedor === "Office").length;
-      const disponiblesGeneral = todasLicencias.filter((lic: any) =>
-        !lic.asignadoPara || lic.cuenta?.toLowerCase() === "disponible"
+      const sapTotal = todasLicencias.filter(
+        (lic: any) => lic.proveedor === "SAP"
+      ).length;
+      const officeTotal = todasLicencias.filter(
+        (lic: any) => lic.proveedor === "Office"
+      ).length;
+      const disponiblesGeneral = todasLicencias.filter(
+        (lic: any) =>
+          !lic.asignadoPara || lic.cuenta?.toLowerCase() === "disponible"
       ).length;
       const enUsoGeneral = totalGeneral - disponiblesGeneral;
 
@@ -185,8 +206,8 @@ export function StatsView({ stats }: StatsViewProps) {
       pdf.setDrawColor(0, 0, 0);
       pdf.setLineWidth(0.4);
       pdf.setFillColor(240, 240, 240);
-      pdf.rect(margin, y, resumenCol1, resumenRowHeight, 'FD');
-      pdf.rect(margin + resumenCol1, y, resumenCol2, resumenRowHeight, 'FD');
+      pdf.rect(margin, y, resumenCol1, resumenRowHeight, "FD");
+      pdf.rect(margin + resumenCol1, y, resumenCol2, resumenRowHeight, "FD");
 
       pdf.setFontSize(8);
       pdf.setFont("helvetica", "normal");
@@ -201,7 +222,7 @@ export function StatsView({ stats }: StatsViewProps) {
         ["Licencias SAP", sapTotal.toString()],
         ["Licencias Microsoft Office", officeTotal.toString()],
         ["Licencias disponibles", disponiblesGeneral.toString()],
-        ["Licencias en uso", enUsoGeneral.toString()]
+        ["Licencias en uso", enUsoGeneral.toString()],
       ];
 
       pdf.setFont("helvetica", "normal");
@@ -224,7 +245,9 @@ export function StatsView({ stats }: StatsViewProps) {
       });
 
       // Ordenar tipos
-      const tiposOrdenados = Object.entries(licenciasPorTipo).sort((a, b) => a[0].localeCompare(b[0]));
+      const tiposOrdenados = Object.entries(licenciasPorTipo).sort((a, b) =>
+        a[0].localeCompare(b[0])
+      );
 
       tiposOrdenados.forEach(([tipo, licencias]) => {
         checkSpace(25);
@@ -232,7 +255,11 @@ export function StatsView({ stats }: StatsViewProps) {
         // Título del tipo con diseño profesional
         pdf.setFontSize(8);
         pdf.setFont("helvetica", "bold");
-        pdf.text(`${tipo.toUpperCase()} (${licencias.length} licencias)`, margin, y);
+        pdf.text(
+          `${tipo.toUpperCase()} (${licencias.length} licencias)`,
+          margin,
+          y
+        );
         pdf.setFont("helvetica", "normal");
         y += 6;
 
@@ -246,9 +273,9 @@ export function StatsView({ stats }: StatsViewProps) {
         pdf.setDrawColor(0, 0, 0);
         pdf.setLineWidth(0.4);
         pdf.setFillColor(240, 240, 240);
-        pdf.rect(margin, y, col1Width, rowHeight, 'FD');
-        pdf.rect(margin + col1Width, y, col2Width, rowHeight, 'FD');
-        pdf.rect(margin + col1Width + col2Width, y, col3Width, rowHeight, 'FD');
+        pdf.rect(margin, y, col1Width, rowHeight, "FD");
+        pdf.rect(margin + col1Width, y, col2Width, rowHeight, "FD");
+        pdf.rect(margin + col1Width + col2Width, y, col3Width, rowHeight, "FD");
 
         pdf.setFontSize(8);
         pdf.setFont("helvetica", "normal");
@@ -267,7 +294,11 @@ export function StatsView({ stats }: StatsViewProps) {
           const cuenta = lic.cuenta || "N/A";
           const asignado = lic.asignadoPara || "Sin asignar";
           const fechaAsig = lic.fechaAsignacion
-            ? new Date(lic.fechaAsignacion).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })
+            ? new Date(lic.fechaAsignacion).toLocaleDateString("es-ES", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })
             : "-";
 
           // Bordes de celda
