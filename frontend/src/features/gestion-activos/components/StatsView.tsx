@@ -147,6 +147,21 @@ export function StatsView({ stats }: StatsViewProps) {
       pdf.text(`Fecha: ${fecha.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}`, pageWidth - margin, y, { align: "right" });
       y += 8;
 
+      // Título del tipo de informe
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(0, 0, 0);
+      let tituloInforme = "";
+      if (reportType === "sap") {
+        tituloInforme = "INFORME DE LICENCIAS SAP";
+      } else if (reportType === "office") {
+        tituloInforme = "INFORME DE LICENCIAS MICROSOFT OFFICE";
+      } else {
+        tituloInforme = "INFORME DE TODAS LAS LICENCIAS";
+      }
+      pdf.text(tituloInforme, pageWidth / 2, y, { align: "center" });
+      y += 8;
+
       // RESUMEN GENERAL - TABLA PROFESIONAL
       const totalGeneral = todasLicencias.length;
       const sapTotal = todasLicencias.filter((lic: any) => lic.proveedor === "SAP").length;
@@ -216,8 +231,9 @@ export function StatsView({ stats }: StatsViewProps) {
 
         // Título del tipo con diseño profesional
         pdf.setFontSize(8);
-        pdf.setFont("helvetica", "normal");
+        pdf.setFont("helvetica", "bold");
         pdf.text(`${tipo.toUpperCase()} (${licencias.length} licencias)`, margin, y);
+        pdf.setFont("helvetica", "normal");
         y += 6;
 
         // Configuración tabla
