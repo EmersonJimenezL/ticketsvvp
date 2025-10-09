@@ -8,9 +8,6 @@ import {
   type TicketsMetrics,
 } from "../services/tickets";
 import { useAuth } from "../auth/AuthContext";
-import { getTicketsSocket } from "../lib/socket";
-
-// const navigate = useNavigate();
 
 const RISK_ORDER: Record<Ticket["risk"], number> = {
   alto: 3,
@@ -465,42 +462,14 @@ export default function Admin() {
     void refreshMetrics();
   }, [refreshTickets, refreshMetrics]);
 
-  const handleIncomingTicket = useCallback(
-    (incoming: Ticket) => {
-      setItems((list) => {
-        const without = list.filter(
-          (item) => item.ticketId !== incoming.ticketId
-        );
-        return [...without, incoming];
-      });
-      if (incoming.state === "resuelto") {
-        setCommentDraft((draft) => {
-          if (!(incoming.ticketId in draft)) return draft;
-          const { [incoming.ticketId]: _omit, ...rest } = draft;
-          return rest;
-        });
-      }
-      void refreshMetrics();
-    },
-    [refreshMetrics]
-  );
-
+  // Auto-refresh cada 30 segundos para mantener datos actualizados
   useEffect(() => {
-    const socket = getTicketsSocket();
-    if (!socket) return;
+    const interval = setInterval(() => {
+      void refreshTickets();
+    }, 30000);
 
-    const listener = (ticket: Ticket) => {
-      handleIncomingTicket(ticket);
-    };
-
-    socket.on("ticket:created", listener);
-    socket.on("ticket:updated", listener);
-
-    return () => {
-      socket.off("ticket:created", listener);
-      socket.off("ticket:updated", listener);
-    };
-  }, [handleIncomingTicket]);
+    return () => clearInterval(interval);
+  }, [refreshTickets]);
 
   const pendingTickets = useMemo(() => {
     const pending = items.filter((ticket) => ticket.state !== "resuelto");

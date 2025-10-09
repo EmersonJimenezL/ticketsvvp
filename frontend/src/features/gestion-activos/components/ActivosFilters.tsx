@@ -17,123 +17,59 @@ export function ActivosFilters({
   onReset,
   disabled,
 }: ActivosFiltersProps) {
+  const handleChange = (changes: Partial<ActivoFilters>) => {
+    onChange(changes);
+  };
+
   return (
-    <div className="space-y-3">
-      <div>
-        <label className="block text-sm text-neutral-300">Categoria</label>
-        <select
-          className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-          value={values.categoria}
-          onChange={(event) => onChange({ categoria: event.target.value })}
-        >
-          <option value="">Todas</option>
-          {OPCIONES_CATEGORIA.map((categoria) => (
-            <option key={categoria} value={categoria}>
-              {categoria}
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="flex items-center gap-3 flex-wrap">
+      <select
+        className="rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+        value={values.categoria}
+        onChange={(event) => handleChange({ categoria: event.target.value })}
+      >
+        <option value="">Todas las categorías</option>
+        {OPCIONES_CATEGORIA.map((categoria) => (
+          <option key={categoria} value={categoria}>
+            {categoria}
+          </option>
+        ))}
+      </select>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm text-neutral-300">
-            Comprado el (desde)
-          </label>
-          <input
-            type="date"
-            value={values.desdeCompra}
-            onChange={(event) => onChange({ desdeCompra: event.target.value })}
-            className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-neutral-300">
-            Comprado el (hasta)
-          </label>
-          <input
-            type="date"
-            value={values.hastaCompra}
-            onChange={(event) => onChange({ hastaCompra: event.target.value })}
-            className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-          />
-        </div>
-      </div>
+      <select
+        className="rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+        value={values.sucursal}
+        onChange={(event) =>
+          handleChange({ sucursal: event.target.value as "" | Sucursal })
+        }
+      >
+        <option value="">Todas las sucursales</option>
+        {OPCIONES_SUCURSAL.map((sucursal) => (
+          <option key={sucursal} value={sucursal}>
+            {sucursal}
+          </option>
+        ))}
+      </select>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm text-neutral-300">
-            Asignado el (desde)
-          </label>
-          <input
-            type="date"
-            value={values.desdeAsignacion}
-            onChange={(event) =>
-              onChange({ desdeAsignacion: event.target.value })
-            }
-            className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-neutral-300">
-            Asignado el (hasta)
-          </label>
-          <input
-            type="date"
-            value={values.hastaAsignacion}
-            onChange={(event) =>
-              onChange({ hastaAsignacion: event.target.value })
-            }
-            className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm text-neutral-300">Sucursal</label>
-        <select
-          className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-          value={values.sucursal}
-          onChange={(event) =>
-            onChange({ sucursal: event.target.value as "" | Sucursal })
-          }
-        >
-          <option value="">Todas</option>
-          {OPCIONES_SUCURSAL.map((sucursal) => (
-            <option key={sucursal} value={sucursal}>
-              {sucursal}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <label className="inline-flex items-center gap-2 text-neutral-300">
+      <label className="inline-flex items-center gap-2 text-sm text-neutral-300">
         <input
           type="checkbox"
           checked={values.soloSinAsignacion}
           onChange={(event) =>
-            onChange({ soloSinAsignacion: event.target.checked })
+            handleChange({ soloSinAsignacion: event.target.checked })
           }
+          className="rounded"
         />
-        <span>Solo sin asignacion</span>
+        <span>Solo sin asignación</span>
       </label>
 
-      <div className="flex gap-2">
-        <button
-          onClick={onApply}
-          className="rounded-xl bg-orange-600 px-4 py-2 font-semibold transition hover:bg-orange-500"
-          disabled={disabled}
-        >
-          Aplicar
-        </button>
-        <button
-          onClick={onReset}
-          className="rounded-xl border border-white/10 px-4 py-2 hover:bg-white/10 transition"
-          disabled={disabled}
-        >
-          Limpiar
-        </button>
-      </div>
+      <button
+        onClick={onReset}
+        className="ml-auto rounded-lg border border-white/10 px-3 py-1.5 text-sm hover:bg-white/10 transition"
+        disabled={disabled}
+      >
+        Limpiar
+      </button>
     </div>
   );
 }

@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { listTickets, type Ticket } from "../services/tickets";
-import { getTicketsSocket } from "../lib/socket";
 
 const ESTADOS: Ticket["state"][] = [
   "recibido",
@@ -81,30 +80,15 @@ export default function MisTickets() {
     void cargar();
   }, [cargar]);
 
+  // Auto-refresh cada 30 segundos para mantener datos actualizados
   useEffect(() => {
-    const socket = getTicketsSocket();
-    if (!socket || !user?.nombreUsuario) {
-      return;
-    }
+    const interval = setInterval(() => {
+      cargar({ silent: true });
+    }, 30000);
 
-    const handleTicket = (incoming: Ticket) => {
-      if (incoming.userId !== user.nombreUsuario) return;
+    return () => clearInterval(interval);
+  }, [cargar]);
 
-      setItems((current) => {
-        const without = current.filter((item) => item.ticketId !== incoming.ticketId);
-        const next = sortTicketsByDate([...without, incoming]);
-        return next.slice(0, FETCH_LIMIT);
-      });
-    };
-
-    socket.on("ticket:created", handleTicket);
-    socket.on("ticket:updated", handleTicket);
-
-    return () => {
-      socket.off("ticket:created", handleTicket);
-      socket.off("ticket:updated", handleTicket);
-    };
-  }, [user?.nombreUsuario]);
   useEffect(() => {
     const onFocus = () => {
       void cargar({ silent: true });

@@ -79,6 +79,7 @@ export type LicenciaFilters = {
   hastaCompra: string;
   desdeAsignacion: string;
   hastaAsignacion: string;
+  soloDisponibles: boolean;
 };
 
 export type AssignContext = {

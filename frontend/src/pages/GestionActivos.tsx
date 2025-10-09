@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { useGestionActivosState } from "../features/gestion-activos/hooks/useGestionActivosState";
+import { useGestionActivos } from "../features/gestion-activos/hooks/useGestionActivos";
 import { GestionActivosHeader } from "../features/gestion-activos/components/Header";
 import { ActivosFilters } from "../features/gestion-activos/components/ActivosFilters";
 import { LicenciasFilters } from "../features/gestion-activos/components/LicenciasFilters";
@@ -17,7 +17,7 @@ import type { Activo, Licencia } from "../features/gestion-activos/types";
 export default function GestionInventario() {
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const state = useGestionActivosState();
+  const state = useGestionActivos();
 
   const {
     tab,
@@ -118,44 +118,37 @@ export default function GestionInventario() {
           onCreateLicencia={licencias.abrirCrear}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-6">
-          {tab !== "estadisticas" && (
-            <aside className="lg:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md lg:sticky lg:top-4 self-start">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-lg font-semibold">Filtros</h2>
-                <span className="text-sm text-neutral-300">{total} items</span>
-              </div>
+        {tab !== "estadisticas" && (
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Filtros</h2>
+              <span className="text-sm text-neutral-300">{total} items</span>
+            </div>
 
-              {tab === "activos" ? (
-                <ActivosFilters
-                  values={filtros.activos.valores}
-                  onChange={filtros.activos.actualizar}
-                  onApply={filtros.activos.aplicar}
-                  onReset={filtros.limpiar}
-                  disabled={loading}
-                />
-              ) : (
-                <LicenciasFilters
-                  values={filtros.licencias.valores}
-                  tiposDisponibles={filtros.licencias.tiposDisponibles}
-                  onChange={(changes) => {
-                    filtros.licencias.actualizar(changes);
-                  }}
-                  onApply={filtros.licencias.aplicar}
-                  onReset={filtros.limpiar}
-                  disabled={loading}
-                />
-              )}
-            </aside>
-          )}
+            {tab === "activos" ? (
+              <ActivosFilters
+                values={filtros.activos.valores}
+                onChange={filtros.activos.actualizar}
+                onApply={filtros.activos.aplicar}
+                onReset={filtros.limpiar}
+                disabled={loading}
+              />
+            ) : (
+              <LicenciasFilters
+                values={filtros.licencias.valores}
+                tiposDisponibles={filtros.licencias.tiposDisponibles}
+                onChange={(changes) => {
+                  filtros.licencias.actualizar(changes);
+                }}
+                onApply={filtros.licencias.aplicar}
+                onReset={filtros.limpiar}
+                disabled={loading}
+              />
+            )}
+          </div>
+        )}
 
-          <section
-            className={
-              tab === "estadisticas"
-                ? "lg:col-span-12"
-                : "lg:col-span-10 flex flex-col gap-4"
-            }
-          >
+        <div className="flex flex-col gap-4">
             {tab === "estadisticas" ? (
               <StatsView stats={stats} />
             ) : tab === "activos" ? (
@@ -163,8 +156,9 @@ export default function GestionInventario() {
                 items={activos.items}
                 total={activos.total}
                 loading={loading}
-                hasMore={activos.tieneMas}
-                onLoadMore={activos.verMas}
+                currentPage={activos.currentPage}
+                totalPages={activos.totalPages}
+                onPageChange={activos.goToPage}
                 onEdit={activos.abrirEditar}
                 onAssign={handleAsignarActivo}
                 onDelete={handleEliminarActivo}
@@ -175,8 +169,9 @@ export default function GestionInventario() {
                 items={licencias.items}
                 total={licencias.total}
                 loading={loading}
-                hasMore={licencias.tieneMas}
-                onLoadMore={licencias.verMas}
+                currentPage={licencias.currentPage}
+                totalPages={licencias.totalPages}
+                onPageChange={licencias.goToPage}
                 onEdit={licencias.abrirEditar}
                 onAssign={handleAsignarLicencia}
                 onDelete={handleEliminarLicencia}
@@ -184,12 +179,11 @@ export default function GestionInventario() {
               />
             )}
 
-            {error && (
-              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-300">
-                {error}
-              </div>
-            )}
-          </section>
+          {error && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-300">
+              {error}
+            </div>
+          )}
         </div>
       </div>
 

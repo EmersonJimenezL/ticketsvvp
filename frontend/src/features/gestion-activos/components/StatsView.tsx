@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   PieChart,
   Pie,
@@ -38,7 +38,6 @@ const COLORS = [
 ];
 
 export function StatsView({ stats }: StatsViewProps) {
-  const reportRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportType, setReportType] = useState<"general" | "sap" | "office">(
     "general"
@@ -422,7 +421,7 @@ export function StatsView({ stats }: StatsViewProps) {
       </div>
 
       {/* Contenido visual de las métricas */}
-      <div ref={reportRef} className="space-y-6 bg-neutral-950 p-8">
+      <div className="space-y-6 bg-neutral-950 p-8">
         {/* Encabezado del informe */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-md">
           <div className="flex items-center justify-between">
