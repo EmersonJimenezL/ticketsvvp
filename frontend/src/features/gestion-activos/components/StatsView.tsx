@@ -16,6 +16,8 @@ import jsPDF from "jspdf";
 import type { LicenciaStats } from "../types";
 import logoImg from "../../../assets/vivipra.png";
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
+
 type StatsViewProps = {
   stats: {
     raw: LicenciaStats | null;
@@ -73,7 +75,7 @@ export function StatsView({ stats }: StatsViewProps) {
     try {
       // Obtener licencias detalladas
       const licenciasResponse = await fetch(
-        "http://192.168.200.80:3005/api/licencias?limit=500"
+        `${API_BASE}/api/licencias?limit=500`
       );
       const licenciasData = await licenciasResponse.json();
       const todasLicencias = licenciasData.ok ? licenciasData.data : [];

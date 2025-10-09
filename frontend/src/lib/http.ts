@@ -1,8 +1,10 @@
 type Bases = "auth" | "tickets";
 
+const API_BASE = import.meta.env.VITE_API_BASE!;
+
 const BASES: Record<Bases, string> = {
-  auth: import.meta.env.VITE_API_AUTH_BASE!,
-  tickets: import.meta.env.VITE_API_TICKETS_BASE!,
+  auth: API_BASE,
+  tickets: API_BASE,
 };
 
 export async function httpJSON<T>(

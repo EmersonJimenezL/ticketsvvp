@@ -3,9 +3,9 @@ import { io, type Socket } from "socket.io-client";
 let ticketsSocket: Socket | null = null;
 
 function resolveSocketUrl() {
-  const base = import.meta.env.VITE_API_TICKETS_BASE;
+  const base = import.meta.env.VITE_API_BASE;
   if (!base) {
-    throw new Error("VITE_API_TICKETS_BASE no esta configurado");
+    throw new Error("VITE_API_BASE no esta configurado");
   }
   try {
     const url = new URL(base, window.location.origin);
@@ -34,4 +34,3 @@ export function disconnectTicketsSocket() {
   ticketsSocket?.disconnect();
   ticketsSocket = null;
 }
-

@@ -64,6 +64,7 @@ const activoSchema = new Schema(
     fechaCompra: { type: Date },
     numeroFactura: { type: String, trim: true },
     sucursal: { type: String, trim: true, enum: SUCURSAL_OPTIONS },
+    centroCosto: { type: String, trim: true, enum: ["Adm. y Finanzas", "Comercial", "Operaciones", "PostVenta", "Repuestos", "Logistica"] },
     detalles: { type: String, trim: true },
 
     asignadoPara: { type: String, trim: true },

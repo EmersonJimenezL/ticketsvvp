@@ -283,6 +283,7 @@ export function useGestionActivosState() {
     numeroFactura: "",
     detalles: "",
     sucursal: "",
+    centroCosto: "",
     asignadoPara: "",
     fechaAsignacion: "",
   });
@@ -303,6 +304,7 @@ export function useGestionActivosState() {
       numeroFactura: "",
       detalles: "",
       sucursal: "",
+      centroCosto: "",
       asignadoPara: "",
       fechaAsignacion: "",
     });
@@ -320,6 +322,7 @@ export function useGestionActivosState() {
       numeroFactura: (activo as any).numeroFactura || "",
       detalles: (activo as any).detalles || "",
       sucursal: (activo as any).sucursal || "",
+      centroCosto: (activo as any).centroCosto || "",
       asignadoPara: (activo as any).asignadoPara || "",
       fechaAsignacion: (activo.fechaAsignacion || "").slice(0, 10),
     });
@@ -344,6 +347,7 @@ export function useGestionActivosState() {
         numeroFactura: form.numeroFactura,
         detalles: form.detalles,
         sucursal: form.sucursal,
+        centroCosto: form.centroCosto,
         asignadoPara: form.asignadoPara,
         fechaAsignacion: form.fechaAsignacion,
       };
@@ -352,6 +356,7 @@ export function useGestionActivosState() {
       if (!payload.numeroFactura) delete payload.numeroFactura;
       if (!payload.detalles) delete payload.detalles;
       if (!payload.sucursal) delete payload.sucursal;
+      if (!payload.centroCosto) delete payload.centroCosto;
 
       const method = editId ? "PATCH" : "POST";
       const url = editId

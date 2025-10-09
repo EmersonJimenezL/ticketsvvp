@@ -3,7 +3,8 @@
     "allow": [
       "Bash(netstat:*)",
       "Bash(findstr:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []
