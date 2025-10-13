@@ -134,7 +134,7 @@ export function LicenciasTable({
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md overflow-hidden">
-      <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+      <div className="overflow-x-auto">
         <DataTable
           columns={columns}
           data={items}

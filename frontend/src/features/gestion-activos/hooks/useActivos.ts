@@ -8,7 +8,7 @@ export function useActivos() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchActivos = useCallback(async (filters: any = {}, page: number = 1, pageSize: number = 25) => {
+  const fetchActivos = useCallback(async (filters: any = {}, page: number = 1, pageSize: number = 10) => {
     try {
       setLoading(true);
       setError(null);

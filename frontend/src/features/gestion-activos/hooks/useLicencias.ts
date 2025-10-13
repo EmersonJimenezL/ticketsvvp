@@ -8,7 +8,7 @@ export function useLicencias() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLicencias = useCallback(async (filters: any = {}, page: number = 1, pageSize: number = 25) => {
+  const fetchLicencias = useCallback(async (filters: any = {}, page: number = 1, pageSize: number = 10) => {
     try {
       setLoading(true);
       setError(null);

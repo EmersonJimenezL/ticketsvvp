@@ -59,7 +59,7 @@ export function useGestionActivos() {
   // Paginación
   const [activoPage, setActivoPage] = useState(1);
   const [licenciaPage, setLicenciaPage] = useState(1);
-  const pageSize = 25;
+  const pageSize = 10;
 
   // Stats para tab de estadísticas
   const [licStats, setLicStats] = useState<any>(null);
