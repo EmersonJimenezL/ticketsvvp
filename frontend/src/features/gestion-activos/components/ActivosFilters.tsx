@@ -13,7 +13,7 @@ type ActivosFiltersProps = {
 export function ActivosFilters({
   values,
   onChange,
-  onApply,
+  onApply: _onApply,
   onReset,
   disabled,
 }: ActivosFiltersProps) {

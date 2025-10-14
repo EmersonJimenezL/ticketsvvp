@@ -17,7 +17,7 @@ type LicenciasTableProps = {
 
 export function LicenciasTable({
   items,
-  total,
+  total: _total,
   loading,
   currentPage = 1,
   totalPages = 1,

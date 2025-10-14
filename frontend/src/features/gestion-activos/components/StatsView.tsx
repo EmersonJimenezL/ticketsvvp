@@ -74,7 +74,7 @@ export function StatsView({ stats }: StatsViewProps) {
     try {
       // Obtener licencias detalladas
       const licenciasResponse = await fetch(
-        `${API_BASE}/api/licencias?limit=500`
+        `${API_BASE}/licencias?limit=500`
       );
       const licenciasData = await licenciasResponse.json();
       const todasLicencias = licenciasData.ok ? licenciasData.data : [];
@@ -690,7 +690,7 @@ export function StatsView({ stats }: StatsViewProps) {
                         tipo === "Acceso indirecto" ||
                         tipo === "Financiera limitada"
                     )
-                    .map(([tipo, cantidad], index) => {
+                    .map(([tipo, cantidad]) => {
                       const porcentaje =
                         stats.raw!.total > 0
                           ? ((cantidad / stats.raw!.total) * 100).toFixed(1)
@@ -776,7 +776,7 @@ export function StatsView({ stats }: StatsViewProps) {
                         tipo.includes("Microsoft 365") ||
                         tipo.includes("Office")
                     )
-                    .map(([tipo, cantidad], index) => {
+                    .map(([tipo, cantidad]) => {
                       const porcentaje =
                         stats.raw!.total > 0
                           ? ((cantidad / stats.raw!.total) * 100).toFixed(1)

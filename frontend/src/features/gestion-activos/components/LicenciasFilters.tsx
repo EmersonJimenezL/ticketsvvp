@@ -15,7 +15,7 @@ export function LicenciasFilters({
   values,
   tiposDisponibles,
   onChange,
-  onApply,
+  onApply: _onApply,
   onReset,
   disabled,
 }: LicenciasFiltersProps) {

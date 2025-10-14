@@ -34,6 +34,7 @@ const LICENCIA_FILTERS_DEFAULT: LicenciaFilters = {
   hastaCompra: "",
   desdeAsignacion: "",
   hastaAsignacion: "",
+  soloDisponibles: false,
 };
 
 export function useGestionActivosState() {
@@ -650,23 +651,23 @@ export function useGestionActivosState() {
   }, [tab, activosSolo.length, licenciasFiltradas.length, licStats]);
 
   const statsPorTipo = useMemo(
-    () => Object.entries(licStats?.porTipo || {}).sort((a, b) => b[1] - a[1]),
+    (): [string, number][] => Object.entries(licStats?.porTipo || {}).sort((a, b) => (b[1] as number) - (a[1] as number)) as [string, number][],
     [licStats]
   );
 
   const statsPorProveedor = useMemo(
-    () =>
-      Object.entries(licStats?.porProveedor || {}).sort((a, b) => b[1] - a[1]),
+    (): [string, number][] =>
+      Object.entries(licStats?.porProveedor || {}).sort((a, b) => (b[1] as number) - (a[1] as number)) as [string, number][],
     [licStats]
   );
 
   const statsMaxTipo = useMemo(
-    () => (statsPorTipo.length ? statsPorTipo[0][1] : 0),
+    () => (statsPorTipo.length ? (statsPorTipo[0][1] as number) : 0),
     [statsPorTipo]
   );
 
   const statsMaxProveedor = useMemo(
-    () => (statsPorProveedor.length ? statsPorProveedor[0][1] : 0),
+    () => (statsPorProveedor.length ? (statsPorProveedor[0][1] as number) : 0),
     [statsPorProveedor]
   );
 

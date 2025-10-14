@@ -73,7 +73,7 @@ export function useGestionActivos() {
     contexto: {
       tipo: "activo",
       id: "",
-      nombre: "",
+      titulo: "",
       asignadoPara: "",
       fechaAsignacion: "",
     },
@@ -84,7 +84,7 @@ export function useGestionActivos() {
     contexto: DeleteContext;
   }>({
     visible: false,
-    contexto: { tipo: "activo", id: "", nombre: "" },
+    contexto: { tipo: "activo", id: "", titulo: "" },
   });
 
   const [historialModal, setHistorialModal] = useState<{
@@ -222,13 +222,13 @@ export function useGestionActivos() {
     (
       tipo: "activo" | "licencia",
       id: string,
-      nombre: string,
+      titulo: string,
       asignadoPara: string,
       fechaAsignacion: string
     ) => {
       setAssignModal({
         visible: true,
-        contexto: { tipo, id, nombre, asignadoPara, fechaAsignacion },
+        contexto: { tipo, id, titulo, asignadoPara, fechaAsignacion },
       });
     },
     []
@@ -250,7 +250,7 @@ export function useGestionActivos() {
 
     try {
       const endpoint =
-        tipo === "activo" ? `${API_BASE}/activos/${id}` : `${API_BASE}/api/licencias/${id}`;
+        tipo === "activo" ? `${API_BASE}/activos/${id}` : `${API_BASE}/licencias/${id}`;
       const response = await fetch(endpoint, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -268,10 +268,10 @@ export function useGestionActivos() {
 
   // Modal de eliminación
   const abrirEliminarModal = useCallback(
-    (tipo: "activo" | "licencia", id: string, nombre: string) => {
+    (tipo: "activo" | "licencia", id: string, titulo: string) => {
       setDeleteModal({
         visible: true,
-        contexto: { tipo, id, nombre },
+        contexto: { tipo, id, titulo },
       });
     },
     []
@@ -296,20 +296,20 @@ export function useGestionActivos() {
 
   // Modal de historial
   const abrirHistorialModal = useCallback(
-    async (tipo: "activo" | "licencia", id: string, nombre: string) => {
+    async (tipo: "activo" | "licencia", id: string, titulo: string) => {
       setGlobalError(null);
       try {
         const endpoint =
           tipo === "activo"
             ? `${API_BASE}/activos/${id}/historial`
-            : `${API_BASE}/api/licencias/${id}/historial`;
+            : `${API_BASE}/licencias/${id}/historial`;
         const response = await fetch(endpoint);
         const json = await response.json();
         if (!json.ok) throw new Error("Error al cargar historial");
 
         setHistorialModal({
           visible: true,
-          titulo: nombre,
+          titulo: titulo,
           movimientos: json.data || [],
         });
       } catch (err: any) {
@@ -339,22 +339,22 @@ export function useGestionActivos() {
 
   // Stats procesadas
   const statsPorTipo = useMemo(
-    () => Object.entries(licStats?.porTipo || {}).sort((a, b) => b[1] - a[1]),
+    (): [string, number][] => Object.entries(licStats?.porTipo || {}).sort((a, b) => (b[1] as number) - (a[1] as number)) as [string, number][],
     [licStats]
   );
 
   const statsPorProveedor = useMemo(
-    () => Object.entries(licStats?.porProveedor || {}).sort((a, b) => b[1] - a[1]),
+    (): [string, number][] => Object.entries(licStats?.porProveedor || {}).sort((a, b) => (b[1] as number) - (a[1] as number)) as [string, number][],
     [licStats]
   );
 
   const statsMaxTipo = useMemo(
-    () => (statsPorTipo.length ? statsPorTipo[0][1] : 0),
+    () => (statsPorTipo.length ? (statsPorTipo[0][1] as number) : 0),
     [statsPorTipo]
   );
 
   const statsMaxProveedor = useMemo(
-    () => (statsPorProveedor.length ? statsPorProveedor[0][1] : 0),
+    () => (statsPorProveedor.length ? (statsPorProveedor[0][1] as number) : 0),
     [statsPorProveedor]
   );
 

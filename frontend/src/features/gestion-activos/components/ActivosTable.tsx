@@ -17,7 +17,7 @@ type ActivosTableProps = {
 
 export function ActivosTable({
   items,
-  total,
+  total: _total,
   loading,
   currentPage = 1,
   totalPages = 1,
