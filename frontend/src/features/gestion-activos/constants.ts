@@ -1,4 +1,5 @@
-export const API_BASE = "/api";
+const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:3000";
+export const API_BASE = `${BASE_URL}/api`;
 
 export const PAGE_SIZE = 25;
 

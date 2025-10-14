@@ -17,7 +17,8 @@ type Especificacion = {
   updatedAt?: string;
 };
 
-const API = "/api";
+const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:3000";
+const API = `${BASE_URL}/api`;
 
 export default function Modelos() {
   const navigate = useNavigate();

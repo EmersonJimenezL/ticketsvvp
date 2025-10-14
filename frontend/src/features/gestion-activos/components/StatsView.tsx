@@ -16,7 +16,8 @@ import jsPDF from "jspdf";
 import type { LicenciaStats } from "../types";
 import logoImg from "../../../assets/vivipra.png";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
+const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:3000";
+const API_BASE = `${BASE_URL}/api`;
 
 type StatsViewProps = {
   stats: {

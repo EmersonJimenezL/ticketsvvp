@@ -1,6 +1,7 @@
 // frontend/src/services/activos.ts
+import { httpJSON } from "../lib/http";
 import type { Sucursal } from "../features/gestion-activos/constants";
-const BASE = "/api/activos";
+const BASE = "/api/activos"; // httpJSON usará VITE_API_BASE + este path
 
 export type CategoriaActivo =
   | "computadoras"
@@ -78,37 +79,47 @@ export async function listActivos(params: ListActivosQuery = {}) {
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== "") qs.append(k, String(v));
   });
-  const res = await fetch(`${BASE}?${qs.toString()}`);
-  const json = await res.json();
+  const search = qs.toString() ? `?${qs.toString()}` : "";
+  const json = await httpJSON<{ ok: boolean; data: Activo[]; error?: string }>(
+    "activos",
+    `${BASE}${search}`
+  );
   if (!json.ok) throw new Error(json.error || "Error listando activos");
-  return json.data as Activo[];
+  return json.data;
 }
 
 export async function createActivo(payload: Partial<Activo>) {
-  const res = await fetch(BASE, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const json = await res.json();
+  const json = await httpJSON<{ ok: boolean; data: Activo; error?: string }>(
+    "activos",
+    BASE,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
   if (!json.ok) throw new Error(json.error || "Error creando activo");
-  return json.data as Activo;
+  return json.data;
 }
 
 export async function updateActivo(id: string, changes: Partial<Activo>) {
-  const res = await fetch(`${BASE}/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(changes),
-  });
-  const json = await res.json();
+  const json = await httpJSON<{ ok: boolean; data: Activo; error?: string }>(
+    "activos",
+    `${BASE}/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    }
+  );
   if (!json.ok) throw new Error(json.error || "Error actualizando activo");
-  return json.data as Activo;
+  return json.data;
 }
 
 export async function deleteActivo(id: string) {
-  const res = await fetch(`${BASE}/${id}`, { method: "DELETE" });
-  const json = await res.json();
+  const json = await httpJSON<{ ok: boolean; error?: string }>(
+    "activos",
+    `${BASE}/${id}`,
+    { method: "DELETE" }
+  );
   if (!json.ok) throw new Error(json.error || "Error eliminando activo");
 }
 
@@ -118,14 +129,16 @@ export async function assignActivo(
   asignadoPor: string,
   fechaAsignacion?: string
 ) {
-  const res = await fetch(`${BASE}/${id}/asignar`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ asignadoPara, asignadoPor, fechaAsignacion }),
-  });
-  const json = await res.json();
+  const json = await httpJSON<{ ok: boolean; data: Activo; error?: string }>(
+    "activos",
+    `${BASE}/${id}/asignar`,
+    {
+      method: "POST",
+      body: JSON.stringify({ asignadoPara, asignadoPor, fechaAsignacion }),
+    }
+  );
   if (!json.ok) throw new Error(json.error || "Error asignando activo");
-  return json.data as Activo;
+  return json.data;
 }
 
 // Licencias
@@ -138,40 +151,50 @@ export async function assignLicencia(
     fechaAsignacion?: string;
   }
 ) {
-  const res = await fetch(`${BASE}/${id}/licencia/asignar`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
+  const json = await httpJSON<{ ok: boolean; data: Activo; error?: string }>(
+    "activos",
+    `${BASE}/${id}/licencia/asignar`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    }
+  );
   if (!json.ok) throw new Error(json.error || "Error asignando licencia");
-  return json.data as Activo;
+  return json.data;
 }
 
 export async function liberarLicencia(id: string) {
-  const res = await fetch(`${BASE}/${id}/licencia/liberar`, { method: "POST" });
-  const json = await res.json();
+  const json = await httpJSON<{ ok: boolean; data: Activo; error?: string }>(
+    "activos",
+    `${BASE}/${id}/licencia/liberar`,
+    { method: "POST" }
+  );
   if (!json.ok) throw new Error(json.error || "Error liberando licencia");
-  return json.data as Activo;
+  return json.data;
 }
 
 export async function updateLicencia(
   id: string,
   changes: Partial<Pick<Licencia, "tipo" | "estado" | "expiraEn" | "proveedor">>
 ) {
-  const res = await fetch(`${BASE}/${id}/licencia`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(changes),
-  });
-  const json = await res.json();
+  const json = await httpJSON<{ ok: boolean; data: Activo; error?: string }>(
+    "activos",
+    `${BASE}/${id}/licencia`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    }
+  );
   if (!json.ok) throw new Error(json.error || "Error actualizando licencia");
-  return json.data as Activo;
+  return json.data;
 }
 
 export async function getHistorico(id: string) {
-  const res = await fetch(`${BASE}/${id}/historico`);
-  const json = await res.json();
+  const json = await httpJSON<{
+    ok: boolean;
+    data: { asignadoPara?: HistoricoAsignacion[] };
+    error?: string;
+  }>("activos", `${BASE}/${id}/historico`);
   if (!json.ok) throw new Error(json.error || "Error obteniendo histórico");
-  return json.data as { asignadoPara?: HistoricoAsignacion[] };
+  return json.data;
 }
