@@ -39,6 +39,7 @@ export default function MisTickets() {
 
   const [estado, setEstado] = useState<"" | Ticket["state"]>("");
   const [titulo, setTitulo] = useState<"" | Ticket["title"]>("");
+  const [imageModal, setImageModal] = useState<{ src: string; index: number; total: number } | null>(null);
 
   const cargar = useCallback(
     async (options: { silent?: boolean } = {}) => {
@@ -186,12 +187,21 @@ export default function MisTickets() {
         {Array.isArray(ticket.images) && ticket.images.length > 0 && (
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
             {ticket.images.map((src, index) => (
-              <img
+              <button
                 key={index}
-                src={src}
-                alt={`img-${index}`}
-                className="h-28 w-full rounded-md border border-white/10 object-cover"
-              />
+                type="button"
+                onClick={() => setImageModal({ src, index, total: ticket.images!.length })}
+                className="group relative h-28 w-full overflow-hidden rounded-md border border-white/10 transition hover:border-orange-500/50"
+              >
+                <img
+                  src={src}
+                  alt={`img-${index}`}
+                  className="h-full w-full object-cover transition group-hover:scale-105"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
+                  <span className="text-xs font-semibold text-white">Ver imagen</span>
+                </div>
+              </button>
             ))}
           </div>
         )}
@@ -327,6 +337,35 @@ export default function MisTickets() {
           </div>
         )}
       </div>
+
+      {/* Modal de imagen ampliada */}
+      {imageModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setImageModal(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setImageModal(null)}
+            className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition"
+            title="Cerrar"
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <div className="relative max-h-[90vh] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={imageModal.src}
+              alt="Imagen ampliada"
+              className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+            />
+            <div className="mt-3 text-center text-sm text-neutral-300">
+              Imagen {imageModal.index + 1} de {imageModal.total}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

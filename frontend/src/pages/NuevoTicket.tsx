@@ -37,25 +37,110 @@ export default function NuevoTicket() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
   const submittingRef = useRef(false);
 
-  function onFilesSelected(files: FileList | null) {
+  // Función para comprimir una imagen
+  async function compressImage(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith("image/")) {
+        reject(new Error("El archivo no es una imagen"));
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          // Configuración de compresión
+          const MAX_WIDTH = 1280;
+          const MAX_HEIGHT = 1280;
+          const QUALITY = 0.82;
+
+          let width = img.width;
+          let height = img.height;
+
+          // Calcular nuevas dimensiones manteniendo el aspect ratio
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height = (height * MAX_WIDTH) / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width = (width * MAX_HEIGHT) / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          // Crear canvas para redimensionar
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            reject(new Error("No se pudo crear el contexto del canvas"));
+            return;
+          }
+
+          // Dibujar imagen redimensionada
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convertir a base64 con compresión
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", QUALITY);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = () => reject(new Error("No se pudo cargar la imagen"));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function onFilesSelected(files: FileList | null) {
     if (!files) return;
-    const arr = Array.from(files).slice(0, 5); // máx 5 imágenes
-    const readers = arr.map(
-      (f) =>
-        new Promise<string>((resolve, reject) => {
-          if (!f.type.startsWith("image/")) return resolve("");
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result || ""));
-          reader.onerror = () =>
-            reject(new Error("No se pudo leer el archivo"));
-          reader.readAsDataURL(f);
+    const remainingSlots = 5 - images.length;
+    if (remainingSlots <= 0) {
+      setError("Ya has alcanzado el máximo de 5 imágenes");
+      return;
+    }
+
+    const arr = Array.from(files).slice(0, remainingSlots);
+    setCompressing(true);
+    setError(null);
+
+    try {
+      const compressed = await Promise.all(
+        arr.map(async (file) => {
+          try {
+            return await compressImage(file);
+          } catch (err) {
+            console.error("Error comprimiendo imagen:", err);
+            return "";
+          }
         })
-    );
-    Promise.all(readers)
-      .then((vals) => setImages(vals.filter(Boolean)))
-      .catch(() => setError("No se pudieron procesar las imágenes"));
+      );
+
+      const validImages = compressed.filter(Boolean);
+      if (validImages.length > 0) {
+        setImages([...images, ...validImages]);
+      }
+      if (validImages.length < arr.length) {
+        setError(
+          `${arr.length - validImages.length} imagen(es) no pudieron procesarse`
+        );
+      }
+    } catch (err) {
+      setError("Error procesando las imágenes");
+    } finally {
+      setCompressing(false);
+    }
+  }
+
+  function removeImage(index: number) {
+    setImages(images.filter((_, i) => i !== index));
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -103,7 +188,14 @@ export default function NuevoTicket() {
       // Redirigir a MisTickets tras crear exitosamente
       navigate("/tickets");
     } catch (err: any) {
-      setError(err?.message || "No se pudo crear el ticket");
+      // Si hay imágenes y falla la conexión, probablemente es por tamaño
+      if (images.length > 0 && (err?.message?.includes("conexión") || err?.message?.includes("conectar"))) {
+        setError(
+          `Las imágenes son demasiado pesadas. Intenta con: ${images.length > 2 ? "menos imágenes (máx. 2-3)" : "imágenes más pequeñas"}`
+        );
+      } else {
+        setError(err?.message || "No se pudo crear el ticket");
+      }
     } finally {
       setLoading(false);
       submittingRef.current = false;
@@ -187,22 +279,44 @@ export default function NuevoTicket() {
                 (opcional, máx. 5)
               </span>
             </label>
+            <p className="text-xs text-neutral-400 mt-1">
+              Las imágenes se comprimen automáticamente para optimizar el envío
+            </p>
             <input
               type="file"
               accept="image/*"
               multiple
+              disabled={compressing}
               onChange={(e) => onFilesSelected(e.target.files)}
-              className="w-full rounded-xl mt-2 bg-neutral-900/70 px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              className="w-full rounded-xl mt-2 bg-neutral-900/70 px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-60 disabled:cursor-not-allowed"
             />
+            {compressing && (
+              <div className="mt-3 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-sm text-orange-300 flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Comprimiendo imágenes...
+              </div>
+            )}
             {!!images.length && (
               <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {images.map((src, i) => (
-                  <img
-                    key={i}
-                    src={src}
-                    alt={`adjunto-${i}`}
-                    className="h-24 w-full object-cover rounded-lg border border-white/10"
-                  />
+                  <div key={i} className="relative group">
+                    <img
+                      src={src}
+                      alt={`adjunto-${i}`}
+                      className="h-24 w-full object-cover rounded-lg border border-white/10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      className="absolute top-1 right-1 bg-red-600 hover:bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-lg opacity-90 hover:opacity-100 transition"
+                      title="Eliminar imagen"
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
