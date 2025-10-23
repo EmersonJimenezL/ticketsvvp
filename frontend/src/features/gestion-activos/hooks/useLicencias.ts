@@ -13,10 +13,8 @@ export function useLicencias() {
       setLoading(true);
       setError(null);
 
-      const skip = (page - 1) * pageSize;
+      // Preparar parámetros de filtros
       const params = new URLSearchParams();
-      params.set("skip", String(skip));
-      params.set("limit", String(pageSize));
 
       // Si soloDisponibles está activo, buscar por "disponible"
       if (filters.soloDisponibles) {
@@ -32,30 +30,30 @@ export function useLicencias() {
       if (filters.hastaCompra) params.set("hastaCompra", filters.hastaCompra);
       if (filters.sucursal) params.set("sucursal", filters.sucursal);
 
-      // Fetch licencias normales
-      const licResponse = await fetch(`${API_BASE}/licencias?${params.toString()}`).catch(() => null);
+      // Obtener TODAS las licencias (sin paginación, usamos un límite alto)
+      const licParams = new URLSearchParams(params);
+      licParams.set("limit", "1000");
+      licParams.set("skip", "0");
+      const licResponse = await fetch(`${API_BASE}/licencias?${licParams.toString()}`).catch(() => null);
 
-      // Fetch activos con categoría "licencias"
+      // Obtener TODOS los activos con categoría "licencias" (sin paginación)
       const activosLicParams = new URLSearchParams();
       activosLicParams.set("categoria", "licencias");
-      activosLicParams.set("skip", String(skip));
-      activosLicParams.set("limit", String(pageSize));
+      activosLicParams.set("limit", "1000");
+      activosLicParams.set("skip", "0");
       if (filters.sucursal) {
         activosLicParams.set("sucursal", filters.sucursal);
       }
 
       const activosLicResponse = await fetch(`${API_BASE}/activos?${activosLicParams.toString()}`).catch(() => null);
 
-      const merged: Licencia[] = [];
-      let totalLic = 0;
-      let totalActivos = 0;
+      const allLicencias: Licencia[] = [];
 
       // Procesar licencias normales
       if (licResponse) {
         const json = await licResponse.json();
         if (json?.ok && Array.isArray(json.data)) {
-          merged.push(...json.data);
-          totalLic = json.total || 0;
+          allLicencias.push(...json.data);
         }
       }
 
@@ -63,7 +61,7 @@ export function useLicencias() {
       if (activosLicResponse) {
         const json = await activosLicResponse.json();
         if (json?.ok && Array.isArray(json.data)) {
-          merged.push(
+          allLicencias.push(
             ...json.data.map((item: any) => ({
               _id: item?._id,
               proveedor: item?.licencia?.proveedor,
@@ -79,12 +77,17 @@ export function useLicencias() {
               updatedAt: item?.updatedAt,
             }))
           );
-          totalActivos = json.total || 0;
         }
       }
 
-      setLicencias(merged);
-      setTotalCount(totalLic + totalActivos);
+      // APLICAR PAGINACIÓN EN EL FRONTEND sobre el array combinado
+      const totalMerged = allLicencias.length;
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedLicencias = allLicencias.slice(startIndex, endIndex);
+
+      setLicencias(paginatedLicencias);
+      setTotalCount(totalMerged);
     } catch (err: any) {
       setError(err.message);
     } finally {

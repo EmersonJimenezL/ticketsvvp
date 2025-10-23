@@ -5,10 +5,6 @@
 export const ALLOWED = new Set(["igonzalez", "mcontreras", "ejimenez"]);
 
 export function isTicketAdmin(u?: { rol?: string; nombreUsuario?: string }) {
-  return (
-    !!u &&
-    u.rol === "admin" &&
-    !!u.nombreUsuario &&
-    ALLOWED.has(u.nombreUsuario)
-  );
+  // Si el usuario está en la lista ALLOWED, tiene acceso sin importar su rol
+  return !!u && !!u.nombreUsuario && ALLOWED.has(u.nombreUsuario);
 }

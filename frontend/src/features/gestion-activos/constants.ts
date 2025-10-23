@@ -8,6 +8,7 @@ export const OPCIONES_CATEGORIA = [
   "PC",
   "Monitor",
   "Tablet",
+  "Celular",
   "Impresora",
   "Periferico",
   "Otro",
