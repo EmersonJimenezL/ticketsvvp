@@ -29,6 +29,7 @@ const ACTIVO_FILTERS_DEFAULT: ActivoFilters = {
 };
 
 const LICENCIA_FILTERS_DEFAULT: LicenciaFilters = {
+  busqueda: "",
   cuenta: "",
   proveedor: "",
   tipoLicencia: "",
@@ -299,10 +300,7 @@ export function useGestionActivos() {
     async (tipo: "activo" | "licencia", id: string, titulo: string) => {
       setGlobalError(null);
       try {
-        const endpoint =
-          tipo === "activo"
-            ? `${API_BASE}/activos/${id}/historial`
-            : `${API_BASE}/licencias/${id}/historial`;
+        const endpoint = `${API_BASE}/historicos/${tipo}/${id}`;
         const response = await fetch(endpoint);
         const json = await response.json();
         if (!json.ok) throw new Error("Error al cargar historial");
@@ -310,7 +308,7 @@ export function useGestionActivos() {
         setHistorialModal({
           visible: true,
           titulo: titulo,
-          movimientos: json.data || [],
+          movimientos: json.data?.movimientos || [],
         });
       } catch (err: any) {
         setGlobalError(err.message || "Error al cargar historial");

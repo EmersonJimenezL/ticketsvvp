@@ -26,10 +26,10 @@ export function LicenciasFilters({
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <input
-        className="rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-        value={values.cuenta}
-        onChange={(event) => handleChange({ cuenta: event.target.value })}
-        placeholder="Buscar cuenta..."
+        className="rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 min-w-[200px]"
+        value={values.busqueda}
+        onChange={(event) => handleChange({ busqueda: event.target.value })}
+        placeholder="Buscar cuenta o asignado a..."
       />
 
       <select
@@ -59,13 +59,6 @@ export function LicenciasFilters({
           </option>
         ))}
       </select>
-
-      <input
-        placeholder="Asignado a..."
-        className="rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-        value={values.asignadoPara}
-        onChange={(event) => handleChange({ asignadoPara: event.target.value })}
-      />
 
       <select
         className="rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"

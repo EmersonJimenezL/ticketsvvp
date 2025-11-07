@@ -25,6 +25,7 @@ const ACTIVO_FILTERS_DEFAULT: ActivoFilters = {
 };
 
 const LICENCIA_FILTERS_DEFAULT: LicenciaFilters = {
+  busqueda: "",
   cuenta: "",
   proveedor: "",
   tipoLicencia: "",

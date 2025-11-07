@@ -70,6 +70,7 @@ export type ActivoFilters = {
 };
 
 export type LicenciaFilters = {
+  busqueda: string; // Campo unificado para buscar en cuenta y asignadoPara
   cuenta: string;
   proveedor: string;
   tipoLicencia: string;

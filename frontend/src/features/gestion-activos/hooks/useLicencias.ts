@@ -13,7 +13,7 @@ export function useLicencias() {
       setLoading(true);
       setError(null);
 
-      // Preparar parámetros de filtros
+      // Preparar parámetros de filtros (excepto búsqueda unificada que se aplicará en frontend)
       const params = new URLSearchParams();
 
       // Si soloDisponibles está activo, buscar por "disponible"
@@ -80,14 +80,25 @@ export function useLicencias() {
         }
       }
 
-      // APLICAR PAGINACIÓN EN EL FRONTEND sobre el array combinado
-      const totalMerged = allLicencias.length;
+      // APLICAR FILTRO DE BÚSQUEDA UNIFICADA en el frontend (busca en cuenta Y asignadoPara)
+      let filteredLicencias = allLicencias;
+      if (filters.busqueda) {
+        const searchLower = filters.busqueda.toLowerCase();
+        filteredLicencias = allLicencias.filter((lic) => {
+          const cuenta = (lic.cuenta || "").toLowerCase();
+          const asignado = (lic.asignadoPara || "").toLowerCase();
+          return cuenta.includes(searchLower) || asignado.includes(searchLower);
+        });
+      }
+
+      // APLICAR PAGINACIÓN EN EL FRONTEND sobre el array filtrado
+      const totalFiltered = filteredLicencias.length;
       const startIndex = (page - 1) * pageSize;
       const endIndex = startIndex + pageSize;
-      const paginatedLicencias = allLicencias.slice(startIndex, endIndex);
+      const paginatedLicencias = filteredLicencias.slice(startIndex, endIndex);
 
       setLicencias(paginatedLicencias);
-      setTotalCount(totalMerged);
+      setTotalCount(totalFiltered);
     } catch (err: any) {
       setError(err.message);
     } finally {
