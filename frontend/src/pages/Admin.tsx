@@ -65,6 +65,14 @@ function getResolvedDateValue(ticket: Ticket) {
   ).getTime();
 }
 
+function normalizeString(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 function formatResolutionTime(hours: number | null) {
   if (hours == null) return "Sin datos";
   if (hours < 1) {
@@ -415,7 +423,7 @@ function MetricsPanel({
 }
 
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState<"tickets" | "misAsignados" | "metricas">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "misAsignados" | "todos" | "metricas">("todos");
   const [items, setItems] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Record<string, boolean>>({});
@@ -570,13 +578,75 @@ export default function Admin() {
 
   // Tickets asignados al usuario actual
   const myAssignedTickets = useMemo(() => {
-    const userFullName = `${user?.pnombre} ${user?.papellido}`;
-    return items.filter((t) => t.asignadoA === userFullName);
+    const userFullName = `${user?.pnombre || ""} ${user?.papellido || ""}`.trim();
+    const normalizedUserName = normalizeString(userFullName);
+
+    return items.filter((t) => {
+      if (!t.asignadoA) return false;
+      return normalizeString(t.asignadoA) === normalizedUserName;
+    });
   }, [items, user]);
 
   const myAssignedPending = useMemo(() => {
     return myAssignedTickets.filter((t) => t.state !== "resuelto").length;
   }, [myAssignedTickets]);
+
+  // Todos los tickets (asignados y sin asignar) - solo para pestaña "Todos"
+  const allTicketsPending = useMemo(() => {
+    const pending = items.filter((ticket) => ticket.state !== "resuelto");
+    const filtered =
+      riskFilter === "todos"
+        ? pending
+        : pending.filter((ticket) => ticket.risk === riskFilter);
+
+    const sorted = [...filtered];
+    switch (sortBy) {
+      case "createdAsc":
+        sorted.sort((a, b) => getTicketDateValue(a) - getTicketDateValue(b));
+        break;
+      case "createdDesc":
+        sorted.sort((a, b) => getTicketDateValue(b) - getTicketDateValue(a));
+        break;
+      default:
+        sorted.sort(
+          (a, b) =>
+            RISK_ORDER[b.risk] - RISK_ORDER[a.risk] ||
+            getTicketDateValue(a) - getTicketDateValue(b)
+        );
+        break;
+    }
+    return sorted;
+  }, [items, riskFilter, sortBy]);
+
+  const allTicketsResolved = useMemo(() => {
+    const resolved = items.filter((ticket) => ticket.state === "resuelto");
+    const filtered =
+      riskFilter === "todos"
+        ? resolved
+        : resolved.filter((ticket) => ticket.risk === riskFilter);
+
+    const sorted = [...filtered];
+    switch (sortBy) {
+      case "createdAsc":
+        sorted.sort(
+          (a, b) => getResolvedDateValue(a) - getResolvedDateValue(b)
+        );
+        break;
+      case "createdDesc":
+        sorted.sort(
+          (a, b) => getResolvedDateValue(b) - getResolvedDateValue(a)
+        );
+        break;
+      default:
+        sorted.sort(
+          (a, b) =>
+            RISK_ORDER[b.risk] - RISK_ORDER[a.risk] ||
+            getResolvedDateValue(b) - getResolvedDateValue(a)
+        );
+        break;
+    }
+    return sorted;
+  }, [items, riskFilter, sortBy]);
 
   async function onPatch(
     ticket: Ticket,
@@ -700,7 +770,9 @@ export default function Admin() {
 
     // Verificar si el usuario actual es el asignado al ticket
     const userFullName = `${user?.pnombre || ""} ${user?.papellido || ""}`.trim();
-    const isAssignedToCurrentUser = ticket.asignadoA === userFullName;
+    const isAssignedToCurrentUser = ticket.asignadoA
+      ? normalizeString(ticket.asignadoA) === normalizeString(userFullName)
+      : false;
 
     // Un ticket puede editarse solo si está asignado al usuario actual
     const canEditTicket = ticket.asignadoA && isAssignedToCurrentUser;
@@ -980,6 +1052,19 @@ export default function Admin() {
 
         {/* Tabs */}
         <div className="mb-6 flex gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
+          {isAuthorizedUser && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("todos")}
+              className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                activeTab === "todos"
+                  ? "bg-orange-600 text-white"
+                  : "text-neutral-300 hover:bg-white/10"
+              }`}
+            >
+              Todos
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setActiveTab("tickets")}
@@ -989,7 +1074,7 @@ export default function Admin() {
                 : "text-neutral-300 hover:bg-white/10"
             }`}
           >
-            Tickets
+            Sin Asignar
           </button>
           {isAuthorizedUser && (
             <button
@@ -1001,7 +1086,7 @@ export default function Admin() {
                   : "text-neutral-300 hover:bg-white/10"
               }`}
             >
-              Mis Asignados {myAssignedPending > 0 && (
+              Mis Tickets {myAssignedPending > 0 && (
                 <span className="ml-1 inline-flex items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">
                   {myAssignedPending}
                 </span>
@@ -1135,6 +1220,88 @@ export default function Admin() {
                 {myAssignedTickets.map(renderTicketCard)}
               </div>
             )}
+          </>
+        )}
+
+        {activeTab === "todos" && (
+          <>
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="text-sm text-neutral-300">
+              Riesgo
+              <select
+                value={riskFilter}
+                onChange={(event) =>
+                  setRiskFilter(event.target.value as RiskFilter)
+                }
+                className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                {RISK_FILTER_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm text-neutral-300">
+              Ordenar
+              <select
+                value={sortBy}
+                onChange={(event) =>
+                  setSortBy(event.target.value as SortOption)
+                }
+                className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                {Object.entries(SORT_LABEL).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-3 text-lg font-semibold text-neutral-100">
+            Todos los tickets pendientes ({allTicketsPending.length})
+          </h3>
+          {allTicketsPending.length === 0 ? (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
+              No hay tickets pendientes con los filtros seleccionados.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {allTicketsPending.map(renderTicketCard)}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-8">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-lg font-semibold text-neutral-100">
+              Todos los tickets resueltos ({allTicketsResolved.length})
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowResolved((open) => !open)}
+              className="rounded-xl border border-white/10 px-3 py-1.5 text-sm text-neutral-200 hover:bg-white/10 transition"
+            >
+              {showResolved ? "Ocultar" : "Ver resueltos"}
+            </button>
+          </div>
+
+          {showResolved &&
+            (allTicketsResolved.length === 0 ? (
+              <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
+                No hay tickets resueltos con los filtros seleccionados.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {allTicketsResolved.map(renderTicketCard)}
+              </div>
+            ))}
+        </div>
           </>
         )}
 

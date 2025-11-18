@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { connectSocket, disconnectSocket } from "../services/socket";
 
 /** Ajusta aquí tus políticas de sesión */
 export const INACTIVITY_MS = 15 * 60 * 1000; // 15 minutos de inactividad
@@ -77,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const doLogout = () => {
     clearInactivityTimer();
+    disconnectSocket(); // Desconectar socket al cerrar sesión
     setUser(null);
     issuedAtRef.current = null;
     localStorage.removeItem(STORAGE_KEY);
@@ -90,6 +92,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
     localStorage.setItem(STORAGE_ISSUED_AT, String(now));
     armInactivityTimer();
+
+    // Conectar socket con el nombre de usuario
+    const username = u.nombreUsuario || u.usuario;
+    if (username) {
+      connectSocket(username);
+    }
   };
 
   const touch = () => {
@@ -124,6 +132,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ) {
           setUser(parsed);
           armInactivityTimer();
+
+          // Reconectar socket si la sesión es válida
+          const username = parsed.nombreUsuario || parsed.usuario;
+          if (username) {
+            connectSocket(username);
+          }
         } else {
           // vencida por tiempo absoluto
           doLogout();

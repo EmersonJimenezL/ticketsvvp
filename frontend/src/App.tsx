@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import RequireAuth from "./routes/RequireAuth";
+import NotificationContainer from "./components/NotificationContainer";
 
 import Login from "./pages/Login";
 import Menu from "./pages/Menu";
@@ -16,6 +17,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <NotificationContainer />
         <Routes>
           <Route path="/login" element={<Login />} />
 
