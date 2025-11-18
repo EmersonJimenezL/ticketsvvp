@@ -23,6 +23,8 @@ export type Ticket = {
   images?: string[]; // data URLs de imagenes opcionales
   createdAt?: string;
   updatedAt?: string;
+  asignadoA?: string; // Nombre completo de quien está asignado el ticket
+  fechaAsignacion?: string;
 };
 
 // Para crear un ticket no pedimos campos automáticos como ticketTime/resolucionTime
@@ -100,4 +102,15 @@ export function patchTicket(
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+}
+
+export function assignTicket(ticketId: string, asignadoA: string) {
+  return httpJSON<TicketResponse>(
+    "tickets",
+    `/api/ticketvvp/${ticketId}/asignar`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ asignadoA }),
+    }
+  );
 }

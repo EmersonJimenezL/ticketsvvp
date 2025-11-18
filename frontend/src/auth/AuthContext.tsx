@@ -13,10 +13,25 @@ export const INACTIVITY_MS = 15 * 60 * 1000; // 15 minutos de inactividad
 export const ABS_MAX_SESSION_MS = Number.POSITIVE_INFINITY; // sin expiración absoluta; solo por inactividad
 
 type Usuario = {
-  nombreUsuario: string;
-  rol: string;
-  primerNombre?: string;
-  primerApellido?: string;
+  _id: string;
+  usuario: string;
+  pnombre: string;
+  snombre: string;
+  papellido: string;
+  sapellido: string;
+  email: string;
+  sucursal: string;
+  area: string;
+  rol: string[];
+  activo: boolean;
+  permisos: string[];
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+  // Campos compatibles con el código actual
+  nombreUsuario?: string; // alias de usuario
+  primerNombre?: string;  // alias de pnombre
+  primerApellido?: string; // alias de papellido
 };
 
 type AuthContextType = {

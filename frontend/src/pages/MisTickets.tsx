@@ -184,6 +184,19 @@ export default function MisTickets() {
           {ticket.description}
         </p>
 
+        {/* Mostrar quien está atendiendo el ticket */}
+        <div className="mt-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2">
+          {ticket.asignadoA ? (
+            <p className="text-sm text-blue-300">
+              <span className="font-semibold">Atendido por:</span> {ticket.asignadoA}
+            </p>
+          ) : (
+            <p className="text-sm text-neutral-400">
+              Tu ticket está pendiente de asignación
+            </p>
+          )}
+        </div>
+
         {Array.isArray(ticket.images) && ticket.images.length > 0 && (
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
             {ticket.images.map((src, index) => (

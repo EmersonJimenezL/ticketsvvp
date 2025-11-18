@@ -26,10 +26,19 @@ export default function Login() {
 
     try {
       setLoading(true);
-      const resp = await loginApi({ nombreUsuario: username, password: pass });
-      login(resp.usuario);
+      const resp = await loginApi(username, pass);
 
-      const dest = isTicketAdmin(resp.usuario) ? "/admin" : "/menu";
+      // Crear objeto con campos compatibles para el código existente
+      const userData = {
+        ...resp.data,
+        nombreUsuario: resp.data.usuario,
+        primerNombre: resp.data.pnombre,
+        primerApellido: resp.data.papellido,
+      };
+
+      login(userData);
+
+      const dest = isTicketAdmin(userData) ? "/admin" : "/menu";
       navigate(dest, { replace: true });
     } catch (err: any) {
       setError(err?.message || "Credenciales inválidas.");

@@ -4,6 +4,7 @@ import {
   fetchTicketsMetrics,
   listTickets,
   patchTicket,
+  assignTicket,
   type Ticket,
   type TicketsMetrics,
 } from "../services/tickets";
@@ -33,6 +34,15 @@ const stateOpts: Ticket["state"][] = [
 ];
 const RISK_FILTER_OPTIONS = ["todos", ...riskOpts] as const;
 type RiskFilter = (typeof RISK_FILTER_OPTIONS)[number];
+
+// Usuarios autorizados para gestionar tickets
+const AUTHORIZED_USERS = ["mcontreras", "ejimenez", "igonzalez"] as const;
+const ASSIGN_OPTIONS = [
+  { value: "", label: "Sin asignar" },
+  { value: "Mauricio Contreras", label: "Mauricio Contreras" },
+  { value: "Emerson Jiménez", label: "Emerson Jiménez" },
+  { value: "Ignacio González", label: "Ignacio González" },
+] as const;
 
 type SortOption = "risk" | "createdAsc" | "createdDesc";
 const SORT_LABEL: Record<SortOption, string> = {
@@ -405,6 +415,7 @@ function MetricsPanel({
 }
 
 export default function Admin() {
+  const [activeTab, setActiveTab] = useState<"tickets" | "misAsignados" | "metricas">("tickets");
   const [items, setItems] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Record<string, boolean>>({});
@@ -418,8 +429,12 @@ export default function Admin() {
   const [showResolved, setShowResolved] = useState(false);
   const [imageModal, setImageModal] = useState<{ src: string; index: number; total: number } | null>(null);
 
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+
+  // Permisos de asignación
+  const canAssignTickets = user?.nombreUsuario === "mcontreras" || user?.usuario === "mcontreras";
+  const isAuthorizedUser = AUTHORIZED_USERS.includes((user?.nombreUsuario || user?.usuario) as any);
 
   const handleLogout = useCallback(() => {
     logout();
@@ -473,7 +488,8 @@ export default function Admin() {
   }, [refreshTickets]);
 
   const pendingTickets = useMemo(() => {
-    const pending = items.filter((ticket) => ticket.state !== "resuelto");
+    // En la pestaña "Tickets" solo mostramos tickets sin asignar
+    const pending = items.filter((ticket) => ticket.state !== "resuelto" && !ticket.asignadoA);
     const filtered =
       riskFilter === "todos"
         ? pending
@@ -498,7 +514,8 @@ export default function Admin() {
     return sorted;
   }, [items, riskFilter, sortBy]);
   const resolvedTickets = useMemo(() => {
-    const resolved = items.filter((ticket) => ticket.state === "resuelto");
+    // En la pestaña "Tickets" solo mostramos tickets sin asignar
+    const resolved = items.filter((ticket) => ticket.state === "resuelto" && !ticket.asignadoA);
     const filtered =
       riskFilter === "todos"
         ? resolved
@@ -526,6 +543,40 @@ export default function Admin() {
     }
     return sorted;
   }, [items, riskFilter, sortBy]);
+
+  // Métricas de asignación por trabajador
+  const assignmentMetrics = useMemo(() => {
+    const workers = [
+      { name: "Mauricio Contreras", value: "Mauricio Contreras" },
+      { name: "Emerson Jiménez", value: "Emerson Jiménez" },
+      { name: "Ignacio González", value: "Ignacio González" },
+    ];
+
+    return workers.map((worker) => {
+      const assignedTickets = items.filter((t) => t.asignadoA === worker.value);
+      const pending = assignedTickets.filter((t) => t.state === "recibido").length;
+      const inProgress = assignedTickets.filter((t) => t.state === "enProceso" || t.state === "conDificultades").length;
+      const resolved = assignedTickets.filter((t) => t.state === "resuelto").length;
+
+      return {
+        name: worker.name,
+        total: assignedTickets.length,
+        pending,
+        inProgress,
+        resolved,
+      };
+    });
+  }, [items]);
+
+  // Tickets asignados al usuario actual
+  const myAssignedTickets = useMemo(() => {
+    const userFullName = `${user?.pnombre} ${user?.papellido}`;
+    return items.filter((t) => t.asignadoA === userFullName);
+  }, [items, user]);
+
+  const myAssignedPending = useMemo(() => {
+    return myAssignedTickets.filter((t) => t.state !== "resuelto").length;
+  }, [myAssignedTickets]);
 
   async function onPatch(
     ticket: Ticket,
@@ -595,6 +646,45 @@ export default function Admin() {
     }
   }
 
+  async function onAssign(ticket: Ticket, asignadoA: string) {
+    setSaving((state) => ({ ...state, [ticket.ticketId]: true }));
+    setError(null);
+    const previousAssignee = ticket.asignadoA;
+
+    try {
+      // Actualización optimista
+      setItems((list) =>
+        list.map((item) =>
+          item.ticketId === ticket.ticketId
+            ? {
+                ...item,
+                asignadoA: asignadoA || undefined,
+                fechaAsignacion: asignadoA ? new Date().toISOString() : undefined,
+              }
+            : item
+        )
+      );
+
+      const response = await assignTicket(ticket.ticketId, asignadoA);
+      if (!response.ok) {
+        throw new Error(response.error || "No se pudo asignar el ticket.");
+      }
+
+      await refreshTickets();
+    } catch (err: any) {
+      setItems((list) =>
+        list.map((item) =>
+          item.ticketId === ticket.ticketId
+            ? { ...item, asignadoA: previousAssignee }
+            : item
+        )
+      );
+      setError(err?.message || "Error asignando ticket.");
+    } finally {
+      setSaving((state) => ({ ...state, [ticket.ticketId]: false }));
+    }
+  }
+
   const renderTicketCard = (ticket: Ticket) => {
     const ownerFullName =
       (ticket.userFullName ?? "").trim() ||
@@ -607,6 +697,13 @@ export default function Admin() {
       (ticket.userName ?? "").trim() ||
       ticket.userId ||
       "Sin usuario";
+
+    // Verificar si el usuario actual es el asignado al ticket
+    const userFullName = `${user?.pnombre || ""} ${user?.papellido || ""}`.trim();
+    const isAssignedToCurrentUser = ticket.asignadoA === userFullName;
+
+    // Un ticket puede editarse solo si está asignado al usuario actual
+    const canEditTicket = ticket.asignadoA && isAssignedToCurrentUser;
 
     return (
       <article
@@ -660,17 +757,33 @@ export default function Admin() {
           </div>
         </header>
 
+        {!canEditTicket && ticket.asignadoA && (
+          <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+            <p className="text-sm text-red-300">
+              <span className="font-semibold">Ticket asignado a {ticket.asignadoA}:</span> Solo esa persona puede editar este ticket.
+            </p>
+          </div>
+        )}
+        {!ticket.asignadoA && (
+          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+            <p className="text-sm text-amber-300">
+              <span className="font-semibold">Ticket sin asignar:</span> Este ticket no puede editarse hasta que sea asignado a un trabajador.
+            </p>
+          </div>
+        )}
+
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1">
             <span className="text-xs text-neutral-400">Riesgo</span>
             <select
               aria-label="Cambiar riesgo"
-              disabled={saving[ticket.ticketId]}
+              disabled={saving[ticket.ticketId] || !canEditTicket}
               value={ticket.risk}
               onChange={(event) =>
                 onPatch(ticket, { risk: event.target.value as Ticket["risk"] })
               }
               className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
+              title={!canEditTicket ? (ticket.asignadoA ? "Solo el usuario asignado puede editar este ticket" : "El ticket debe estar asignado para poder editarlo") : ""}
             >
               {riskOpts.map((option) => (
                 <option key={option} value={option}>
@@ -684,7 +797,7 @@ export default function Admin() {
             <span className="text-xs text-neutral-400">Estado</span>
             <select
               aria-label="Cambiar estado"
-              disabled={saving[ticket.ticketId]}
+              disabled={saving[ticket.ticketId] || !canEditTicket}
               value={ticket.state}
               onChange={(event) =>
                 onPatch(ticket, {
@@ -692,6 +805,7 @@ export default function Admin() {
                 })
               }
               className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
+              title={!canEditTicket ? (ticket.asignadoA ? "Solo el usuario asignado puede editar este ticket" : "El ticket debe estar asignado para poder editarlo") : ""}
             >
               {stateOpts.map((option) => (
                 <option key={option} value={option}>
@@ -701,6 +815,33 @@ export default function Admin() {
             </select>
           </label>
         </div>
+
+        {isAuthorizedUser && (
+          <div className="mt-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-neutral-400">Asignado a</span>
+              <select
+                aria-label="Asignar ticket"
+                disabled={saving[ticket.ticketId] || !canAssignTickets}
+                value={ticket.asignadoA || ""}
+                onChange={(event) => onAssign(ticket, event.target.value)}
+                className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
+                title={!canAssignTickets ? "Solo Mauricio Contreras puede asignar tickets" : ""}
+              >
+                {ASSIGN_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {ticket.fechaAsignacion && (
+                <span className="text-xs text-neutral-400">
+                  Asignado: {new Date(ticket.fechaAsignacion).toLocaleString()}
+                </span>
+              )}
+            </label>
+          </div>
+        )}
 
         <div className="mt-4">
           <label className="flex flex-col gap-1">
@@ -714,16 +855,18 @@ export default function Admin() {
                   [ticket.ticketId]: event.target.value,
                 }))
               }
-              placeholder="Describe acciones realizadas, hallazgos o notas."
-              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              placeholder={!canEditTicket ? (ticket.asignadoA ? "Solo el usuario asignado puede agregar comentarios" : "El ticket debe estar asignado para agregar comentarios") : "Describe acciones realizadas, hallazgos o notas."}
+              disabled={!canEditTicket}
+              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
             />
           </label>
           <div className="mt-2 flex items-center gap-3">
             <button
               type="button"
               onClick={() => onSaveComment(ticket)}
-              disabled={saving[ticket.ticketId]}
+              disabled={saving[ticket.ticketId] || !canEditTicket}
               className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold transition hover:bg-orange-500 disabled:opacity-60"
+              title={!canEditTicket ? (ticket.asignadoA ? "Solo el usuario asignado puede agregar comentarios" : "El ticket debe estar asignado para poder agregar comentarios") : ""}
             >
               {saving[ticket.ticketId] ? "Guardando..." : "Guardar comentario"}
             </button>
@@ -835,17 +978,52 @@ export default function Admin() {
           </div>
         </div>
 
-        <MetricsPanel
-          metrics={metrics}
-          loading={metricsLoading}
-          error={metricsError}
-          onRefresh={() => {
-            void refreshMetrics();
-          }}
-          onOpenHistoric={() => navigate("/admin/tickets/historico")}
-        />
+        {/* Tabs */}
+        <div className="mb-6 flex gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab("tickets")}
+            className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              activeTab === "tickets"
+                ? "bg-orange-600 text-white"
+                : "text-neutral-300 hover:bg-white/10"
+            }`}
+          >
+            Tickets
+          </button>
+          {isAuthorizedUser && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("misAsignados")}
+              className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                activeTab === "misAsignados"
+                  ? "bg-orange-600 text-white"
+                  : "text-neutral-300 hover:bg-white/10"
+              }`}
+            >
+              Mis Asignados {myAssignedPending > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">
+                  {myAssignedPending}
+                </span>
+              )}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setActiveTab("metricas")}
+            className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              activeTab === "metricas"
+                ? "bg-orange-600 text-white"
+                : "text-neutral-300 hover:bg-white/10"
+            }`}
+          >
+            Métricas
+          </button>
+        </div>
 
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        {activeTab === "tickets" && (
+          <>
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <label className="text-sm text-neutral-300">
               Riesgo
@@ -923,6 +1101,96 @@ export default function Admin() {
               </div>
             ))}
         </div>
+          </>
+        )}
+
+        {activeTab === "misAsignados" && (
+          <>
+            {/* Resumen de tickets asignados */}
+            <div className="mb-6 rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Mis Tickets Asignados</h3>
+                  <p className="text-sm text-neutral-400">Gestiona los tickets asignados a ti</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-orange-500">{myAssignedTickets.length}</div>
+                  <div className="text-xs text-neutral-400">Total asignados</div>
+                  {myAssignedPending > 0 && (
+                    <div className="mt-1 text-sm font-semibold text-red-400">
+                      {myAssignedPending} pendiente{myAssignedPending !== 1 ? "s" : ""}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Lista de tickets asignados (con controles de edición) */}
+            {myAssignedTickets.length === 0 ? (
+              <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300 text-center">
+                No tienes tickets asignados en este momento.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {myAssignedTickets.map(renderTicketCard)}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "metricas" && (
+          <>
+            <MetricsPanel
+              metrics={metrics}
+              loading={metricsLoading}
+              error={metricsError}
+              onRefresh={() => {
+                void refreshMetrics();
+              }}
+              onOpenHistoric={() => navigate("/admin/tickets/historico")}
+            />
+
+            {/* Métricas de asignación por trabajador */}
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
+              <h3 className="text-xl font-bold mb-4">Tickets Asignados por Trabajador</h3>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {assignmentMetrics.map((worker) => (
+                  <div
+                    key={worker.name}
+                    className="rounded-xl border border-white/10 bg-neutral-900/50 p-4"
+                  >
+                    <h4 className="font-semibold text-lg mb-3">{worker.name}</h4>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-neutral-400">Total asignados:</span>
+                        <span className="font-bold text-xl text-orange-500">{worker.total}</span>
+                      </div>
+
+                      <div className="h-px bg-white/10 my-3" />
+
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-neutral-400">Pendientes:</span>
+                        <span className="font-semibold text-red-400">{worker.pending}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-neutral-400">En proceso:</span>
+                        <span className="font-semibold text-amber-400">{worker.inProgress}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-neutral-400">Resueltos:</span>
+                        <span className="font-semibold text-emerald-400">{worker.resolved}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Modal de imagen ampliada */}
