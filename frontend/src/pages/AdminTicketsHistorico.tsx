@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { listTickets, type Ticket } from "../services/tickets";
+import AppHeader from "../components/AppHeader";
 
 const PAGE_SIZE = 200;
 
@@ -43,7 +43,6 @@ function enhanceTicket(ticket: Ticket): TicketRow {
 }
 
 export default function AdminTicketsHistorico() {
-  const navigate = useNavigate();
   const [items, setItems] = useState<TicketRow[]>([]);
   const [status, setStatus] = useState<FetchState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -124,31 +123,22 @@ export default function AdminTicketsHistorico() {
       </div>
 
       <div className="relative mx-auto max-w-6xl space-y-6">
-        <header className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Historico de tickets</h1>
-            <p className="mt-1 text-sm text-neutral-400">
-              Registros completos de tickets creados y su estado final.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
-            >
-              Volver
-            </button>
-            <button
-              type="button"
-              onClick={() => void loadTickets()}
-              disabled={status !== "idle"}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition disabled:opacity-60"
-            >
-              {status !== "idle" ? "Actualizando..." : "Actualizar"}
-            </button>
-          </div>
-        </header>
+        <AppHeader
+          title="Histórico de tickets"
+          subtitle="Registros completos de tickets creados y su estado final"
+          backTo="/admin/tickets"
+        />
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => void loadTickets()}
+            disabled={status !== "idle"}
+            className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition disabled:opacity-60"
+          >
+            {status !== "idle" ? "Actualizando..." : "Actualizar"}
+          </button>
+        </div>
 
         {isLoading && (
           <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-sm text-neutral-300">

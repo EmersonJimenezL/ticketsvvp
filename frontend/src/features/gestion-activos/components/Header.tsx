@@ -1,11 +1,10 @@
 import type { TabKey } from "../types";
+import AppHeader from "../../../components/AppHeader";
 
 type HeaderProps = {
   tab: TabKey;
   loading: boolean;
   onTabChange: (tab: TabKey) => void;
-  onBack: () => void;
-  onLogout: () => void;
   onReload: () => void;
   onCreateActivo: () => void;
   onCreateLicencia: () => void;
@@ -15,74 +14,53 @@ export function GestionActivosHeader({
   tab,
   loading,
   onTabChange,
-  onBack,
-  onLogout,
   onReload,
   onCreateActivo,
   onCreateLicencia,
 }: HeaderProps) {
   return (
     <div className="mb-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">
-              Inventario
-            </h1>
-            <p className="text-neutral-400 text-xs">
-              Activos y licencias con sus asignaciones.
-            </p>
-          </div>
+      <AppHeader
+        title="Inventario"
+        subtitle="Activos y licencias con sus asignaciones"
+        backTo="/admin"
+      />
 
-          <div className="inline-flex rounded-xl border border-white/10 bg-white/5 p-1">
-            <button
-              className={`px-3 py-1.5 text-sm rounded-lg transition ${
-                tab === "activos"
-                  ? "bg-neutral-900/70 text-neutral-100"
-                  : "hover:bg-white/10 text-neutral-300"
-              }`}
-              onClick={() => onTabChange("activos")}
-            >
-              Activos
-            </button>
-            <button
-              className={`px-3 py-1.5 text-sm rounded-lg transition ${
-                tab === "licencias"
-                  ? "bg-neutral-900/70 text-neutral-100"
-                  : "hover:bg-white/10 text-neutral-300"
-              }`}
-              onClick={() => onTabChange("licencias")}
-            >
-              Licencias
-            </button>
-            <button
-              className={`px-3 py-1.5 text-sm rounded-lg transition ${
-                tab === "estadisticas"
-                  ? "bg-neutral-900/70 text-neutral-100"
-                  : "hover:bg-white/10 text-neutral-300"
-              }`}
-              onClick={() => onTabChange("estadisticas")}
-            >
-              Estadisticas
-            </button>
-          </div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-xl border border-white/10 bg-white/5 p-1">
+          <button
+            className={`px-3 py-1.5 text-sm rounded-lg transition ${
+              tab === "activos"
+                ? "bg-orange-600 text-white"
+                : "hover:bg-white/10 text-neutral-300"
+            }`}
+            onClick={() => onTabChange("activos")}
+          >
+            Activos
+          </button>
+          <button
+            className={`px-3 py-1.5 text-sm rounded-lg transition ${
+              tab === "licencias"
+                ? "bg-orange-600 text-white"
+                : "hover:bg-white/10 text-neutral-300"
+            }`}
+            onClick={() => onTabChange("licencias")}
+          >
+            Licencias
+          </button>
+          <button
+            className={`px-3 py-1.5 text-sm rounded-lg transition ${
+              tab === "estadisticas"
+                ? "bg-orange-600 text-white"
+                : "hover:bg-white/10 text-neutral-300"
+            }`}
+            onClick={() => onTabChange("estadisticas")}
+          >
+            Estadísticas
+          </button>
         </div>
 
         <div className="flex flex-wrap gap-2 justify-end">
-          <button
-            onClick={onBack}
-            className="rounded-xl border border-white/10 px-3 py-1.5 text-sm hover:bg-white/10 transition"
-            type="button"
-          >
-            Volver
-          </button>
-          <button
-            onClick={onLogout}
-            className="rounded-xl border border-white/10 px-3 py-1.5 text-sm hover:bg-white/10 transition"
-            type="button"
-          >
-            Cerrar sesion
-          </button>
           {tab === "activos" && (
             <button
               onClick={onCreateActivo}

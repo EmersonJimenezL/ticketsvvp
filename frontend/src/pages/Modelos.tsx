@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import AppHeader from "../components/AppHeader";
 
 type Especificacion = {
   _id?: string;
@@ -21,7 +21,6 @@ const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 const API = `${BASE_URL}/api`;
 
 export default function Modelos() {
-  const navigate = useNavigate();
   const [items, setItems] = useState<Especificacion[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -147,34 +146,25 @@ export default function Modelos() {
       </div>
 
       <div className="relative mx-auto w-full">
-        <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex flex-wrap items-start md:items-end justify-between gap-4 gap-y-3">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Modelos</h1>
-            <p className="text-neutral-300 text-sm">
-              Especificaciones técnicas por modelo. Total: {total}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {error && (
-              <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded px-3 py-1.5">
-                {error}
-              </div>
-            )}
-            <button
-              onClick={() => navigate(-1)}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
-              type="button"
-            >
-              Volver
-            </button>
-            <button
-              onClick={() => setShowForm(true)}
-              className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold hover:bg-orange-500 transition"
-              type="button"
-            >
-              Nuevo modelo
-            </button>
-          </div>
+        <AppHeader
+          title="Modelos"
+          subtitle={`Especificaciones técnicas por modelo. Total: ${total}`}
+          backTo="/admin/gestion-activos"
+        />
+
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          {error && (
+            <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded px-3 py-1.5">
+              {error}
+            </div>
+          )}
+          <button
+            onClick={() => setShowForm(true)}
+            className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold hover:bg-orange-500 transition"
+            type="button"
+          >
+            Nuevo modelo
+          </button>
         </div>
 
         {/* Filtros */}

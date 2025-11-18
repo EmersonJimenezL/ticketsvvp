@@ -9,6 +9,7 @@ import {
   type TicketsMetrics,
 } from "../services/tickets";
 import { useAuth } from "../auth/AuthContext";
+import AppHeader from "../components/AppHeader";
 
 const RISK_ORDER: Record<Ticket["risk"], number> = {
   alto: 3,
@@ -437,17 +438,12 @@ export default function Admin() {
   const [showResolved, setShowResolved] = useState(false);
   const [imageModal, setImageModal] = useState<{ src: string; index: number; total: number } | null>(null);
 
-  const { logout, user } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   // Permisos de asignación
   const canAssignTickets = user?.nombreUsuario === "mcontreras" || user?.usuario === "mcontreras";
   const isAuthorizedUser = AUTHORIZED_USERS.includes((user?.nombreUsuario || user?.usuario) as any);
-
-  const handleLogout = useCallback(() => {
-    logout();
-    navigate("/login", { replace: true });
-  }, [logout, navigate]);
 
   const refreshTickets = useCallback(async () => {
     try {
@@ -1023,32 +1019,17 @@ export default function Admin() {
       </div>
 
       <div className="relative mx-auto w-full max-w-6xl">
-        <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
-          <h2 className="text-2xl font-extrabold tracking-tight">
-            Gestion de tickets
-          </h2>
-          <div className="flex flex-wrap items-center gap-3">
-            {error && (
-              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-sm text-red-300">
-                {error}
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
-            >
-              Volver
-            </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
-            >
-              Cerrar sesion
-            </button>
+        <AppHeader
+          title="Gestión de tickets"
+          subtitle="Administra y gestiona los tickets del sistema"
+          backTo="/admin"
+        />
+
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {error}
           </div>
-        </div>
+        )}
 
         {/* Tabs */}
         <div className="mb-6 flex gap-2 rounded-xl border border-white/10 bg-white/5 p-1">

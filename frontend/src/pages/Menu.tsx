@@ -1,13 +1,27 @@
 // src/pages/Menu.tsx
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import logo from "../assets/vivipra.png";
+import AppHeader from "../components/AppHeader";
+
+const AUTHORIZED_ADMINS = ["mcontreras", "ejimenez", "igonzalez"] as const;
 
 export default function Menu() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const nombre =
     [user?.primerNombre, user?.primerApellido].filter((part) => part && part.trim())
       .join(" ") || user?.nombreUsuario || "Usuario";
+
+  // Bloquear acceso completo a /menu para administradores
+  useEffect(() => {
+    const username = user?.nombreUsuario || user?.usuario;
+    const isAdmin = AUTHORIZED_ADMINS.includes(username as any);
+    if (isAdmin) {
+      navigate("/admin", { replace: true });
+    }
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden flex items-center justify-center">
@@ -28,30 +42,19 @@ export default function Menu() {
       </div>
 
       <div className="relative w-full max-w-3xl px-4">
-        {/* Banner superior */}
-        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
-          <div className="flex items-center gap-4">
-            <img
-              src={logo}
-              alt="Vivipra"
-              className="h-12 w-auto rounded ring-1 ring-white/10"
-            />
-            <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-                Bienvenido, <span className="text-orange-400">{nombre}</span>
-              </h1>
-              <p className="text-neutral-300 text-sm">
-                Selecciona una opción para continuar.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={logout}
-            className="ml-4 rounded-xl border border-white/10 px-3 py-2 text-sm text-neutral-200 hover:bg-white/10 transition"
-            type="button"
-          >
-            Cerrar sesión
-          </button>
+        <AppHeader
+          title={`Bienvenido, ${nombre}`}
+          subtitle="Selecciona una opción para continuar"
+          showBackButton={false}
+        />
+
+        {/* Logo */}
+        <div className="mb-6 flex justify-center">
+          <img
+            src={logo}
+            alt="Vivipra"
+            className="h-20 w-auto rounded-xl ring-2 ring-white/10 shadow-lg"
+          />
         </div>
 
         {/* Acciones */}

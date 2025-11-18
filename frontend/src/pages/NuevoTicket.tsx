@@ -1,9 +1,12 @@
 // src/pages/NuevoTicket.tsx
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { createTicket } from "../services/tickets";
 import type { TicketPayload } from "../services/tickets";
+import AppHeader from "../components/AppHeader";
+
+const AUTHORIZED_ADMINS = ["mcontreras", "ejimenez", "igonzalez"] as const;
 
 // Generador simple de ticketId
 function genTicketId() {
@@ -29,6 +32,15 @@ const RISKS: TicketPayload["risk"][] = ["alto", "medio", "bajo"];
 export default function NuevoTicket() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Bloquear acceso a administradores
+  useEffect(() => {
+    const username = user?.nombreUsuario || user?.usuario;
+    const isAdmin = AUTHORIZED_ADMINS.includes(username as any);
+    if (isAdmin) {
+      navigate("/menu", { replace: true });
+    }
+  }, [user, navigate]);
 
   const [title, setTitle] = useState<TicketPayload["title"] | null>(null);
   const [risk, setRisk] = useState<TicketPayload["risk"]>("bajo");
@@ -221,14 +233,11 @@ export default function NuevoTicket() {
       </div>
 
       <div className="relative w-full max-w-2xl my-10">
-        <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
-          <h1 className="text-2xl font-extrabold tracking-tight">
-            Crear ticket
-          </h1>
-          <p className="text-neutral-300 text-sm">
-            Completa el formulario y guarda tu incidencia.
-          </p>
-        </div>
+        <AppHeader
+          title="Crear ticket"
+          subtitle="Completa el formulario y guarda tu incidencia"
+          backTo="/menu"
+        />
 
         <form
           onSubmit={onSubmit}
@@ -355,20 +364,13 @@ export default function NuevoTicket() {
           )}
 
           {/* Acciones */}
-          <div className="flex items-center gap-3">
+          <div className="flex justify-end">
             <button
               type="submit"
               disabled={loading}
               className="rounded-xl bg-orange-600 px-5 py-3 font-semibold transition hover:bg-orange-500 disabled:opacity-60"
             >
               {loading ? "Guardando..." : "Guardar ticket"}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/menu")}
-              className="rounded-xl border border-white/10 px-5 py-3 hover:bg-white/10 transition"
-            >
-              Volver al menú
             </button>
           </div>
         </form>

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { listTickets, type Ticket } from "../services/tickets";
+import AppHeader from "../components/AppHeader";
 
 const ESTADOS: Ticket["state"][] = [
   "recibido",
@@ -247,36 +248,27 @@ export default function MisTickets() {
       </div>
 
       <div className="relative mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Mis tickets</h1>
-            <p className="mt-1 text-sm text-neutral-400">
-              Revisa tus solicitudes pendientes y resueltas de forma separada.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
-            >
-              Volver
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/tickets/nuevo")}
-              className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold transition hover:bg-orange-500"
-            >
-              Crear ticket
-            </button>
-            <button
-              type="button"
-              onClick={() => cargar()}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
-            >
-              Recargar
-            </button>
-          </div>
+        <AppHeader
+          title="Mis tickets"
+          subtitle="Revisa tus solicitudes pendientes y resueltas"
+          backTo="/menu"
+        />
+
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate("/tickets/nuevo")}
+            className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold transition hover:bg-orange-500"
+          >
+            Crear ticket
+          </button>
+          <button
+            type="button"
+            onClick={() => cargar()}
+            className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
+          >
+            Recargar
+          </button>
         </div>
 
         <div className="mb-6 flex flex-wrap items-center gap-3">

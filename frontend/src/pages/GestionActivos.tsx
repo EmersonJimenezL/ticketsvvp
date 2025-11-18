@@ -1,5 +1,3 @@
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
 import { useGestionActivos } from "../features/gestion-activos/hooks/useGestionActivos";
 import { GestionActivosHeader } from "../features/gestion-activos/components/Header";
 import { ActivosFilters } from "../features/gestion-activos/components/ActivosFilters";
@@ -15,8 +13,6 @@ import { HistorialModal } from "../features/gestion-activos/components/Historial
 import type { Activo, Licencia } from "../features/gestion-activos/types";
 
 export default function GestionInventario() {
-  const navigate = useNavigate();
-  const { logout } = useAuth();
   const state = useGestionActivos();
 
   const {
@@ -108,11 +104,6 @@ export default function GestionInventario() {
           tab={tab}
           loading={loading}
           onTabChange={setTab}
-          onBack={() => navigate(-1)}
-          onLogout={() => {
-            logout();
-            navigate("/login", { replace: true });
-          }}
           onReload={refrescar}
           onCreateActivo={activos.abrirCrear}
           onCreateLicencia={licencias.abrirCrear}

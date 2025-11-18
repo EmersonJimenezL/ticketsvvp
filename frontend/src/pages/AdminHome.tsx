@@ -1,9 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import AppHeader from "../components/AppHeader";
 
 export default function AdminHome() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden px-4 py-10">
@@ -23,26 +22,11 @@ export default function AdminHome() {
       </div>
 
       <div className="relative mx-auto max-w-5xl">
-        <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex items-center justify-between">
-          <h1 className="text-2xl font-extrabold tracking-tight">
-            Centro de Administración
-          </h1>
-          <p className="text-neutral-300 text-sm">
-            Elige un módulo para continuar
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                logout();
-                navigate("/login", { replace: true });
-              }}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/10 transition"
-              type="button"
-            >
-              Cerrar sesión
-            </button>
-          </div>
-        </div>
+        <AppHeader
+          title="Centro de Administración"
+          subtitle="Elige un módulo para continuar"
+          backTo="/menu"
+        />
 
         <div className="mt-10 flex flex-wrap justify-center gap-6">
           {/* Card Tickets */}
