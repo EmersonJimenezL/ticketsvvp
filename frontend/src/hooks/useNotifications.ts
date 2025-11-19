@@ -6,17 +6,23 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Inicializar AudioContext
-  useEffect(() => {
-    try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContext) {
-        audioContextRef.current = new AudioContext();
+  // Función para obtener o crear el AudioContext
+  const getAudioContext = useCallback(() => {
+    if (!audioContextRef.current) {
+      try {
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContext) {
+          audioContextRef.current = new AudioContext();
+        }
+      } catch (err) {
+        console.warn("[Notificación] AudioContext no disponible:", err);
       }
-    } catch (err) {
-      console.warn("[Notificación] AudioContext no disponible");
     }
+    return audioContextRef.current;
+  }, []);
 
+  // Limpiar AudioContext al desmontar
+  useEffect(() => {
     return () => {
       if (audioContextRef.current) {
         audioContextRef.current.close();
@@ -24,10 +30,18 @@ export function useNotifications() {
     };
   }, []);
 
-  const playNotificationSound = useCallback(() => {
+  const playNotificationSound = useCallback(async () => {
     try {
-      const audioContext = audioContextRef.current;
-      if (!audioContext) return;
+      const audioContext = getAudioContext();
+      if (!audioContext) {
+        console.warn("[Notificación] AudioContext no disponible");
+        return;
+      }
+
+      // Reanudar el contexto si está suspendido (requerido por políticas de autoplay)
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
 
       // Crear oscillator para generar el beep
       const oscillator = audioContext.createOscillator();
@@ -51,7 +65,7 @@ export function useNotifications() {
     } catch (err) {
       console.warn("[Notificación] No se pudo reproducir el sonido:", err);
     }
-  }, []);
+  }, [getAudioContext]);
 
   const addNotification = useCallback(
     (notification: NotificationData) => {

@@ -424,7 +424,9 @@ function MetricsPanel({
 }
 
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState<"tickets" | "misAsignados" | "todos" | "metricas">("todos");
+  const [activeTab, setActiveTab] = useState<
+    "tickets" | "misAsignados" | "todos" | "metricas"
+  >("todos");
   const [items, setItems] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Record<string, boolean>>({});
@@ -436,14 +438,21 @@ export default function Admin() {
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [metricsError, setMetricsError] = useState<string | null>(null);
   const [showResolved, setShowResolved] = useState(false);
-  const [imageModal, setImageModal] = useState<{ src: string; index: number; total: number } | null>(null);
+  const [imageModal, setImageModal] = useState<{
+    src: string;
+    index: number;
+    total: number;
+  } | null>(null);
 
   const { user } = useAuth();
   const navigate = useNavigate();
 
   // Permisos de asignación
-  const canAssignTickets = user?.nombreUsuario === "mcontreras" || user?.usuario === "mcontreras";
-  const isAuthorizedUser = AUTHORIZED_USERS.includes((user?.nombreUsuario || user?.usuario) as any);
+  const canAssignTickets =
+    user?.nombreUsuario === "mcontreras" || user?.usuario === "mcontreras";
+  const isAuthorizedUser = AUTHORIZED_USERS.includes(
+    (user?.nombreUsuario || user?.usuario) as any
+  );
 
   const refreshTickets = useCallback(async () => {
     try {
@@ -493,7 +502,9 @@ export default function Admin() {
 
   const pendingTickets = useMemo(() => {
     // En la pestaña "Tickets" solo mostramos tickets sin asignar
-    const pending = items.filter((ticket) => ticket.state !== "resuelto" && !ticket.asignadoA);
+    const pending = items.filter(
+      (ticket) => ticket.state !== "resuelto" && !ticket.asignadoA
+    );
     const filtered =
       riskFilter === "todos"
         ? pending
@@ -519,7 +530,9 @@ export default function Admin() {
   }, [items, riskFilter, sortBy]);
   const resolvedTickets = useMemo(() => {
     // En la pestaña "Tickets" solo mostramos tickets sin asignar
-    const resolved = items.filter((ticket) => ticket.state === "resuelto" && !ticket.asignadoA);
+    const resolved = items.filter(
+      (ticket) => ticket.state === "resuelto" && !ticket.asignadoA
+    );
     const filtered =
       riskFilter === "todos"
         ? resolved
@@ -558,9 +571,15 @@ export default function Admin() {
 
     return workers.map((worker) => {
       const assignedTickets = items.filter((t) => t.asignadoA === worker.value);
-      const pending = assignedTickets.filter((t) => t.state === "recibido").length;
-      const inProgress = assignedTickets.filter((t) => t.state === "enProceso" || t.state === "conDificultades").length;
-      const resolved = assignedTickets.filter((t) => t.state === "resuelto").length;
+      const pending = assignedTickets.filter(
+        (t) => t.state === "recibido"
+      ).length;
+      const inProgress = assignedTickets.filter(
+        (t) => t.state === "enProceso" || t.state === "conDificultades"
+      ).length;
+      const resolved = assignedTickets.filter(
+        (t) => t.state === "resuelto"
+      ).length;
 
       return {
         name: worker.name,
@@ -574,7 +593,9 @@ export default function Admin() {
 
   // Tickets asignados al usuario actual
   const myAssignedTickets = useMemo(() => {
-    const userFullName = `${user?.pnombre || ""} ${user?.papellido || ""}`.trim();
+    const userFullName = `${user?.pnombre || ""} ${
+      user?.papellido || ""
+    }`.trim();
     const normalizedUserName = normalizeString(userFullName);
 
     return items.filter((t) => {
@@ -586,6 +607,15 @@ export default function Admin() {
   const myAssignedPending = useMemo(() => {
     return myAssignedTickets.filter((t) => t.state !== "resuelto").length;
   }, [myAssignedTickets]);
+
+  // Contadores para los badges de las pestañas
+  const allTicketsPendingCount = useMemo(() => {
+    return items.filter((t) => t.state !== "resuelto").length;
+  }, [items]);
+
+  const unassignedPendingCount = useMemo(() => {
+    return items.filter((t) => t.state !== "resuelto" && !t.asignadoA).length;
+  }, [items]);
 
   // Todos los tickets (asignados y sin asignar) - solo para pestaña "Todos"
   const allTicketsPending = useMemo(() => {
@@ -725,7 +755,9 @@ export default function Admin() {
             ? {
                 ...item,
                 asignadoA: asignadoA || undefined,
-                fechaAsignacion: asignadoA ? new Date().toISOString() : undefined,
+                fechaAsignacion: asignadoA
+                  ? new Date().toISOString()
+                  : undefined,
               }
             : item
         )
@@ -765,7 +797,9 @@ export default function Admin() {
       "Sin usuario";
 
     // Verificar si el usuario actual es el asignado al ticket
-    const userFullName = `${user?.pnombre || ""} ${user?.papellido || ""}`.trim();
+    const userFullName = `${user?.pnombre || ""} ${
+      user?.papellido || ""
+    }`.trim();
     const isAssignedToCurrentUser = ticket.asignadoA
       ? normalizeString(ticket.asignadoA) === normalizeString(userFullName)
       : false;
@@ -801,7 +835,13 @@ export default function Admin() {
                   <button
                     key={index}
                     type="button"
-                    onClick={() => setImageModal({ src, index, total: ticket.images!.length })}
+                    onClick={() =>
+                      setImageModal({
+                        src,
+                        index,
+                        total: ticket.images!.length,
+                      })
+                    }
                     className="group relative h-24 w-full overflow-hidden rounded-lg border border-white/10 transition hover:border-orange-500/50"
                   >
                     <img
@@ -810,7 +850,9 @@ export default function Admin() {
                       className="h-full w-full object-cover transition group-hover:scale-105"
                     />
                     <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
-                      <span className="text-xs font-semibold text-white">Ver imagen</span>
+                      <span className="text-xs font-semibold text-white">
+                        Ver imagen
+                      </span>
                     </div>
                   </button>
                 ))}
@@ -828,14 +870,17 @@ export default function Admin() {
         {!canEditTicket && ticket.asignadoA && (
           <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
             <p className="text-sm text-red-300">
-              <span className="font-semibold">Ticket asignado a {ticket.asignadoA}:</span> Solo esa persona puede editar este ticket.
+              <span className="font-semibold">
+                Ticket asignado a {ticket.asignadoA}
+              </span>
             </p>
           </div>
         )}
         {!ticket.asignadoA && (
           <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
             <p className="text-sm text-amber-300">
-              <span className="font-semibold">Ticket sin asignar:</span> Este ticket no puede editarse hasta que sea asignado a un trabajador.
+              <span className="font-semibold">Ticket sin asignar:</span> Este
+              ticket no puede editarse hasta que sea asignado a un trabajador.
             </p>
           </div>
         )}
@@ -851,7 +896,13 @@ export default function Admin() {
                 onPatch(ticket, { risk: event.target.value as Ticket["risk"] })
               }
               className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
-              title={!canEditTicket ? (ticket.asignadoA ? "Solo el usuario asignado puede editar este ticket" : "El ticket debe estar asignado para poder editarlo") : ""}
+              title={
+                !canEditTicket
+                  ? ticket.asignadoA
+                    ? "Solo el usuario asignado puede editar este ticket"
+                    : "El ticket debe estar asignado para poder editarlo"
+                  : ""
+              }
             >
               {riskOpts.map((option) => (
                 <option key={option} value={option}>
@@ -873,7 +924,13 @@ export default function Admin() {
                 })
               }
               className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
-              title={!canEditTicket ? (ticket.asignadoA ? "Solo el usuario asignado puede editar este ticket" : "El ticket debe estar asignado para poder editarlo") : ""}
+              title={
+                !canEditTicket
+                  ? ticket.asignadoA
+                    ? "Solo el usuario asignado puede editar este ticket"
+                    : "El ticket debe estar asignado para poder editarlo"
+                  : ""
+              }
             >
               {stateOpts.map((option) => (
                 <option key={option} value={option}>
@@ -894,7 +951,11 @@ export default function Admin() {
                 value={ticket.asignadoA || ""}
                 onChange={(event) => onAssign(ticket, event.target.value)}
                 className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
-                title={!canAssignTickets ? "Solo Mauricio Contreras puede asignar tickets" : ""}
+                title={
+                  !canAssignTickets
+                    ? "Solo Mauricio Contreras puede asignar tickets"
+                    : ""
+                }
               >
                 {ASSIGN_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -923,7 +984,13 @@ export default function Admin() {
                   [ticket.ticketId]: event.target.value,
                 }))
               }
-              placeholder={!canEditTicket ? (ticket.asignadoA ? "Solo el usuario asignado puede agregar comentarios" : "El ticket debe estar asignado para agregar comentarios") : "Describe acciones realizadas, hallazgos o notas."}
+              placeholder={
+                !canEditTicket
+                  ? ticket.asignadoA
+                    ? "Solo el usuario asignado puede agregar comentarios"
+                    : "El ticket debe estar asignado para agregar comentarios"
+                  : "Describe acciones realizadas, hallazgos o notas."
+              }
               disabled={!canEditTicket}
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
             />
@@ -934,7 +1001,13 @@ export default function Admin() {
               onClick={() => onSaveComment(ticket)}
               disabled={saving[ticket.ticketId] || !canEditTicket}
               className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold transition hover:bg-orange-500 disabled:opacity-60"
-              title={!canEditTicket ? (ticket.asignadoA ? "Solo el usuario asignado puede agregar comentarios" : "El ticket debe estar asignado para poder agregar comentarios") : ""}
+              title={
+                !canEditTicket
+                  ? ticket.asignadoA
+                    ? "Solo el usuario asignado puede agregar comentarios"
+                    : "El ticket debe estar asignado para poder agregar comentarios"
+                  : ""
+              }
             >
               {saving[ticket.ticketId] ? "Guardando..." : "Guardar comentario"}
             </button>
@@ -1043,7 +1116,12 @@ export default function Admin() {
                   : "text-neutral-300 hover:bg-white/10"
               }`}
             >
-              Todos
+              Todos{" "}
+              {allTicketsPendingCount > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center rounded-full bg-sky-400 px-2 py-0.5 text-xs font-bold text-neutral-900">
+                  {allTicketsPendingCount}
+                </span>
+              )}
             </button>
           )}
           <button
@@ -1055,7 +1133,12 @@ export default function Admin() {
                 : "text-neutral-300 hover:bg-white/10"
             }`}
           >
-            Sin Asignar
+            Sin Asignar{" "}
+            {unassignedPendingCount > 0 && (
+              <span className="ml-1 inline-flex items-center justify-center rounded-full bg-sky-400 px-2 py-0.5 text-xs font-bold text-neutral-900">
+                {unassignedPendingCount}
+              </span>
+            )}
           </button>
           {isAuthorizedUser && (
             <button
@@ -1067,8 +1150,9 @@ export default function Admin() {
                   : "text-neutral-300 hover:bg-white/10"
               }`}
             >
-              Mis Tickets {myAssignedPending > 0 && (
-                <span className="ml-1 inline-flex items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">
+              Mis Tickets{" "}
+              {myAssignedPending > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center rounded-full bg-sky-400 px-2 py-0.5 text-xs font-bold text-neutral-900">
                   {myAssignedPending}
                 </span>
               )}
@@ -1090,83 +1174,83 @@ export default function Admin() {
         {activeTab === "tickets" && (
           <>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="text-sm text-neutral-300">
-              Riesgo
-              <select
-                value={riskFilter}
-                onChange={(event) =>
-                  setRiskFilter(event.target.value as RiskFilter)
-                }
-                className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
-              >
-                {RISK_FILTER_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm text-neutral-300">
-              Ordenar
-              <select
-                value={sortBy}
-                onChange={(event) =>
-                  setSortBy(event.target.value as SortOption)
-                }
-                className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
-              >
-                {(Object.keys(SORT_LABEL) as SortOption[]).map((option) => (
-                  <option key={option} value={option}>
-                    {SORT_LABEL[option]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="text-sm text-neutral-400">
-            Pendientes:{" "}
-            <span className="font-semibold text-neutral-100">
-              {pendingTickets.length}
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {pendingTickets.map(renderTicketCard)}
-        </div>
-
-        {pendingTickets.length === 0 && !loading && (
-          <div className="mt-10 text-center text-neutral-400">
-            No hay tickets pendientes.
-          </div>
-        )}
-
-        <div className="mt-10">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-lg font-semibold text-neutral-100">
-              Tickets resueltos ({resolvedTickets.length})
-            </h3>
-            <button
-              type="button"
-              onClick={() => setShowResolved((open) => !open)}
-              className="rounded-xl border border-white/10 px-3 py-1.5 text-sm text-neutral-200 hover:bg-white/10 transition"
-            >
-              {showResolved ? "Ocultar" : "Ver resueltos"}
-            </button>
-          </div>
-
-          {showResolved &&
-            (resolvedTickets.length === 0 ? (
-              <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
-                No hay tickets resueltos con los filtros seleccionados.
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="text-sm text-neutral-300">
+                  Riesgo
+                  <select
+                    value={riskFilter}
+                    onChange={(event) =>
+                      setRiskFilter(event.target.value as RiskFilter)
+                    }
+                    className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
+                  >
+                    {RISK_FILTER_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm text-neutral-300">
+                  Ordenar
+                  <select
+                    value={sortBy}
+                    onChange={(event) =>
+                      setSortBy(event.target.value as SortOption)
+                    }
+                    className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
+                  >
+                    {(Object.keys(SORT_LABEL) as SortOption[]).map((option) => (
+                      <option key={option} value={option}>
+                        {SORT_LABEL[option]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {resolvedTickets.map(renderTicketCard)}
+              <div className="text-sm text-neutral-400">
+                Pendientes:{" "}
+                <span className="font-semibold text-neutral-100">
+                  {pendingTickets.length}
+                </span>
               </div>
-            ))}
-        </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {pendingTickets.map(renderTicketCard)}
+            </div>
+
+            {pendingTickets.length === 0 && !loading && (
+              <div className="mt-10 text-center text-neutral-400">
+                No hay tickets pendientes.
+              </div>
+            )}
+
+            <div className="mt-10">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-lg font-semibold text-neutral-100">
+                  Tickets resueltos ({resolvedTickets.length})
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowResolved((open) => !open)}
+                  className="rounded-xl border border-white/10 px-3 py-1.5 text-sm text-neutral-200 hover:bg-white/10 transition"
+                >
+                  {showResolved ? "Ocultar" : "Ver resueltos"}
+                </button>
+              </div>
+
+              {showResolved &&
+                (resolvedTickets.length === 0 ? (
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
+                    No hay tickets resueltos con los filtros seleccionados.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {resolvedTickets.map(renderTicketCard)}
+                  </div>
+                ))}
+            </div>
           </>
         )}
 
@@ -1176,15 +1260,24 @@ export default function Admin() {
             <div className="mb-6 rounded-xl border border-white/10 bg-white/5 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold">Mis Tickets Asignados</h3>
-                  <p className="text-sm text-neutral-400">Gestiona los tickets asignados a ti</p>
+                  <h3 className="text-lg font-semibold">
+                    Mis Tickets Asignados
+                  </h3>
+                  <p className="text-sm text-neutral-400">
+                    Gestiona los tickets asignados a ti
+                  </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-bold text-orange-500">{myAssignedTickets.length}</div>
-                  <div className="text-xs text-neutral-400">Total asignados</div>
+                  <div className="text-2xl font-bold text-orange-500">
+                    {myAssignedTickets.length}
+                  </div>
+                  <div className="text-xs text-neutral-400">
+                    Total asignados
+                  </div>
                   {myAssignedPending > 0 && (
                     <div className="mt-1 text-sm font-semibold text-red-400">
-                      {myAssignedPending} pendiente{myAssignedPending !== 1 ? "s" : ""}
+                      {myAssignedPending} pendiente
+                      {myAssignedPending !== 1 ? "s" : ""}
                     </div>
                   )}
                 </div>
@@ -1207,82 +1300,82 @@ export default function Admin() {
         {activeTab === "todos" && (
           <>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="text-sm text-neutral-300">
-              Riesgo
-              <select
-                value={riskFilter}
-                onChange={(event) =>
-                  setRiskFilter(event.target.value as RiskFilter)
-                }
-                className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
-              >
-                {RISK_FILTER_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm text-neutral-300">
-              Ordenar
-              <select
-                value={sortBy}
-                onChange={(event) =>
-                  setSortBy(event.target.value as SortOption)
-                }
-                className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
-              >
-                {Object.entries(SORT_LABEL).map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </div>
-
-        <div>
-          <h3 className="mb-3 text-lg font-semibold text-neutral-100">
-            Todos los tickets pendientes ({allTicketsPending.length})
-          </h3>
-          {allTicketsPending.length === 0 ? (
-            <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
-              No hay tickets pendientes con los filtros seleccionados.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {allTicketsPending.map(renderTicketCard)}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-8">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-lg font-semibold text-neutral-100">
-              Todos los tickets resueltos ({allTicketsResolved.length})
-            </h3>
-            <button
-              type="button"
-              onClick={() => setShowResolved((open) => !open)}
-              className="rounded-xl border border-white/10 px-3 py-1.5 text-sm text-neutral-200 hover:bg-white/10 transition"
-            >
-              {showResolved ? "Ocultar" : "Ver resueltos"}
-            </button>
-          </div>
-
-          {showResolved &&
-            (allTicketsResolved.length === 0 ? (
-              <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
-                No hay tickets resueltos con los filtros seleccionados.
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="text-sm text-neutral-300">
+                  Riesgo
+                  <select
+                    value={riskFilter}
+                    onChange={(event) =>
+                      setRiskFilter(event.target.value as RiskFilter)
+                    }
+                    className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
+                  >
+                    {RISK_FILTER_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm text-neutral-300">
+                  Ordenar
+                  <select
+                    value={sortBy}
+                    onChange={(event) =>
+                      setSortBy(event.target.value as SortOption)
+                    }
+                    className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
+                  >
+                    {Object.entries(SORT_LABEL).map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {allTicketsResolved.map(renderTicketCard)}
+            </div>
+
+            <div>
+              <h3 className="mb-3 text-lg font-semibold text-neutral-100">
+                Todos los tickets pendientes ({allTicketsPending.length})
+              </h3>
+              {allTicketsPending.length === 0 ? (
+                <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
+                  No hay tickets pendientes con los filtros seleccionados.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {allTicketsPending.map(renderTicketCard)}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-8">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-lg font-semibold text-neutral-100">
+                  Todos los tickets resueltos ({allTicketsResolved.length})
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowResolved((open) => !open)}
+                  className="rounded-xl border border-white/10 px-3 py-1.5 text-sm text-neutral-200 hover:bg-white/10 transition"
+                >
+                  {showResolved ? "Ocultar" : "Ver resueltos"}
+                </button>
               </div>
-            ))}
-        </div>
+
+              {showResolved &&
+                (allTicketsResolved.length === 0 ? (
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
+                    No hay tickets resueltos con los filtros seleccionados.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {allTicketsResolved.map(renderTicketCard)}
+                  </div>
+                ))}
+            </div>
           </>
         )}
 
@@ -1300,7 +1393,9 @@ export default function Admin() {
 
             {/* Métricas de asignación por trabajador */}
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
-              <h3 className="text-xl font-bold mb-4">Tickets Asignados por Trabajador</h3>
+              <h3 className="text-xl font-bold mb-4">
+                Tickets Asignados por Trabajador
+              </h3>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {assignmentMetrics.map((worker) => (
@@ -1308,29 +1403,47 @@ export default function Admin() {
                     key={worker.name}
                     className="rounded-xl border border-white/10 bg-neutral-900/50 p-4"
                   >
-                    <h4 className="font-semibold text-lg mb-3">{worker.name}</h4>
+                    <h4 className="font-semibold text-lg mb-3">
+                      {worker.name}
+                    </h4>
 
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-neutral-400">Total asignados:</span>
-                        <span className="font-bold text-xl text-orange-500">{worker.total}</span>
+                        <span className="text-sm text-neutral-400">
+                          Total asignados:
+                        </span>
+                        <span className="font-bold text-xl text-orange-500">
+                          {worker.total}
+                        </span>
                       </div>
 
                       <div className="h-px bg-white/10 my-3" />
 
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-neutral-400">Pendientes:</span>
-                        <span className="font-semibold text-red-400">{worker.pending}</span>
+                        <span className="text-sm text-neutral-400">
+                          Pendientes:
+                        </span>
+                        <span className="font-semibold text-red-400">
+                          {worker.pending}
+                        </span>
                       </div>
 
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-neutral-400">En proceso:</span>
-                        <span className="font-semibold text-amber-400">{worker.inProgress}</span>
+                        <span className="text-sm text-neutral-400">
+                          En proceso:
+                        </span>
+                        <span className="font-semibold text-amber-400">
+                          {worker.inProgress}
+                        </span>
                       </div>
 
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-neutral-400">Resueltos:</span>
-                        <span className="font-semibold text-emerald-400">{worker.resolved}</span>
+                        <span className="text-sm text-neutral-400">
+                          Resueltos:
+                        </span>
+                        <span className="font-semibold text-emerald-400">
+                          {worker.resolved}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1353,11 +1466,24 @@ export default function Admin() {
             className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition"
             title="Cerrar"
           >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
-          <div className="relative max-h-[90vh] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="relative max-h-[90vh] max-w-[90vw]"
+            onClick={(e) => e.stopPropagation()}
+          >
             <img
               src={imageModal.src}
               alt="Imagen ampliada"

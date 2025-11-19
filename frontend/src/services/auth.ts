@@ -34,7 +34,10 @@ export type LoginError = {
 
 const API_URL = "http://192.168.200.80:3005/centrodeaplicaciones/login";
 
-export async function login(usuario: string, password: string): Promise<LoginResponse> {
+export async function login(
+  usuario: string,
+  password: string
+): Promise<LoginResponse> {
   const requestBody: LoginPayload = {
     usuario,
     password,
