@@ -1,8 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-  PieChart,
-  Pie,
-  Cell,
   BarChart,
   Bar,
   XAxis,
@@ -28,15 +25,6 @@ type StatsViewProps = {
     maxProveedor: number;
   };
 };
-
-const COLORS = [
-  "#f97316",
-  "#ea580c",
-  "#fb923c",
-  "#fdba74",
-  "#fed7aa",
-  "#ffedd5",
-];
 
 export function StatsView({ stats }: StatsViewProps) {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -355,25 +343,21 @@ export function StatsView({ stats }: StatsViewProps) {
     }
   };
 
-  const porcentajeDisponibles =
-    stats.raw.total > 0
-      ? ((stats.raw.disponibles / stats.raw.total) * 100).toFixed(1)
-      : "0";
+  // Separar licencias SAP y Office
+  const sapLicencias = stats.porTipo.filter(
+    ([tipo]) =>
+      tipo === "Profesional" ||
+      tipo === "CRM limitada" ||
+      tipo === "Logistica limitada" ||
+      tipo === "Acceso indirecto" ||
+      tipo === "Financiera limitada"
+  );
 
-  const porcentajeOcupadas =
-    stats.raw.total > 0
-      ? ((stats.raw.ocupadas / stats.raw.total) * 100).toFixed(1)
-      : "0";
-
-  const pieData = [
-    { name: "Disponibles", value: stats.raw.disponibles },
-    { name: "Ocupadas", value: stats.raw.ocupadas },
-  ];
-
-  const barDataTipo = stats.porTipo.map(([name, value]) => ({
-    name: name.length > 20 ? name.substring(0, 20) + "..." : name,
-    cantidad: value,
-  }));
+  const officeLicencias = stats.porTipo.filter(
+    ([tipo]) =>
+      tipo.includes("Microsoft 365") ||
+      tipo.includes("Office")
+  );
 
   const barDataProveedor = stats.porProveedor.map(([name, value]) => ({
     name,
@@ -458,197 +442,6 @@ export function StatsView({ stats }: StatsViewProps) {
           </div>
         </div>
 
-        {/* Resto del contenido visual... (se mantiene igual) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard
-            label="Total de Licencias"
-            value={stats.raw.total}
-            icon={
-              <svg
-                className="w-8 h-8"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-            }
-            color="from-blue-500 to-blue-600"
-            percentage=""
-          />
-          <StatCard
-            label="Licencias Disponibles"
-            value={stats.raw.disponibles}
-            icon={
-              <svg
-                className="w-8 h-8"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            }
-            color="from-emerald-500 to-emerald-600"
-            percentage={`${porcentajeDisponibles}% del total`}
-          />
-          <StatCard
-            label="Licencias Ocupadas"
-            value={stats.raw.ocupadas}
-            icon={
-              <svg
-                className="w-8 h-8"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                />
-              </svg>
-            }
-            color="from-orange-500 to-orange-600"
-            percentage={`${porcentajeOcupadas}% del total`}
-          />
-        </div>
-
-        {/* Gráficos de distribución */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
-            <h3 className="text-xl font-semibold text-white mb-6">
-              Distribución de Uso
-            </h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }: any) =>
-                    `${name}: ${(percent * 100).toFixed(0)}%`
-                  }
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  <Cell fill="#10b981" />
-                  <Cell fill="#f97316" />
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "rgba(0, 0, 0, 0.8)",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                    borderRadius: "8px",
-                    color: "#fff",
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
-            <h3 className="text-xl font-semibold text-white mb-6">
-              Análisis de Capacidad
-            </h3>
-            <div className="space-y-6">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-neutral-300">Tasa de Utilización</span>
-                  <span className="text-2xl font-bold text-orange-500">
-                    {porcentajeOcupadas}%
-                  </span>
-                </div>
-                <div className="h-4 rounded-full bg-white/10 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500"
-                    style={{ width: `${porcentajeOcupadas}%` }}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-neutral-300">Capacidad Disponible</span>
-                  <span className="text-2xl font-bold text-emerald-500">
-                    {porcentajeDisponibles}%
-                  </span>
-                </div>
-                <div className="h-4 rounded-full bg-white/10 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-500"
-                    style={{ width: `${porcentajeDisponibles}%` }}
-                  />
-                </div>
-              </div>
-              <div className="pt-4 border-t border-white/10">
-                <div className="text-sm text-neutral-400">
-                  <p className="mb-2">
-                    <strong className="text-white">Recomendación:</strong>
-                    {parseFloat(porcentajeOcupadas) > 80
-                      ? " Se recomienda adquirir más licencias para mantener disponibilidad."
-                      : " Nivel de utilización óptimo."}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Gráfico de barras - Licencias por Tipo */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-white">
-              Licencias por Tipo
-            </h3>
-            <span className="text-sm text-neutral-400">
-              {stats.porTipo.length} tipos diferentes
-            </span>
-          </div>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart
-              data={barDataTipo}
-              margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="rgba(255,255,255,0.1)"
-              />
-              <XAxis
-                dataKey="name"
-                stroke="#a3a3a3"
-                angle={-45}
-                textAnchor="end"
-                height={100}
-                style={{ fontSize: "12px" }}
-              />
-              <YAxis stroke="#a3a3a3" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "rgba(0, 0, 0, 0.8)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: "8px",
-                  color: "#fff",
-                }}
-              />
-              <Legend />
-              <Bar dataKey="cantidad" fill="#f97316" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
         {/* Detalles por tipo (tabla) - SAP y Office separados */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
           <h3 className="text-xl font-semibold text-white mb-6">
@@ -682,54 +475,38 @@ export function StatsView({ stats }: StatsViewProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {stats.porTipo
-                    .filter(
-                      ([tipo]) =>
-                        tipo === "Profesional" ||
-                        tipo === "CRM limitada" ||
-                        tipo === "Logistica limitada" ||
-                        tipo === "Acceso indirecto" ||
-                        tipo === "Financiera limitada"
-                    )
-                    .map(([tipo, cantidad]) => {
-                      const porcentaje =
-                        stats.raw!.total > 0
-                          ? ((cantidad / stats.raw!.total) * 100).toFixed(1)
-                          : "0";
-                      return (
-                        <tr
-                          key={tipo}
-                          className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                        >
-                          <td className="py-3 px-4 text-neutral-100">{tipo}</td>
-                          <td className="py-3 px-4 text-right text-white font-semibold">
-                            {cantidad}
-                          </td>
-                          <td className="py-3 px-4 text-right text-neutral-300">
-                            {porcentaje}%
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="h-2 rounded-full bg-white/10 overflow-hidden max-w-xs">
-                              <div
-                                className="h-full rounded-full transition-all duration-500"
-                                style={{
-                                  width: `${porcentaje}%`,
-                                  backgroundColor: "#3b82f6",
-                                }}
-                              />
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  {stats.porTipo.filter(
-                    ([tipo]) =>
-                      tipo === "Profesional" ||
-                      tipo === "CRM limitada" ||
-                      tipo === "Logistica limitada" ||
-                      tipo === "Acceso indirecto" ||
-                      tipo === "Financiera limitada"
-                  ).length === 0 && (
+                  {sapLicencias.map(([tipo, cantidad]) => {
+                    const porcentaje =
+                      stats.raw!.total > 0
+                        ? ((cantidad / stats.raw!.total) * 100).toFixed(1)
+                        : "0";
+                    return (
+                      <tr
+                        key={tipo}
+                        className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                      >
+                        <td className="py-3 px-4 text-neutral-100">{tipo}</td>
+                        <td className="py-3 px-4 text-right text-white font-semibold">
+                          {cantidad}
+                        </td>
+                        <td className="py-3 px-4 text-right text-neutral-300">
+                          {porcentaje}%
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="h-2 rounded-full bg-white/10 overflow-hidden max-w-xs">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${porcentaje}%`,
+                                backgroundColor: "#3b82f6",
+                              }}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {sapLicencias.length === 0 && (
                     <tr>
                       <td
                         colSpan={4}
@@ -771,47 +548,38 @@ export function StatsView({ stats }: StatsViewProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {stats.porTipo
-                    .filter(
-                      ([tipo]) =>
-                        tipo.includes("Microsoft 365") ||
-                        tipo.includes("Office")
-                    )
-                    .map(([tipo, cantidad]) => {
-                      const porcentaje =
-                        stats.raw!.total > 0
-                          ? ((cantidad / stats.raw!.total) * 100).toFixed(1)
-                          : "0";
-                      return (
-                        <tr
-                          key={tipo}
-                          className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                        >
-                          <td className="py-3 px-4 text-neutral-100">{tipo}</td>
-                          <td className="py-3 px-4 text-right text-white font-semibold">
-                            {cantidad}
-                          </td>
-                          <td className="py-3 px-4 text-right text-neutral-300">
-                            {porcentaje}%
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="h-2 rounded-full bg-white/10 overflow-hidden max-w-xs">
-                              <div
-                                className="h-full rounded-full transition-all duration-500"
-                                style={{
-                                  width: `${porcentaje}%`,
-                                  backgroundColor: "#10b981",
-                                }}
-                              />
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  {stats.porTipo.filter(
-                    ([tipo]) =>
-                      tipo.includes("Microsoft 365") || tipo.includes("Office")
-                  ).length === 0 && (
+                  {officeLicencias.map(([tipo, cantidad]) => {
+                    const porcentaje =
+                      stats.raw!.total > 0
+                        ? ((cantidad / stats.raw!.total) * 100).toFixed(1)
+                        : "0";
+                    return (
+                      <tr
+                        key={tipo}
+                        className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                      >
+                        <td className="py-3 px-4 text-neutral-100">{tipo}</td>
+                        <td className="py-3 px-4 text-right text-white font-semibold">
+                          {cantidad}
+                        </td>
+                        <td className="py-3 px-4 text-right text-neutral-300">
+                          {porcentaje}%
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="h-2 rounded-full bg-white/10 overflow-hidden max-w-xs">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${porcentaje}%`,
+                                backgroundColor: "#10b981",
+                              }}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {officeLicencias.length === 0 && (
                     <tr>
                       <td
                         colSpan={4}
@@ -861,143 +629,7 @@ export function StatsView({ stats }: StatsViewProps) {
             </BarChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Detalles por proveedor */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
-          <h3 className="text-xl font-semibold text-white mb-6">
-            Detalle de Licencias por Proveedor
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {stats.porProveedor.map(([proveedor, cantidad], index) => {
-              const porcentaje =
-                stats.raw!.total > 0
-                  ? ((cantidad / stats.raw!.total) * 100).toFixed(1)
-                  : "0";
-              return (
-                <div
-                  key={proveedor}
-                  className="p-5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all duration-200"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-semibold text-white text-lg">
-                      {proveedor}
-                    </h4>
-                    <span className="text-2xl font-bold text-orange-500">
-                      {cantidad}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm text-neutral-300">
-                      <span>Porcentaje del total</span>
-                      <span className="font-semibold">{porcentaje}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${porcentaje}%`,
-                          backgroundColor: COLORS[index % COLORS.length],
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Resumen final */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-orange-500/10 to-orange-600/10 p-6 backdrop-blur-md">
-          <h3 className="text-xl font-semibold text-white mb-4">
-            Resumen Ejecutivo
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-neutral-200">
-            <div>
-              <h4 className="font-semibold text-white mb-2">
-                Inventario Total
-              </h4>
-              <ul className="space-y-1 text-sm">
-                <li>
-                  • Total de licencias:{" "}
-                  <strong className="text-white">{stats.raw.total}</strong>
-                </li>
-                <li>
-                  • Licencias disponibles:{" "}
-                  <strong className="text-emerald-400">
-                    {stats.raw.disponibles}
-                  </strong>
-                </li>
-                <li>
-                  • Licencias en uso:{" "}
-                  <strong className="text-orange-400">
-                    {stats.raw.ocupadas}
-                  </strong>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-2">Distribución</h4>
-              <ul className="space-y-1 text-sm">
-                <li>
-                  • Tipos de licencias:{" "}
-                  <strong className="text-white">{stats.porTipo.length}</strong>
-                </li>
-                <li>
-                  • Proveedores activos:{" "}
-                  <strong className="text-white">
-                    {stats.porProveedor.length}
-                  </strong>
-                </li>
-                <li>
-                  • Tipo más común:{" "}
-                  <strong className="text-white">
-                    {stats.porTipo[0]?.[0] || "N/A"}
-                  </strong>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Pie de página del informe */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md text-center">
-          <p className="text-sm text-neutral-400">
-            Este informe fue generado automáticamente el{" "}
-            {new Date().toLocaleString("es-ES")}
-          </p>
-          <p className="text-xs text-neutral-500 mt-1">
-            Sistema de Gestión de Activos y Licencias - VVP
-          </p>
-        </div>
       </div>
-    </div>
-  );
-}
-
-type StatCardProps = {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-  color: string;
-  percentage: string;
-};
-
-function StatCard({ label, value, icon, color, percentage }: StatCardProps) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md hover:scale-105 transition-transform duration-200">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`p-3 rounded-xl bg-gradient-to-br ${color} shadow-lg`}>
-          {icon}
-        </div>
-        <div className="text-right">
-          <div className="text-4xl font-bold text-white">{value}</div>
-        </div>
-      </div>
-      <div className="text-sm font-medium text-neutral-300 mb-1">{label}</div>
-      {percentage && (
-        <div className="text-xs text-neutral-400">{percentage}</div>
-      )}
     </div>
   );
 }

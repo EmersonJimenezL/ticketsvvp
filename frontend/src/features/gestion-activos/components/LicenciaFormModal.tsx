@@ -13,7 +13,7 @@ type LicenciaFormModalProps = {
   isEdit: boolean;
   loading: boolean;
   form: Licencia;
-  tiposDisponibles: readonly string[];
+  tiposDisponibles: readonly { tipo: string; cantidad: number }[];
   onClose: () => void;
   onSubmit: () => void;
   onChange: (changes: Partial<Licencia>) => void;
@@ -55,7 +55,7 @@ export function LicenciaFormModal({
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
               value={form.cuenta || ""}
               onChange={(event) => onChange({ cuenta: event.target.value })}
-              disabled={isEdit}
+              disabled={isEdit && form.proveedor === "SAP"}
             />
           </div>
           <div>
@@ -102,11 +102,17 @@ export function LicenciaFormModal({
               }
             >
               <option value="">Seleccione</option>
-              {tiposDisponibles.map((tipo) => (
-                <option key={tipo} value={tipo}>
-                  {tipo}
+              {tiposDisponibles.length === 0 ? (
+                <option value="" disabled>
+                  Sin licencias disponibles
                 </option>
-              ))}
+              ) : (
+                tiposDisponibles.map((item) => (
+                  <option key={item.tipo} value={item.tipo}>
+                    {item.tipo} ({item.cantidad} disponible{item.cantidad !== 1 ? 's' : ''})
+                  </option>
+                ))
+              )}
             </select>
           </div>
           <div>

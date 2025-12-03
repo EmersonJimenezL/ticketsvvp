@@ -98,7 +98,7 @@ export function useGestionActivos() {
     movimientos: [],
   });
 
-  // Tipos disponibles de licencias según proveedor
+  // Tipos disponibles de licencias según proveedor (para filtros)
   const tiposLicenciasFiltro = useMemo(() => {
     if (licenciaFilters.proveedor === "SAP") {
       return [...OPCIONES_TIPO_LIC_MAP.SAP];
@@ -108,6 +108,57 @@ export function useGestionActivos() {
     }
     return [...OPCIONES_TIPO_LIC_MAP.SAP, ...OPCIONES_TIPO_LIC_MAP.Office];
   }, [licenciaFilters.proveedor]);
+
+  // Estado para almacenar todas las licencias (sin paginación)
+  const [todasLasLicencias, setTodasLasLicencias] = useState<Licencia[]>([]);
+
+  // Cargar todas las licencias al inicio
+  const cargarTodasLasLicencias = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE}/licencias?limit=1000`);
+      const json = await response.json();
+      if (json?.ok && Array.isArray(json.data)) {
+        setTodasLasLicencias(json.data);
+      }
+    } catch (err) {
+      console.error("Error cargando todas las licencias:", err);
+    }
+  }, []);
+
+  // Tipos disponibles para el formulario con cantidades
+  const tiposDisponiblesConCantidad = useMemo(() => {
+    // Obtener proveedor del formulario actual
+    const proveedor = licenciaForm.form.proveedor;
+    if (!proveedor) return [];
+
+    // Obtener tipos según proveedor
+    const tiposPorProveedor = proveedor === "SAP"
+      ? [...OPCIONES_TIPO_LIC_MAP.SAP]
+      : proveedor === "Office"
+      ? [...OPCIONES_TIPO_LIC_MAP.Office]
+      : [];
+
+    // Obtener todas las licencias del mismo proveedor
+    const licenciasDelProveedor = todasLasLicencias.filter(
+      (lic) => lic.proveedor === proveedor
+    );
+
+    // Contar disponibles por tipo
+    const tiposConCantidad = tiposPorProveedor.map((tipo) => {
+      const cantidad = licenciasDelProveedor.filter(
+        (lic) => lic.tipoLicencia === tipo && !lic.asignadoPara
+      ).length;
+      return { tipo, cantidad };
+    });
+
+    // En modo edición, incluir el tipo actual aunque no haya disponibles
+    const tiposFinales = tiposConCantidad.filter(
+      (item) => item.cantidad > 0 ||
+      (licenciaForm.editId && licenciaForm.form.tipoLicencia === item.tipo)
+    );
+
+    return tiposFinales;
+  }, [licenciaForm.form.proveedor, licenciaForm.form.tipoLicencia, licenciaForm.editId, todasLasLicencias]);
 
   // Cargar datos según filtros y página
   const cargarActivos = useCallback(async () => {
@@ -186,15 +237,17 @@ export function useGestionActivos() {
   }, [activoForm, activosHook, cargarActivos]);
 
   // Handlers de formularios de licencias
-  const abrirCrearLicencia = useCallback(() => {
+  const abrirCrearLicencia = useCallback(async () => {
+    await cargarTodasLasLicencias();
     licenciaForm.openCreate();
-  }, [licenciaForm]);
+  }, [licenciaForm, cargarTodasLasLicencias]);
 
   const abrirEditarLicencia = useCallback(
-    (licencia: Licencia) => {
+    async (licencia: Licencia) => {
+      await cargarTodasLasLicencias();
       licenciaForm.openEdit(licencia);
     },
-    [licenciaForm]
+    [licenciaForm, cargarTodasLasLicencias]
   );
 
   const enviarLicencia = useCallback(async () => {
@@ -213,10 +266,11 @@ export function useGestionActivos() {
       }
       licenciaForm.closeForm();
       await cargarLicencias();
+      await cargarTodasLasLicencias();
     } catch (err: any) {
       setGlobalError(err.message || "Error al guardar licencia");
     }
-  }, [licenciaForm, licenciasHook, cargarLicencias]);
+  }, [licenciaForm, licenciasHook, cargarLicencias, cargarTodasLasLicencias]);
 
   // Modal de asignación
   const abrirAsignarModal = useCallback(
@@ -262,10 +316,11 @@ export function useGestionActivos() {
 
       setAssignModal({ visible: false, contexto: assignModal.contexto });
       await refrescar();
+      await cargarTodasLasLicencias();
     } catch (err: any) {
       setGlobalError(err.message || "Error al asignar");
     }
-  }, [assignModal, refrescar]);
+  }, [assignModal, refrescar, cargarTodasLasLicencias]);
 
   // Modal de eliminación
   const abrirEliminarModal = useCallback(
@@ -464,7 +519,7 @@ export function useGestionActivos() {
       mostrarFormulario: licenciaForm.showForm,
       editarId: licenciaForm.editId,
       form: licenciaForm.form,
-      tiposDisponibles: tiposLicenciasFiltro,
+      tiposDisponibles: tiposDisponiblesConCantidad,
       abrirCrear: abrirCrearLicencia,
       abrirEditar: abrirEditarLicencia,
       cerrarFormulario: licenciaForm.closeForm,

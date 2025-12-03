@@ -11,6 +11,7 @@ import { AssignModal } from "../features/gestion-activos/components/AssignModal"
 import { DeleteModal } from "../features/gestion-activos/components/DeleteModal";
 import { HistorialModal } from "../features/gestion-activos/components/HistorialModal";
 import type { Activo, Licencia } from "../features/gestion-activos/types";
+import { API_BASE } from "../features/gestion-activos/constants";
 
 export default function GestionInventario() {
   const state = useGestionActivos();
@@ -82,14 +83,24 @@ export default function GestionInventario() {
     );
   };
 
-  const handleDisponibilizarLicencia = (item: Licencia) => {
-    modales.asignar.abrir(
-      "licencia",
-      String(item._id || ""),
-      item.tipoLicencia || "Licencia",
-      "",
-      ""
-    );
+  const handleDisponibilizarLicencia = async (item: Licencia) => {
+    if (!window.confirm(`¿Deseas disponibilizar la licencia "${item.tipoLicencia}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/licencias/${item._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ asignadoPara: "", fechaAsignacion: "" }),
+      });
+      const json = await response.json();
+      if (!json.ok) throw new Error(json.error || "Error al disponibilizar");
+
+      await refrescar();
+    } catch (err: any) {
+      alert(`Error: ${err.message || "No se pudo disponibilizar la licencia"}`);
+    }
   };
 
   return (

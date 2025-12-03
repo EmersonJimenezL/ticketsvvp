@@ -13,13 +13,10 @@ export function useLicencias() {
       setLoading(true);
       setError(null);
 
-      // Preparar parámetros de filtros (excepto búsqueda unificada que se aplicará en frontend)
+      // Preparar parámetros de filtros (excepto búsqueda unificada y soloDisponibles que se aplicarán en frontend)
       const params = new URLSearchParams();
 
-      // Si soloDisponibles está activo, buscar por "disponible"
-      if (filters.soloDisponibles) {
-        params.set("cuenta", "disponible");
-      } else if (filters.cuenta) {
+      if (filters.cuenta) {
         params.set("cuenta", filters.cuenta);
       }
 
@@ -80,15 +77,22 @@ export function useLicencias() {
         }
       }
 
-      // APLICAR FILTRO DE BÚSQUEDA UNIFICADA en el frontend (busca en cuenta Y asignadoPara)
+      // APLICAR FILTROS EN EL FRONTEND
       let filteredLicencias = allLicencias;
+
+      // Filtro de búsqueda unificada (busca en cuenta Y asignadoPara)
       if (filters.busqueda) {
         const searchLower = filters.busqueda.toLowerCase();
-        filteredLicencias = allLicencias.filter((lic) => {
+        filteredLicencias = filteredLicencias.filter((lic) => {
           const cuenta = (lic.cuenta || "").toLowerCase();
           const asignado = (lic.asignadoPara || "").toLowerCase();
           return cuenta.includes(searchLower) || asignado.includes(searchLower);
         });
+      }
+
+      // Filtro de solo disponibles (sin asignadoPara)
+      if (filters.soloDisponibles) {
+        filteredLicencias = filteredLicencias.filter((lic) => !lic.asignadoPara);
       }
 
       // APLICAR PAGINACIÓN EN EL FRONTEND sobre el array filtrado

@@ -56,7 +56,7 @@ export function GestionActivosHeader({
             }`}
             onClick={() => onTabChange("estadisticas")}
           >
-            Estadísticas
+            Resumen de licencias
           </button>
         </div>
 
