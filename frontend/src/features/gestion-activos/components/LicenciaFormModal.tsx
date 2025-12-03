@@ -52,9 +52,10 @@ export function LicenciaFormModal({
           <div>
             <label className="block text-sm text-neutral-300">Cuenta *</label>
             <input
-              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
               value={form.cuenta || ""}
               onChange={(event) => onChange({ cuenta: event.target.value })}
+              disabled={isEdit}
             />
           </div>
           <div>
@@ -62,7 +63,7 @@ export function LicenciaFormModal({
               Proveedor *
             </label>
             <select
-              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
               value={form.proveedor || ""}
               onChange={(event) => {
                 const value = event.target.value as Licencia["proveedor"];
@@ -79,6 +80,7 @@ export function LicenciaFormModal({
                     : "",
                 });
               }}
+              disabled={isEdit}
             >
               <option value="">Seleccione</option>
               {OPCIONES_PROVEEDOR.map((proveedor) => (
@@ -113,11 +115,12 @@ export function LicenciaFormModal({
             </label>
             <input
               type="date"
-              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
               value={form.fechaCompra || ""}
               onChange={(event) =>
                 onChange({ fechaCompra: event.target.value })
               }
+              disabled={isEdit}
             />
           </div>
           <div>
