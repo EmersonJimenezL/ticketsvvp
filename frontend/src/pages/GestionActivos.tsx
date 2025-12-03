@@ -82,6 +82,16 @@ export default function GestionInventario() {
     );
   };
 
+  const handleDisponibilizarLicencia = (item: Licencia) => {
+    modales.asignar.abrir(
+      "licencia",
+      String(item._id || ""),
+      item.tipoLicencia || "Licencia",
+      "",
+      ""
+    );
+  };
+
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden px-0 sm:px-1 lg:px-2 xl:px-3 2xl:px-4 py-6 sm:py-8 lg:py-10">
       <div className="pointer-events-none absolute inset-0 opacity-40">
@@ -165,6 +175,7 @@ export default function GestionInventario() {
                 onPageChange={licencias.goToPage}
                 onEdit={licencias.abrirEditar}
                 onAssign={handleAsignarLicencia}
+                onMakeAvailable={handleDisponibilizarLicencia}
                 onDelete={handleEliminarLicencia}
                 onHistory={handleHistorialLicencia}
               />

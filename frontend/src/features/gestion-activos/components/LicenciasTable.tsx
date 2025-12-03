@@ -11,6 +11,7 @@ type LicenciasTableProps = {
   onPageChange?: (page: number) => void;
   onEdit: (licencia: Licencia) => void;
   onAssign: (licencia: Licencia) => void;
+  onMakeAvailable: (licencia: Licencia) => void;
   onDelete: (licencia: Licencia) => void;
   onHistory: (licencia: Licencia) => void;
 };
@@ -24,6 +25,7 @@ export function LicenciasTable({
   onPageChange,
   onEdit,
   onAssign,
+  onMakeAvailable,
   onDelete,
   onHistory,
 }: LicenciasTableProps) {
@@ -106,6 +108,18 @@ export function LicenciasTable({
       className:
         "flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition",
       disabled: (licencia) => Boolean(licencia.activoId),
+    },
+    {
+      label: "Disponibilizar",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+        </svg>
+      ),
+      onClick: onMakeAvailable,
+      className:
+        "flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 transition",
+      disabled: (licencia) => Boolean(licencia.activoId) || !licencia.asignadoPara,
     },
     {
       label: "Eliminar",
