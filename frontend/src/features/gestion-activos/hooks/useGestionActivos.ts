@@ -152,12 +152,11 @@ export function useGestionActivos() {
     });
 
     // En modo edición, incluir el tipo actual aunque no haya disponibles
-    const tiposFinales = tiposConCantidad.filter(
-      (item) => item.cantidad > 0 ||
-      (licenciaForm.editId && licenciaForm.form.tipoLicencia === item.tipo)
-    );
+    if (!licenciaForm.editId) return tiposConCantidad;
 
-    return tiposFinales;
+    return tiposConCantidad.filter(
+      (item) => item.cantidad > 0 || licenciaForm.form.tipoLicencia === item.tipo
+    );
   }, [licenciaForm.form.proveedor, licenciaForm.form.tipoLicencia, licenciaForm.editId, todasLasLicencias]);
 
   // Cargar datos según filtros y página

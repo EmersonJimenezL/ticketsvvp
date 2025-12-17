@@ -102,9 +102,13 @@ export function LicenciaFormModal({
               }
             >
               <option value="">Seleccione</option>
-              {tiposDisponibles.length === 0 ? (
+              {!form.proveedor ? (
                 <option value="" disabled>
-                  Sin licencias disponibles
+                  Seleccione un proveedor primero
+                </option>
+              ) : tiposDisponibles.length === 0 ? (
+                <option value="" disabled>
+                  Sin tipos disponibles
                 </option>
               ) : (
                 tiposDisponibles.map((item) => (
