@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
   fetchTicketsMetrics,
   listTickets,
   patchTicket,
@@ -121,6 +130,11 @@ function formatResolutionTime(hours: number | null) {
   return `${hours.toFixed(1)} h`;
 }
 
+function formatRating(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) return "Sin datos";
+  return value.toFixed(2);
+}
+
 type TrendChartProps = {
   data: TicketsMetrics["trend"];
 };
@@ -134,50 +148,53 @@ function TrendChart({ data }: TrendChartProps) {
     );
   }
 
-  const toUtcDate = (value: string) => new Date(`${value}T00:00:00Z`);
+  const monthNames = [
+    "ene",
+    "feb",
+    "mar",
+    "abr",
+    "may",
+    "jun",
+    "jul",
+    "ago",
+    "sep",
+    "oct",
+    "nov",
+    "dic",
+  ];
 
-  const formatShortDate = (value: Date) => {
-    const day = String(value.getUTCDate()).padStart(2, "0");
-    const month = String(value.getUTCMonth() + 1).padStart(2, "0");
-    return `${day}/${month}`;
+  const formatMonthLabel = (key: string) => {
+    const parts = key.split("-");
+    if (parts.length !== 2) return key;
+    const year = parts[0];
+    const monthIndex = Number(parts[1]) - 1;
+    const name = monthNames[monthIndex] || key;
+    return `${name} ${year}`;
   };
 
-  const weeksMap = new Map<
-    string,
-    { start: Date; end: Date; created: number; resolved: number }
-  >();
+  const monthMap = new Map<string, { month: string; created: number; resolved: number }>();
 
-  const dailyWindow = data.slice(-70);
-
-  for (const item of dailyWindow) {
-    const date = toUtcDate(item.date);
-    if (Number.isNaN(date.getTime())) continue;
-    const weekday = date.getUTCDay();
-    const daysFromMonday = (weekday + 6) % 7;
-    const start = new Date(date);
-    start.setUTCDate(date.getUTCDate() - daysFromMonday);
-    start.setUTCHours(0, 0, 0, 0);
-    const key = start.toISOString().slice(0, 10);
-    const end = new Date(start);
-    end.setUTCDate(start.getUTCDate() + 6);
-
-    const current = weeksMap.get(key) ?? {
-      start,
-      end,
-      created: 0,
-      resolved: 0,
-    };
-
-    current.created += item.created;
-    current.resolved += item.resolved;
-    weeksMap.set(key, current);
+  for (const item of data) {
+    if (typeof item.date !== "string") continue;
+    const key = item.date.slice(0, 7);
+    if (key.length !== 7) continue;
+    const created = Number(item.created) || 0;
+    const resolved = Number(item.resolved) || 0;
+    const current = monthMap.get(key) ?? { month: key, created: 0, resolved: 0 };
+    current.created += created;
+    current.resolved += resolved;
+    monthMap.set(key, current);
   }
 
-  const weeks = Array.from(weeksMap.values())
-    .sort((a, b) => a.start.getTime() - b.start.getTime())
-    .slice(-12);
+  const months = Array.from(monthMap.values())
+    .sort((a, b) => a.month.localeCompare(b.month))
+    .slice(-12)
+    .map((item) => ({
+      ...item,
+      label: formatMonthLabel(item.month),
+    }));
 
-  if (!weeks.length) {
+  if (!months.length) {
     return (
       <div className="flex h-40 items-center justify-center text-sm text-neutral-400">
         Sin datos suficientes
@@ -185,98 +202,75 @@ function TrendChart({ data }: TrendChartProps) {
     );
   }
 
-  const maxValue = Math.max(
-    ...weeks.map((item) => Math.max(item.created, item.resolved)),
-    0
-  );
-  const safeMax = maxValue || 1;
-
-  const tickCandidates = [
-    maxValue,
-    Math.ceil((safeMax * 3) / 4),
-    Math.ceil(safeMax / 2),
-    Math.ceil(safeMax / 4),
-    0,
-  ];
-
-  const yTicks = Array.from(new Set(tickCandidates))
-    .filter((value) => value >= 0)
-    .sort((a, b) => b - a);
-
-  const barGroupWidth = 48;
-  const minWidth = Math.max(weeks.length * barGroupWidth + 32, 360);
-
   return (
-    <div className="overflow-x-auto">
-      <div
-        className="relative ml-8 h-48 pb-8"
-        style={{ minWidth: `${minWidth}px` }}
-      >
-        <div className="absolute left-0 top-0 bottom-8 flex flex-col justify-between text-xs text-neutral-500">
-          {yTicks.map((value) => (
-            <span key={`label-${value}`}>{value}</span>
-          ))}
-        </div>
-        <div className="absolute inset-x-0 bottom-8 top-0">
-          {yTicks
-            .filter((value) => value > 0 && maxValue > 0)
-            .map((value) => (
-              <div
-                key={`grid-${value}`}
-                className="absolute inset-x-0 border-t border-white/10"
-                style={{ bottom: `${(value / safeMax) * 100}%` }}
-              />
-            ))}
-        </div>
-        <div className="ml-6 flex h-full items-end gap-4">
-          {weeks.map((item) => {
-            const createdRatio = item.created / safeMax;
-            const resolvedRatio = item.resolved / safeMax;
-            const createdHeight =
-              item.created === 0 ? 0 : Math.max(createdRatio * 100, 6);
-            const resolvedHeight =
-              item.resolved === 0 ? 0 : Math.max(resolvedRatio * 100, 6);
-            const label = `${formatShortDate(item.start)}-${formatShortDate(
-              item.end
-            )}`;
-
-            return (
-              <div
-                key={item.start.toISOString()}
-                className="flex min-w-[40px] flex-col items-center gap-2"
-              >
-                <div className="flex h-36 w-full items-end justify-center gap-2">
-                  <div className="group flex flex-col items-center">
-                    <div
-                      title={`Creados: ${item.created}`}
-                      className="w-4 rounded-t bg-orange-500/70 transition-colors group-hover:bg-orange-400"
-                      style={{ height: `${createdHeight}%` }}
-                    />
-                    <span className="mt-1 text-[10px] text-orange-300">
-                      {item.created}
-                    </span>
-                  </div>
-                  <div className="group flex flex-col items-center">
-                    <div
-                      title={`Resueltos: ${item.resolved}`}
-                      className="w-4 rounded-t bg-emerald-500/70 transition-colors group-hover:bg-emerald-400"
-                      style={{ height: `${resolvedHeight}%` }}
-                    />
-                    <span className="mt-1 text-[10px] text-emerald-300">
-                      {item.resolved}
-                    </span>
-                  </div>
-                </div>
-                <span className="text-[10px] text-neutral-500">{label}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+    <div className="h-64">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={months} margin={{ top: 10, right: 24, left: 24, bottom: 36 }}>
+          <defs>
+            <linearGradient id="createdFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#f97316" stopOpacity={0.5} />
+              <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="resolvedFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#10b981" stopOpacity={0.5} />
+              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="rgba(255,255,255,0.08)" strokeDasharray="4 4" />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: "#9ca3af", fontSize: 11 }}
+            tickMargin={8}
+            label={{
+              value: "Mes",
+              position: "insideBottom",
+              offset: -6,
+              fill: "#9ca3af",
+              fontSize: 14,
+            }}
+          />
+          <YAxis
+            tick={{ fill: "#9ca3af", fontSize: 11 }}
+            allowDecimals={false}
+            tickMargin={8}
+            label={{
+              value: "Tickets",
+              angle: -90,
+              position: "insideLeft",
+              offset: -6,
+              fill: "#9ca3af",
+              fontSize: 14,
+            }}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "rgba(15, 15, 15, 0.95)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "8px",
+              color: "#f3f4f6",
+            }}
+          />
+          <Area
+            type="monotone"
+            dataKey="created"
+            name="Creacion"
+            stroke="#f97316"
+            fill="url(#createdFill)"
+            strokeWidth={2}
+          />
+          <Area
+            type="monotone"
+            dataKey="resolved"
+            name="Resolucion"
+            stroke="#10b981"
+            fill="url(#resolvedFill)"
+            strokeWidth={2}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   );
 }
-
 type MetricsPanelProps = {
   metrics: TicketsMetrics | null;
   loading: boolean;
@@ -420,11 +414,41 @@ function MetricsPanel({
             )}
           </ul>
         </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
+          <h4 className="text-sm text-neutral-400">Calificacion promedio</h4>
+          <p className="mt-2 text-3xl font-bold text-amber-300">
+            {formatRating(metrics?.ratingAvg ?? null)}
+          </p>
+          <p className="mt-1 text-xs text-neutral-500">
+            Promedio general de calificaciones
+          </p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
+          <h4 className="text-sm text-neutral-400">
+            Calificacion por categoria
+          </h4>
+          <ul className="mt-2 space-y-1 text-sm text-neutral-200">
+            {(metrics?.ratingByCategory ?? []).slice(0, 4).map((item) => (
+              <li
+                key={item.category}
+                className="flex items-center justify-between text-neutral-300"
+              >
+                <span className="truncate pr-2">{item.category}</span>
+                <span className="font-semibold text-amber-200">
+                  {formatRating(item.avg)}
+                </span>
+              </li>
+            ))}
+            {metrics && (metrics.ratingByCategory?.length ?? 0) === 0 && (
+              <li className="text-neutral-500">Sin informacion disponible</li>
+            )}
+          </ul>
+        </div>
       </div>
       <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <span className="text-sm text-neutral-300">
-            Evolucion semanal (ultimas 12 semanas)
+            Evolucion mensual (ultimos 12 meses)
           </span>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-4 text-xs text-neutral-400">

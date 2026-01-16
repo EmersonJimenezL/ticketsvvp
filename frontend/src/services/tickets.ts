@@ -54,6 +54,8 @@ export type TicketsMetrics = {
   ticketsByUser: TicketsByUserMetric[];
   highRiskOpen: number;
   trend: { date: string; created: number; resolved: number }[];
+  ratingAvg?: number | null;
+  ratingByCategory?: { category: string; avg: number | null; count: number }[];
 };
 
 export type TicketsMetricsResponse = {
