@@ -65,23 +65,30 @@ export default function NuevoTicket() {
         const img = new Image();
         img.onload = () => {
           // Configuración de compresión
-          const MAX_WIDTH = 1280;
-          const MAX_HEIGHT = 1280;
-          const QUALITY = 0.82;
+          const sizeMb = file.size / (1024 * 1024);
+          let maxDim = 1600;
+          let quality = 0.82;
+          if (sizeMb > 5) {
+            maxDim = 1024;
+            quality = 0.62;
+          } else if (sizeMb > 2) {
+            maxDim = 1280;
+            quality = 0.7;
+          }
 
           let width = img.width;
           let height = img.height;
 
           // Calcular nuevas dimensiones manteniendo el aspect ratio
           if (width > height) {
-            if (width > MAX_WIDTH) {
-              height = (height * MAX_WIDTH) / width;
-              width = MAX_WIDTH;
+            if (width > maxDim) {
+              height = (height * maxDim) / width;
+              width = maxDim;
             }
           } else {
-            if (height > MAX_HEIGHT) {
-              width = (width * MAX_HEIGHT) / height;
-              height = MAX_HEIGHT;
+            if (height > maxDim) {
+              width = (width * maxDim) / height;
+              height = maxDim;
             }
           }
 
@@ -100,7 +107,7 @@ export default function NuevoTicket() {
           ctx.drawImage(img, 0, 0, width, height);
 
           // Convertir a base64 con compresión
-          const compressedDataUrl = canvas.toDataURL("image/jpeg", QUALITY);
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
           resolve(compressedDataUrl);
         };
         img.onerror = () => reject(new Error("No se pudo cargar la imagen"));
@@ -115,7 +122,7 @@ export default function NuevoTicket() {
     if (!files) return;
     const remainingSlots = 5 - images.length;
     if (remainingSlots <= 0) {
-      setError("Ya has alcanzado el máximo de 5 imágenes");
+      setError("No se pudieron agregar más imágenes.");
       return;
     }
 
@@ -203,7 +210,7 @@ export default function NuevoTicket() {
       // Si hay imágenes y falla la conexión, probablemente es por tamaño
       if (images.length > 0 && (err?.message?.includes("conexión") || err?.message?.includes("conectar"))) {
         setError(
-          `Las imágenes son demasiado pesadas. Intenta con: ${images.length > 2 ? "menos imágenes (máx. 2-3)" : "imágenes más pequeñas"}`
+          `Las imágenes son demasiado pesadas. Intenta con ${images.length > 2 ? "menos imágenes" : "imágenes más pequeñas"}`
         );
       } else {
         setError(err?.message || "No se pudo crear el ticket");
@@ -283,10 +290,7 @@ export default function NuevoTicket() {
           {/* Imágenes (opcional) */}
           <div className="space-y-2 text-center">
             <label className="text-lg text-neutral-300">
-              <strong>Adjuntar imágenes</strong>{" "}
-              <span className="text-sm text-neutral-400">
-                (opcional, máx. 5)
-              </span>
+              <strong>Adjuntar imágenes</strong>
             </label>
             <p className="text-xs text-neutral-400 mt-1">
               Las imágenes se comprimen automáticamente para optimizar el envío
