@@ -25,6 +25,8 @@ export type Ticket = {
   updatedAt?: string;
   asignadoA?: string; // Nombre completo de quien está asignado el ticket
   fechaAsignacion?: string;
+  ratingScore?: number;
+  ratingComment?: string;
 };
 
 // Para crear un ticket no pedimos campos automáticos como ticketTime/resolucionTime
@@ -111,6 +113,23 @@ export function assignTicket(ticketId: string, asignadoA: string) {
     {
       method: "PATCH",
       body: JSON.stringify({ asignadoA }),
+    }
+  );
+}
+
+export type RatingPayload = {
+  ratingScore: number;
+  ratingComment?: string;
+  userId?: string;
+};
+
+export function rateTicket(ticketId: string, payload: RatingPayload) {
+  return httpJSON<TicketResponse>(
+    "tickets",
+    `/api/ticketvvp/${ticketId}/rating`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
     }
   );
 }

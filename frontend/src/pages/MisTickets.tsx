@@ -2,8 +2,9 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { listTickets, type Ticket } from "../services/tickets";
+import { listTickets, rateTicket, type Ticket } from "../services/tickets";
 import AppHeader from "../components/AppHeader";
+import TicketRatingCard from "../components/TicketRatingCard";
 
 const ESTADOS: Ticket["state"][] = [
   "recibido",
@@ -41,6 +42,39 @@ export default function MisTickets() {
   const [estado, setEstado] = useState<"" | Ticket["state"]>("");
   const [titulo, setTitulo] = useState<"" | Ticket["title"]>("");
   const [imageModal, setImageModal] = useState<{ src: string; index: number; total: number } | null>(null);
+
+  const handleRateTicket = useCallback(
+    async (ticketId: string, score: number, comment: string) => {
+      if (!user?.nombreUsuario) {
+        throw new Error("Sesion no valida.");
+      }
+
+      const normalizedComment = comment.trim();
+      const payload = {
+        ratingScore: score,
+        ratingComment: normalizedComment || undefined,
+        userId: user.nombreUsuario,
+      };
+
+      const resp = await rateTicket(ticketId, payload);
+      if (!resp.ok) {
+        throw new Error(resp.error || "No se pudo guardar la calificacion.");
+      }
+
+      setItems((current) =>
+        current.map((ticket) =>
+          ticket.ticketId === ticketId
+            ? {
+                ...ticket,
+                ratingScore: score,
+                ratingComment: normalizedComment || undefined,
+              }
+            : ticket
+        )
+      );
+    },
+    [user?.nombreUsuario]
+  );
 
   const cargar = useCallback(
     async (options: { silent?: boolean } = {}) => {
@@ -229,6 +263,15 @@ export default function MisTickets() {
           <p className="mt-1 text-xs text-neutral-400">
             Resuelto: {new Date(ticket.resolucionTime).toLocaleString()}
           </p>
+        )}
+
+        {ticket.state === "resuelto" && (
+          <TicketRatingCard
+            ticketId={ticket.ticketId}
+            ratingScore={ticket.ratingScore}
+            ratingComment={ticket.ratingComment}
+            onSubmit={(score, comment) => handleRateTicket(ticket.ticketId, score, comment)}
+          />
         )}
       </div>
     </div>
