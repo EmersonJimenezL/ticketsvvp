@@ -122,7 +122,7 @@ export default function AdminTicketsHistorico() {
         />
       </div>
 
-      <div className="relative mx-auto max-w-6xl space-y-6">
+      <div className="relative mx-auto w-full max-w-screen-2xl space-y-6">
         <AppHeader
           title="Histórico de tickets"
           subtitle="Registros completos de tickets creados y su estado final"
@@ -225,4 +225,3 @@ export default function AdminTicketsHistorico() {
     </div>
   );
 }
-

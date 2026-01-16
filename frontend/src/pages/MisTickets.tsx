@@ -26,10 +26,25 @@ const FETCH_LIMIT = 200;
 function getTicketDateValue(ticket: Ticket) {
   return new Date(ticket.ticketTime || ticket.createdAt || 0).getTime();
 }
-
-function sortTicketsByDate(list: Ticket[]) {
-  return [...list].sort((a, b) => getTicketDateValue(b) - getTicketDateValue(a));
-}
+const RISK_ORDER: Record<Ticket["risk"], number> = {
+  alto: 3,
+  medio: 2,
+  bajo: 1,
+};
+const STATE_ORDER: Record<Ticket["state"], number> = {
+  recibido: 1,
+  enProceso: 2,
+  conDificultades: 3,
+  resuelto: 4,
+};
+const SORT_OPTIONS = [
+  { value: "dateAsc", label: "Fecha (antiguo -> reciente)" },
+  { value: "dateDesc", label: "Fecha (reciente -> antiguo)" },
+  { value: "riskDesc", label: "Riesgo (alto -> bajo)" },
+  { value: "stateAsc", label: "Estado (recibido -> resuelto)" },
+  { value: "titleAsc", label: "Categoria (A -> Z)" },
+] as const;
+type SortOption = (typeof SORT_OPTIONS)[number]["value"];
 
 export default function MisTickets() {
   const { user } = useAuth();
@@ -41,6 +56,10 @@ export default function MisTickets() {
 
   const [estado, setEstado] = useState<"" | Ticket["state"]>("");
   const [titulo, setTitulo] = useState<"" | Ticket["title"]>("");
+  const [sortBy, setSortBy] = useState<SortOption>("dateAsc");
+  const [statusTab, setStatusTab] = useState<"pendientes" | "resueltos">(
+    "pendientes"
+  );
   const [imageModal, setImageModal] = useState<{ src: string; index: number; total: number } | null>(null);
 
   const handleRateTicket = useCallback(
@@ -98,7 +117,7 @@ export default function MisTickets() {
           limit: FETCH_LIMIT,
         });
         if (!resp.ok) throw new Error(resp.error || "Error listando tickets");
-        const next = Array.isArray(resp.data) ? sortTicketsByDate(resp.data) : [];
+        const next = Array.isArray(resp.data) ? resp.data : [];
         setItems(next);
         setError(null);
       } catch (e: any) {
@@ -151,13 +170,48 @@ export default function MisTickets() {
     });
   }, [items, titulo, estado]);
 
+  const sortedTickets = useMemo(() => {
+    const list = [...filteredTickets];
+    switch (sortBy) {
+      case "dateDesc":
+        list.sort((a, b) => getTicketDateValue(b) - getTicketDateValue(a));
+        break;
+      case "riskDesc":
+        list.sort(
+          (a, b) =>
+            RISK_ORDER[b.risk] - RISK_ORDER[a.risk] ||
+            getTicketDateValue(a) - getTicketDateValue(b)
+        );
+        break;
+      case "stateAsc":
+        list.sort(
+          (a, b) =>
+            STATE_ORDER[a.state] - STATE_ORDER[b.state] ||
+            getTicketDateValue(a) - getTicketDateValue(b)
+        );
+        break;
+      case "titleAsc":
+        list.sort(
+          (a, b) =>
+            a.title.localeCompare(b.title) ||
+            getTicketDateValue(a) - getTicketDateValue(b)
+        );
+        break;
+      case "dateAsc":
+      default:
+        list.sort((a, b) => getTicketDateValue(a) - getTicketDateValue(b));
+        break;
+    }
+    return list;
+  }, [filteredTickets, sortBy]);
+
   const pendingTickets = useMemo(
-    () => filteredTickets.filter((ticket) => ticket.state !== "resuelto"),
-    [filteredTickets]
+    () => sortedTickets.filter((ticket) => ticket.state !== "resuelto"),
+    [sortedTickets]
   );
   const resolvedTickets = useMemo(
-    () => filteredTickets.filter((ticket) => ticket.state === "resuelto"),
-    [filteredTickets]
+    () => sortedTickets.filter((ticket) => ticket.state === "resuelto"),
+    [sortedTickets]
   );
 
   function colorEstado(s: Ticket["state"]) {
@@ -192,34 +246,40 @@ export default function MisTickets() {
       key={ticket.ticketId}
       className="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="rounded-lg border border-orange-600/30 bg-orange-600/20 px-2 py-1 text-xs text-orange-300">
-            {ticket.title}
-          </span>
-          <span
-            className={`rounded-lg px-2 py-1 text-xs border ${colorEstado(ticket.state)}`}
-          >
-            {ticket.state}
-          </span>
-          <span
-            className={`rounded-lg px-2 py-1 text-xs border ${colorRiesgo(ticket.risk)}`}
-          >
-            {ticket.risk}
-          </span>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-xs text-neutral-400">Ticket</div>
+          <div className="text-lg font-semibold text-neutral-100">
+            {ticket.ticketId}
+          </div>
         </div>
         <div className="text-xs text-neutral-400">
           {ticket.ticketTime ? new Date(ticket.ticketTime).toLocaleString() : ""}
         </div>
       </div>
 
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="rounded-lg border border-orange-600/30 bg-orange-600/20 px-2 py-1 text-xs text-orange-300">
+          {ticket.title}
+        </span>
+        <span
+          className={`rounded-lg px-2 py-1 text-xs border ${colorEstado(ticket.state)}`}
+        >
+          {ticket.state}
+        </span>
+        <span
+          className={`rounded-lg px-2 py-1 text-xs border ${colorRiesgo(ticket.risk)}`}
+        >
+          {ticket.risk}
+        </span>
+      </div>
+
       <div className="mt-3 text-neutral-200">
-        <div className="font-semibold">{ticket.ticketId}</div>
-        <p className="mt-1 whitespace-pre-line text-sm text-neutral-300">
+        <p className="whitespace-pre-line text-sm text-neutral-300">
           {ticket.description}
         </p>
 
-        {/* Mostrar quien está atendiendo el ticket */}
+        {/* Mostrar quien est  atendiendo el ticket */}
         <div className="mt-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2">
           {ticket.asignadoA ? (
             <p className="text-sm text-blue-300">
@@ -227,11 +287,10 @@ export default function MisTickets() {
             </p>
           ) : (
             <p className="text-sm text-neutral-400">
-              Tu ticket está pendiente de asignación
+              Tu ticket esta pendiente de asignacion
             </p>
           )}
         </div>
-
         {Array.isArray(ticket.images) && ticket.images.length > 0 && (
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
             {ticket.images.map((src, index) => (
@@ -255,9 +314,11 @@ export default function MisTickets() {
         )}
 
         {ticket.comment && (
-          <p className="mt-3 text-sm text-neutral-200">
-            <span className="font-semibold">Comentario:</span> {ticket.comment}
-          </p>
+          <div className="mt-3 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2">
+            <p className="text-sm text-orange-200">
+              <span className="font-semibold">Comentario:</span> {ticket.comment}
+            </p>
+          </div>
         )}
         {ticket.resolucionTime && (
           <p className="mt-1 text-xs text-neutral-400">
@@ -290,7 +351,7 @@ export default function MisTickets() {
         />
       </div>
 
-      <div className="relative mx-auto max-w-6xl">
+      <div className="relative mx-auto w-full max-w-screen-2xl">
         <AppHeader
           title="Mis tickets"
           subtitle="Revisa tus solicitudes pendientes y resueltas"
@@ -316,7 +377,7 @@ export default function MisTickets() {
 
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <select
-            className="rounded-xl bg-neutral-900/70 px-4 py-3 ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+            className="min-w-[220px] rounded-xl bg-neutral-900/70 px-4 py-3 ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
             value={titulo}
             onChange={(event) => setTitulo(event.target.value as Ticket["title"] | "")}
           >
@@ -329,7 +390,7 @@ export default function MisTickets() {
           </select>
 
           <select
-            className="rounded-xl bg-neutral-900/70 px-4 py-3 ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+            className="min-w-[220px] rounded-xl bg-neutral-900/70 px-4 py-3 ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
             value={estado}
             onChange={(event) => setEstado(event.target.value as Ticket["state"] | "")}
           >
@@ -337,6 +398,18 @@ export default function MisTickets() {
             {ESTADOS.map((option) => (
               <option key={option} value={option}>
                 {option}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="min-w-[240px] rounded-xl bg-neutral-900/70 px-4 py-3 ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+            value={sortBy}
+            onChange={(event) => setSortBy(event.target.value as SortOption)}
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
@@ -352,36 +425,51 @@ export default function MisTickets() {
         )}
 
         {!loading && !error && (
-          <div className="space-y-10">
-            <section>
-              <header className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold text-neutral-100">
-                  Pendientes ({pendingTickets.length})
-                </h2>
-              </header>
-              {pendingTickets.length === 0 ? (
+          <div className="space-y-6">
+            <div className="flex gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
+              <button
+                type="button"
+                onClick={() => setStatusTab("pendientes")}
+                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  statusTab === "pendientes"
+                    ? "bg-orange-600 text-white"
+                    : "text-neutral-300 hover:bg-white/10"
+                }`}
+              >
+                Pendientes ({pendingTickets.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusTab("resueltos")}
+                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  statusTab === "resueltos"
+                    ? "bg-orange-600 text-white"
+                    : "text-neutral-300 hover:bg-white/10"
+                }`}
+              >
+                Resueltos ({resolvedTickets.length})
+              </button>
+            </div>
+
+            {statusTab === "pendientes" ? (
+              pendingTickets.length === 0 ? (
                 <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
                   No tienes tickets pendientes para los filtros seleccionados.
                 </div>
               ) : (
-                <div className="space-y-3">{pendingTickets.map(renderTicketCard)}</div>
-              )}
-            </section>
-
-            <section>
-              <header className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold text-neutral-100">
-                  Resueltos ({resolvedTickets.length})
-                </h2>
-              </header>
-              {resolvedTickets.length === 0 ? (
-                <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
-                  No se encontraron tickets resueltos con los filtros actuales.
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {pendingTickets.map(renderTicketCard)}
                 </div>
-              ) : (
-                <div className="space-y-3">{resolvedTickets.map(renderTicketCard)}</div>
-              )}
-            </section>
+              )
+            ) : resolvedTickets.length === 0 ? (
+              <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
+                No se encontraron tickets resueltos con los filtros actuales.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {resolvedTickets.map(renderTicketCard)}
+              </div>
+            )}
           </div>
         )}
       </div>

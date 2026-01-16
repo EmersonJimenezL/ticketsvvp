@@ -45,11 +45,12 @@ const ASSIGN_OPTIONS = [
   { value: "Ignacio González", label: "Ignacio González" },
 ] as const;
 
-type SortOption = "risk" | "createdAsc" | "createdDesc";
+type SortOption = "risk" | "createdAsc" | "createdDesc" | "resolvedDesc";
 const SORT_LABEL: Record<SortOption, string> = {
   risk: "Riesgo (alto -> bajo)",
   createdAsc: "Creacion (antiguo -> reciente)",
   createdDesc: "Creacion (reciente -> antiguo)",
+  resolvedDesc: "Resuelto (reciente -> antiguo)",
 };
 
 function getTicketDateValue(ticket: Ticket) {
@@ -64,6 +65,34 @@ function getResolvedDateValue(ticket: Ticket) {
       ticket.createdAt ||
       0
   ).getTime();
+}
+
+function sortTicketsByOption(
+  list: Ticket[],
+  sortBy: SortOption,
+  useResolvedDate: boolean
+) {
+  const sorted = [...list];
+  const dateValue = (ticket: Ticket) =>
+    useResolvedDate ? getResolvedDateValue(ticket) : getTicketDateValue(ticket);
+
+  switch (sortBy) {
+    case "createdAsc":
+      sorted.sort((a, b) => getTicketDateValue(a) - getTicketDateValue(b));
+      break;
+    case "createdDesc":
+      sorted.sort((a, b) => getTicketDateValue(b) - getTicketDateValue(a));
+      break;
+    case "resolvedDesc":
+      sorted.sort((a, b) => dateValue(b) - dateValue(a));
+      break;
+    default:
+      sorted.sort(
+        (a, b) => RISK_ORDER[b.risk] - RISK_ORDER[a.risk] || dateValue(a) - dateValue(b)
+      );
+      break;
+  }
+  return sorted;
 }
 
 function normalizeString(str: string): string {
@@ -433,11 +462,19 @@ export default function Admin() {
   const [error, setError] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("todos");
-  const [sortBy, setSortBy] = useState<SortOption>("risk");
+  const [sortBy, setSortBy] = useState<SortOption>("createdAsc");
+  const [unassignedView, setUnassignedView] = useState<
+    "pendientes" | "resueltos"
+  >("pendientes");
+  const [myAssignedView, setMyAssignedView] = useState<
+    "pendientes" | "resueltos"
+  >("pendientes");
+  const [allView, setAllView] = useState<"pendientes" | "resueltos">(
+    "pendientes"
+  );
   const [metrics, setMetrics] = useState<TicketsMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [metricsError, setMetricsError] = useState<string | null>(null);
-  const [showResolved, setShowResolved] = useState(false);
   const [imageModal, setImageModal] = useState<{
     src: string;
     index: number;
@@ -510,23 +547,7 @@ export default function Admin() {
         ? pending
         : pending.filter((ticket) => ticket.risk === riskFilter);
 
-    const sorted = [...filtered];
-    switch (sortBy) {
-      case "createdAsc":
-        sorted.sort((a, b) => getTicketDateValue(a) - getTicketDateValue(b));
-        break;
-      case "createdDesc":
-        sorted.sort((a, b) => getTicketDateValue(b) - getTicketDateValue(a));
-        break;
-      default:
-        sorted.sort(
-          (a, b) =>
-            RISK_ORDER[b.risk] - RISK_ORDER[a.risk] ||
-            getTicketDateValue(a) - getTicketDateValue(b)
-        );
-        break;
-    }
-    return sorted;
+    return sortTicketsByOption(filtered, sortBy, false);
   }, [items, riskFilter, sortBy]);
   const resolvedTickets = useMemo(() => {
     // En la pestaña "Tickets" solo mostramos tickets sin asignar
@@ -538,27 +559,7 @@ export default function Admin() {
         ? resolved
         : resolved.filter((ticket) => ticket.risk === riskFilter);
 
-    const sorted = [...filtered];
-    switch (sortBy) {
-      case "createdAsc":
-        sorted.sort(
-          (a, b) => getResolvedDateValue(a) - getResolvedDateValue(b)
-        );
-        break;
-      case "createdDesc":
-        sorted.sort(
-          (a, b) => getResolvedDateValue(b) - getResolvedDateValue(a)
-        );
-        break;
-      default:
-        sorted.sort(
-          (a, b) =>
-            RISK_ORDER[b.risk] - RISK_ORDER[a.risk] ||
-            getResolvedDateValue(b) - getResolvedDateValue(a)
-        );
-        break;
-    }
-    return sorted;
+    return sortTicketsByOption(filtered, sortBy, true);
   }, [items, riskFilter, sortBy]);
 
   // Métricas de asignación por trabajador
@@ -608,13 +609,31 @@ export default function Admin() {
     return myAssignedTickets.filter((t) => t.state !== "resuelto").length;
   }, [myAssignedTickets]);
 
+  const myAssignedResolved = useMemo(() => {
+    const list = myAssignedTickets.filter((t) => t.state === "resuelto");
+    return sortTicketsByOption(list, sortBy, true);
+  }, [myAssignedTickets, sortBy]);
+
+  const myAssignedPendingTickets = useMemo(() => {
+    const list = myAssignedTickets.filter((t) => t.state !== "resuelto");
+    return sortTicketsByOption(list, sortBy, false);
+  }, [myAssignedTickets, sortBy]);
+
   // Contadores para los badges de las pestañas
   const allTicketsPendingCount = useMemo(() => {
     return items.filter((t) => t.state !== "resuelto").length;
   }, [items]);
 
+  const allTicketsResolvedCount = useMemo(() => {
+    return items.filter((t) => t.state === "resuelto").length;
+  }, [items]);
+
   const unassignedPendingCount = useMemo(() => {
     return items.filter((t) => t.state !== "resuelto" && !t.asignadoA).length;
+  }, [items]);
+
+  const unassignedResolvedCount = useMemo(() => {
+    return items.filter((t) => t.state === "resuelto" && !t.asignadoA).length;
   }, [items]);
 
   // Todos los tickets (asignados y sin asignar) - solo para pestaña "Todos"
@@ -625,23 +644,7 @@ export default function Admin() {
         ? pending
         : pending.filter((ticket) => ticket.risk === riskFilter);
 
-    const sorted = [...filtered];
-    switch (sortBy) {
-      case "createdAsc":
-        sorted.sort((a, b) => getTicketDateValue(a) - getTicketDateValue(b));
-        break;
-      case "createdDesc":
-        sorted.sort((a, b) => getTicketDateValue(b) - getTicketDateValue(a));
-        break;
-      default:
-        sorted.sort(
-          (a, b) =>
-            RISK_ORDER[b.risk] - RISK_ORDER[a.risk] ||
-            getTicketDateValue(a) - getTicketDateValue(b)
-        );
-        break;
-    }
-    return sorted;
+    return sortTicketsByOption(filtered, sortBy, false);
   }, [items, riskFilter, sortBy]);
 
   const allTicketsResolved = useMemo(() => {
@@ -651,27 +654,7 @@ export default function Admin() {
         ? resolved
         : resolved.filter((ticket) => ticket.risk === riskFilter);
 
-    const sorted = [...filtered];
-    switch (sortBy) {
-      case "createdAsc":
-        sorted.sort(
-          (a, b) => getResolvedDateValue(a) - getResolvedDateValue(b)
-        );
-        break;
-      case "createdDesc":
-        sorted.sort(
-          (a, b) => getResolvedDateValue(b) - getResolvedDateValue(a)
-        );
-        break;
-      default:
-        sorted.sort(
-          (a, b) =>
-            RISK_ORDER[b.risk] - RISK_ORDER[a.risk] ||
-            getResolvedDateValue(b) - getResolvedDateValue(a)
-        );
-        break;
-    }
-    return sorted;
+    return sortTicketsByOption(filtered, sortBy, true);
   }, [items, riskFilter, sortBy]);
 
   async function onPatch(
@@ -1041,7 +1024,7 @@ export default function Admin() {
             }}
           />
         </div>
-        <div className="relative mx-auto w-full max-w-6xl space-y-6">
+        <div className="relative mx-auto w-full max-w-screen-2xl space-y-6">
           <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-extrabold tracking-tight">
@@ -1091,7 +1074,7 @@ export default function Admin() {
         />
       </div>
 
-      <div className="relative mx-auto w-full max-w-6xl">
+      <div className="relative mx-auto w-full max-w-screen-2xl">
         <AppHeader
           title="Gestión de tickets"
           subtitle="Administra y gestiona los tickets del sistema"
@@ -1208,49 +1191,52 @@ export default function Admin() {
                   </select>
                 </label>
               </div>
-              <div className="text-sm text-neutral-400">
-                Pendientes:{" "}
-                <span className="font-semibold text-neutral-100">
-                  {pendingTickets.length}
-                </span>
-              </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="mb-4 flex gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
+              <button
+                type="button"
+                onClick={() => setUnassignedView("pendientes")}
+                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  unassignedView === "pendientes"
+                    ? "bg-orange-600 text-white"
+                    : "text-neutral-300 hover:bg-white/10"
+                }`}
+              >
+                Pendientes ({unassignedPendingCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setUnassignedView("resueltos")}
+                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  unassignedView === "resueltos"
+                    ? "bg-orange-600 text-white"
+                    : "text-neutral-300 hover:bg-white/10"
+                }`}
+              >
+                Resueltos ({unassignedResolvedCount})
+              </button>
+            </div>
+
+            {unassignedView === "pendientes" ? (
+              pendingTickets.length === 0 && !loading ? (
+                <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
+                  No hay tickets pendientes.
+                </div>
+              ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {pendingTickets.map(renderTicketCard)}
             </div>
-
-            {pendingTickets.length === 0 && !loading && (
-              <div className="mt-10 text-center text-neutral-400">
-                No hay tickets pendientes.
-              </div>
-            )}
-
-            <div className="mt-10">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-lg font-semibold text-neutral-100">
-                  Tickets resueltos ({resolvedTickets.length})
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowResolved((open) => !open)}
-                  className="rounded-xl border border-white/10 px-3 py-1.5 text-sm text-neutral-200 hover:bg-white/10 transition"
-                >
-                  {showResolved ? "Ocultar" : "Ver resueltos"}
-                </button>
-              </div>
-
-              {showResolved &&
-                (resolvedTickets.length === 0 ? (
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
-                    No hay tickets resueltos con los filtros seleccionados.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    {resolvedTickets.map(renderTicketCard)}
-                  </div>
-                ))}
-            </div>
+          )
+        ) : resolvedTickets.length === 0 && !loading ? (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
+            No hay tickets resueltos con los filtros seleccionados.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {resolvedTickets.map(renderTicketCard)}
+          </div>
+        )}
           </>
         )}
 
@@ -1284,19 +1270,52 @@ export default function Admin() {
               </div>
             </div>
 
-            {/* Lista de tickets asignados (con controles de edición) */}
-            {myAssignedTickets.length === 0 ? (
+            <div className="mb-4 flex gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
+              <button
+                type="button"
+                onClick={() => setMyAssignedView("pendientes")}
+                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  myAssignedView === "pendientes"
+                    ? "bg-orange-600 text-white"
+                    : "text-neutral-300 hover:bg-white/10"
+                }`}
+              >
+                Pendientes ({myAssignedPendingTickets.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setMyAssignedView("resueltos")}
+                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  myAssignedView === "resueltos"
+                    ? "bg-orange-600 text-white"
+                    : "text-neutral-300 hover:bg-white/10"
+                }`}
+              >
+                Resueltos ({myAssignedResolved.length})
+              </button>
+            </div>
+
+            {myAssignedView === "pendientes" ? (
+              myAssignedPendingTickets.length === 0 ? (
+                <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300 text-center">
+                  No tienes tickets pendientes asignados.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {myAssignedPendingTickets.map(renderTicketCard)}
+                </div>
+              )
+            ) : myAssignedResolved.length === 0 ? (
               <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300 text-center">
-                No tienes tickets asignados en este momento.
+                No tienes tickets resueltos asignados.
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {myAssignedTickets.map(renderTicketCard)}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {myAssignedResolved.map(renderTicketCard)}
               </div>
             )}
           </>
         )}
-
         {activeTab === "todos" && (
           <>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -1336,46 +1355,50 @@ export default function Admin() {
               </div>
             </div>
 
-            <div>
-              <h3 className="mb-3 text-lg font-semibold text-neutral-100">
-                Todos los tickets pendientes ({allTicketsPending.length})
-              </h3>
-              {allTicketsPending.length === 0 ? (
+            <div className="mb-4 flex gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
+              <button
+                type="button"
+                onClick={() => setAllView("pendientes")}
+                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  allView === "pendientes"
+                    ? "bg-orange-600 text-white"
+                    : "text-neutral-300 hover:bg-white/10"
+                }`}
+              >
+                Pendientes ({allTicketsPendingCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAllView("resueltos")}
+                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  allView === "resueltos"
+                    ? "bg-orange-600 text-white"
+                    : "text-neutral-300 hover:bg-white/10"
+                }`}
+              >
+                Resueltos ({allTicketsResolvedCount})
+              </button>
+            </div>
+
+            {allView === "pendientes" ? (
+              allTicketsPending.length === 0 ? (
                 <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
                   No hay tickets pendientes con los filtros seleccionados.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {allTicketsPending.map(renderTicketCard)}
                 </div>
-              )}
-            </div>
-
-            <div className="mt-8">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-lg font-semibold text-neutral-100">
-                  Todos los tickets resueltos ({allTicketsResolved.length})
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowResolved((open) => !open)}
-                  className="rounded-xl border border-white/10 px-3 py-1.5 text-sm text-neutral-200 hover:bg-white/10 transition"
-                >
-                  {showResolved ? "Ocultar" : "Ver resueltos"}
-                </button>
+              )
+            ) : allTicketsResolved.length === 0 ? (
+              <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
+                No hay tickets resueltos con los filtros seleccionados.
               </div>
-
-              {showResolved &&
-                (allTicketsResolved.length === 0 ? (
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
-                    No hay tickets resueltos con los filtros seleccionados.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    {allTicketsResolved.map(renderTicketCard)}
-                  </div>
-                ))}
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {allTicketsResolved.map(renderTicketCard)}
+              </div>
+            )}
           </>
         )}
 
