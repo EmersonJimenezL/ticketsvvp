@@ -11,6 +11,7 @@ export type Activo = {
   detalles?: string;
   asignadoPara?: string;
   fechaAsignacion?: string; // ISO
+  numeroacta?: string[];
   createdAt?: string;
   updatedAt?: string;
 };

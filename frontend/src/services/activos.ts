@@ -45,6 +45,7 @@ export interface Activo {
   asignadoPor?: string;
   fechaCompra: string; // ISO
   fechaAsignacion?: string | null; // ISO
+  numeroacta?: string[];
   licencia?: Licencia;
   createdAt?: string;
   updatedAt?: string;

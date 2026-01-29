@@ -11,6 +11,7 @@ type ActivosTableProps = {
   onPageChange?: (page: number) => void;
   onEdit: (item: Activo) => void;
   onAssign: (item: Activo) => void;
+  onDownloadActa: (item: Activo) => void;
   onDelete: (item: Activo) => void;
   onHistory: (item: Activo) => void;
 };
@@ -24,6 +25,7 @@ export function ActivosTable({
   onPageChange,
   onEdit,
   onAssign,
+  onDownloadActa,
   onDelete,
   onHistory,
 }: ActivosTableProps) {
@@ -119,6 +121,20 @@ export function ActivosTable({
         </svg>
       ),
       onClick: onAssign,
+      className:
+        "flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition",
+    },
+    {
+      label: "Acta",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14 3v5h5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 12v6m0 0l-3-3m3 3l3-3" />
+        </svg>
+      ),
+      onClick: onDownloadActa,
+      disabled: (activo) => !activo.asignadoPara,
       className:
         "flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition",
     },

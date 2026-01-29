@@ -1,9 +1,12 @@
-import type { AssignContext } from "../types";
+import { useMemo } from "react";
+import type { AssignContext, CentroUsuario } from "../types";
+import { getUsuarioLabel } from "../utils/usuarios";
 
 type AssignModalProps = {
   open: boolean;
   context: AssignContext | null;
   loading: boolean;
+  usuarios: CentroUsuario[];
   onClose: () => void;
   onSubmit: () => void;
   onChange: (changes: Partial<AssignContext>) => void;
@@ -13,6 +16,7 @@ export function AssignModal({
   open,
   context,
   loading,
+  usuarios,
   onClose,
   onSubmit,
   onChange,
@@ -20,6 +24,20 @@ export function AssignModal({
   if (!open || !context) {
     return null;
   }
+
+  const opciones = useMemo(() => {
+    const items = (usuarios || [])
+      .map((user) => ({
+        value: getUsuarioLabel(user),
+        label: getUsuarioLabel(user),
+      }))
+      .filter((item) => item.value);
+    items.sort((a, b) => a.label.localeCompare(b.label, "es"));
+    return items;
+  }, [usuarios]);
+
+  const valorActual = context.asignadoPara || "";
+  const tieneActual = opciones.some((item) => item.value === valorActual);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -38,13 +56,23 @@ export function AssignModal({
         <div className="space-y-3">
           <div>
             <label className="block text-sm text-neutral-300">Asignado a</label>
-            <input
+            <select
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-              value={context.asignadoPara}
+              value={valorActual}
               onChange={(event) =>
                 onChange({ asignadoPara: event.target.value })
               }
-            />
+            >
+              <option value="">Seleccione</option>
+              {!tieneActual && valorActual && (
+                <option value={valorActual}>{valorActual}</option>
+              )}
+              {opciones.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm text-neutral-300">

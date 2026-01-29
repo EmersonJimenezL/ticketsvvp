@@ -24,6 +24,7 @@ export default function GestionInventario() {
     total,
     specs,
     stats,
+    usuarios,
     filtros,
     activos,
     licencias,
@@ -39,6 +40,10 @@ export default function GestionInventario() {
       item.asignadoPara || "",
       item.fechaAsignacion || ""
     );
+  };
+
+  const handleDescargarActa = (item: Activo) => {
+    activos.descargarActa(item);
   };
 
   const handleAsignarLicencia = (item: Licencia) => {
@@ -173,6 +178,7 @@ export default function GestionInventario() {
                 onPageChange={activos.goToPage}
                 onEdit={activos.abrirEditar}
                 onAssign={handleAsignarActivo}
+                onDownloadActa={handleDescargarActa}
                 onDelete={handleEliminarActivo}
                 onHistory={handleHistorialActivo}
               />
@@ -206,6 +212,7 @@ export default function GestionInventario() {
         loading={loading}
         form={activos.form}
         specs={specs}
+        usuarios={usuarios}
         onClose={activos.cerrarFormulario}
         onSubmit={activos.enviar}
         onChange={activos.actualizarForm}
@@ -217,6 +224,7 @@ export default function GestionInventario() {
         loading={loading}
         form={licencias.form}
         tiposDisponibles={licencias.tiposDisponibles}
+        usuarios={usuarios}
         onClose={licencias.cerrarFormulario}
         onSubmit={licencias.enviar}
         onChange={licencias.actualizarForm}
@@ -226,6 +234,7 @@ export default function GestionInventario() {
         open={modales.asignar.visible}
         context={modales.asignar.contexto}
         loading={loading}
+        usuarios={usuarios}
         onClose={modales.asignar.cerrar}
         onSubmit={modales.asignar.enviar}
         onChange={modales.asignar.actualizar}

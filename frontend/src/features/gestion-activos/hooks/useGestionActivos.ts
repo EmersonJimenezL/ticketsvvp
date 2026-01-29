@@ -4,11 +4,14 @@ import { useLicencias } from "./useLicencias";
 import { useActivoForm } from "./useActivoForm";
 import { useLicenciaForm } from "./useLicenciaForm";
 import { useEspecificaciones } from "./useEspecificaciones";
+import { useCentroUsuarios } from "./useCentroUsuarios";
 import { validateActivo } from "../validation/activoValidation";
 import { validateLicencia } from "../validation/licenciaValidation";
+import { useAuth } from "../../../auth/AuthContext";
 import type {
   Activo,
   Licencia,
+  CentroUsuario,
   ActivoFilters,
   LicenciaFilters,
   AssignContext,
@@ -17,6 +20,71 @@ import type {
   TabKey,
 } from "../types";
 import { API_BASE, OPCIONES_TIPO_LIC_MAP } from "../constants";
+import { generateActaEntregaPdf } from "../utils/actaPdf";
+import { getUsuarioLabel } from "../utils/usuarios";
+
+function buildUserName(user: any) {
+  if (!user) return "";
+  const parts = [
+    user.pnombre || user.primerNombre,
+    user.snombre,
+    user.papellido || user.primerApellido,
+    user.sapellido,
+  ].filter(Boolean);
+  return (
+    parts.join(" ").trim() ||
+    user.nombreUsuario ||
+    user.usuario ||
+    ""
+  );
+}
+
+function extractNumeroActaFromResponse(json: any) {
+  const direct =
+    json?.numeroActa ||
+    json?.numeroacta ||
+    json?.acta?.numeroActa ||
+    json?.acta?.numeroacta ||
+    json?.data?.numeroActa ||
+    json?.data?.numeroacta;
+  if (direct) return String(direct);
+  return "";
+}
+
+function getNumeroActaList(activo?: Activo | null) {
+  if (!activo) return [];
+  const arr = (activo as any)?.numeroacta || (activo as any)?.numeroActa;
+  return Array.isArray(arr) ? arr : [];
+}
+
+function resolveNumeroActa(
+  json: any,
+  updatedActivo?: Activo | null,
+  previousActivo?: Activo | null
+) {
+  const direct = extractNumeroActaFromResponse(json);
+  if (direct) return direct;
+
+  const updatedList = getNumeroActaList(updatedActivo);
+  const previousList = getNumeroActaList(previousActivo);
+
+  if (updatedList.length > previousList.length) {
+    return String(updatedList[updatedList.length - 1]);
+  }
+
+  if (!previousList.length && updatedList.length) {
+    return String(updatedList[updatedList.length - 1]);
+  }
+
+  return "";
+}
+
+function parseDateOrNow(value?: string) {
+  if (!value) return new Date();
+  const raw = value.includes("T") ? value : `${value}T00:00:00`;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
 
 const ACTIVO_FILTERS_DEFAULT: ActivoFilters = {
   categoria: "",
@@ -45,6 +113,28 @@ const LICENCIA_FILTERS_DEFAULT: LicenciaFilters = {
 export function useGestionActivos() {
   const [tab, setTab] = useState<TabKey>("activos");
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const { user } = useAuth();
+  const asignadoPor = useMemo(() => buildUserName(user), [user]);
+  const { usuarios: centroUsuarios } = useCentroUsuarios();
+
+  const correoPorNombre = useMemo(() => {
+    const mapa = new Map<string, string>();
+    (centroUsuarios || []).forEach((u: CentroUsuario) => {
+      const label = getUsuarioLabel(u);
+      if (label && !mapa.has(label) && u.email) {
+        mapa.set(label, u.email);
+      }
+    });
+    return mapa;
+  }, [centroUsuarios]);
+
+  const resolveCorreo = useCallback(
+    (nombre?: string) => {
+      if (!nombre) return undefined;
+      return correoPorNombre.get(nombre);
+    },
+    [correoPorNombre]
+  );
 
   // Hooks modulares
   const activosHook = useActivos();
@@ -223,17 +313,83 @@ export function useGestionActivos() {
     }
 
     try {
+      let savedActivo: Activo | null = null;
+      let previousActivo: Activo | null = null;
       if (activoForm.editId) {
-        await activosHook.updateActivo(activoForm.editId, activoForm.form);
+        previousActivo =
+          activosHook.activos.find(
+            (item) => String(item._id) === String(activoForm.editId)
+          ) || null;
+        savedActivo = await activosHook.updateActivo(
+          activoForm.editId,
+          activoForm.form
+        );
       } else {
-        await activosHook.createActivo(activoForm.form);
+        savedActivo = await activosHook.createActivo(activoForm.form);
       }
+
+      if (
+        savedActivo &&
+        (savedActivo.asignadoPara || activoForm.form.asignadoPara)
+      ) {
+        const numeroActa = resolveNumeroActa(
+          savedActivo,
+          savedActivo,
+          previousActivo
+        );
+        const actaExtras = (savedActivo as any)?.acta || {};
+        const correo =
+          actaExtras.correo ||
+          actaExtras.email ||
+          actaExtras.mail ||
+          actaExtras.correoCorporativo ||
+          resolveCorreo(
+            savedActivo.asignadoPara || activoForm.form.asignadoPara || ""
+          );
+        const rut = actaExtras.rut || actaExtras.RUT;
+        const spec = specs.find(
+          (item) => item.modelo && item.modelo === savedActivo?.modelo
+        );
+
+        if (!numeroActa) {
+          console.warn("Acta sin numero correlativo para PDF.");
+        }
+        try {
+          await generateActaEntregaPdf({
+            numeroActa,
+            fecha: parseDateOrNow(savedActivo.fechaAsignacion),
+            asignadoPara:
+              savedActivo.asignadoPara || activoForm.form.asignadoPara || "",
+            asignadoPor,
+            rut,
+            correo,
+            activo: savedActivo,
+            spec,
+            accesorios: actaExtras.accesorios,
+            licenciaOffice: actaExtras.licenciaOffice,
+            officeLicencias: actaExtras.officeLicencias,
+            sapCuenta: actaExtras.sapCuenta,
+            sapBo: actaExtras.sapBo,
+          });
+        } catch (err) {
+          console.error("Error generando acta PDF:", err);
+        }
+      }
+
       activoForm.closeForm();
       await cargarActivos();
     } catch (err: any) {
       setGlobalError(err.message || "Error al guardar activo");
     }
-  }, [activoForm, activosHook, cargarActivos]);
+  }, [
+    activoForm,
+    activosHook,
+    activosHook.activos,
+    cargarActivos,
+    specs,
+    asignadoPor,
+    resolveCorreo,
+  ]);
 
   // Handlers de formularios de licencias
   const abrirCrearLicencia = useCallback(async () => {
@@ -313,13 +469,111 @@ export function useGestionActivos() {
       const json = await response.json();
       if (!json.ok) throw new Error(json.error || "Error al asignar");
 
+      if (tipo === "activo" && asignadoPara.trim() !== "") {
+        const updatedActivo = json?.data || null;
+        const previousActivo =
+          activosHook.activos.find((item) => String(item._id) === String(id)) ||
+          null;
+        const activoForPdf: Activo | null = updatedActivo || previousActivo;
+        const numeroActa = resolveNumeroActa(json, updatedActivo, previousActivo);
+        const spec = specs.find(
+          (item) => item.modelo && item.modelo === activoForPdf?.modelo
+        );
+        const actaExtras = json?.acta || json?.data?.acta || {};
+        const correo =
+          actaExtras.correo ||
+          actaExtras.email ||
+          actaExtras.mail ||
+          actaExtras.correoCorporativo ||
+          resolveCorreo(asignadoPara);
+        const rut = actaExtras.rut || actaExtras.RUT;
+
+        if (!numeroActa) {
+          console.warn("Acta sin numero correlativo para PDF.");
+        }
+        if (activoForPdf) {
+          try {
+            await generateActaEntregaPdf({
+              numeroActa,
+              fecha: parseDateOrNow(fechaAsignacion),
+              asignadoPara,
+              asignadoPor,
+              rut,
+              correo,
+              activo: activoForPdf,
+              spec,
+              accesorios: actaExtras.accesorios,
+              licenciaOffice: actaExtras.licenciaOffice,
+              officeLicencias: actaExtras.officeLicencias,
+              sapCuenta: actaExtras.sapCuenta,
+              sapBo: actaExtras.sapBo,
+            });
+          } catch (err) {
+            console.error("Error generando acta PDF:", err);
+          }
+        }
+      }
+
       setAssignModal({ visible: false, contexto: assignModal.contexto });
       await refrescar();
       await cargarTodasLasLicencias();
     } catch (err: any) {
       setGlobalError(err.message || "Error al asignar");
     }
-  }, [assignModal, refrescar, cargarTodasLasLicencias]);
+  }, [
+    assignModal,
+    refrescar,
+    cargarTodasLasLicencias,
+    activosHook.activos,
+    specs,
+    asignadoPor,
+    resolveCorreo,
+  ]);
+
+  const descargarActa = useCallback(
+    async (activo: Activo) => {
+      const actas = getNumeroActaList(activo);
+      let numeroActa = actas.length ? String(actas[actas.length - 1]) : "";
+      if (actas.length > 1) {
+        const seleccion = window.prompt(
+          `Actas disponibles: ${actas.join(", ")}\n` +
+            "Escribe el numero exacto o deja vacío para usar la última.",
+          numeroActa
+        );
+        if (seleccion && !actas.includes(seleccion)) {
+          alert("El numero de acta no existe en este activo.");
+          return;
+        }
+        if (seleccion) {
+          numeroActa = seleccion;
+        }
+      } else if (!actas.length) {
+        const confirmPreview = window.confirm(
+          "Este activo no tiene actas registradas. ¿Generar vista previa sin correlativo?"
+        );
+        if (!confirmPreview) return;
+      }
+
+      const spec = specs.find(
+        (item) => item.modelo && item.modelo === activo?.modelo
+      );
+
+      try {
+        await generateActaEntregaPdf({
+          numeroActa,
+          fecha: parseDateOrNow(activo.fechaAsignacion),
+          asignadoPara: activo.asignadoPara || "",
+          asignadoPor,
+          correo: resolveCorreo(activo.asignadoPara),
+          activo,
+          spec,
+        });
+      } catch (err) {
+        console.error("Error generando acta PDF:", err);
+      }
+    },
+    [specs, asignadoPor, resolveCorreo]
+  );
 
   // Modal de eliminación
   const abrirEliminarModal = useCallback(
@@ -447,6 +701,8 @@ export function useGestionActivos() {
       maxProveedor: statsMaxProveedor,
     },
 
+    usuarios: centroUsuarios,
+
     // Filtros
     filtros: {
       activos: {
@@ -493,6 +749,7 @@ export function useGestionActivos() {
       cerrarFormulario: activoForm.closeForm,
       actualizarForm: activoForm.updateForm,
       enviar: enviarActivo,
+      descargarActa,
     },
 
     // Licencias

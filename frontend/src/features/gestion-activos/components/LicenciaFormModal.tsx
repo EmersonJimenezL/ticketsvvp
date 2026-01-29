@@ -1,4 +1,5 @@
-import type { Licencia } from "../types";
+import { useMemo } from "react";
+import type { Licencia, CentroUsuario } from "../types";
 import {
   OPCIONES_PROVEEDOR,
   OPCIONES_SUCURSAL,
@@ -7,6 +8,7 @@ import {
 } from "../constants";
 import type { Sucursal } from "../constants";
 import type { CentroCosto } from "../types";
+import { getUsuarioLabel } from "../utils/usuarios";
 
 type LicenciaFormModalProps = {
   open: boolean;
@@ -14,6 +16,7 @@ type LicenciaFormModalProps = {
   loading: boolean;
   form: Licencia;
   tiposDisponibles: readonly { tipo: string; cantidad: number }[];
+  usuarios: CentroUsuario[];
   onClose: () => void;
   onSubmit: () => void;
   onChange: (changes: Partial<Licencia>) => void;
@@ -25,6 +28,7 @@ export function LicenciaFormModal({
   loading,
   form,
   tiposDisponibles,
+  usuarios,
   onClose,
   onSubmit,
   onChange,
@@ -32,6 +36,20 @@ export function LicenciaFormModal({
   if (!open) {
     return null;
   }
+
+  const opciones = useMemo(() => {
+    const items = (usuarios || [])
+      .map((user) => ({
+        value: getUsuarioLabel(user),
+        label: getUsuarioLabel(user),
+      }))
+      .filter((item) => item.value);
+    items.sort((a, b) => a.label.localeCompare(b.label, "es"));
+    return items;
+  }, [usuarios]);
+
+  const valorActual = form.asignadoPara || "";
+  const tieneActual = opciones.some((item) => item.value === valorActual);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -169,13 +187,23 @@ export function LicenciaFormModal({
           </div>
           <div>
             <label className="block text-sm text-neutral-300">Asignado a</label>
-            <input
+            <select
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-              value={form.asignadoPara || ""}
+              value={valorActual}
               onChange={(event) =>
                 onChange({ asignadoPara: event.target.value })
               }
-            />
+            >
+              <option value="">Seleccione</option>
+              {!tieneActual && valorActual && (
+                <option value={valorActual}>{valorActual}</option>
+              )}
+              {opciones.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm text-neutral-300">

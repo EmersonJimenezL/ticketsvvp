@@ -17,6 +17,7 @@ export type Activo = {
   centroCosto?: "" | CentroCosto;
   asignadoPara?: string;
   fechaAsignacion?: string;
+  numeroacta?: string[];
   createdAt?: string;
   updatedAt?: string;
 };
@@ -43,6 +44,17 @@ export type LicenciaStats = {
   ocupadas: number;
   porTipo: Record<string, number>;
   porProveedor: Record<string, number>;
+};
+
+export type CentroUsuario = {
+  _id: string;
+  usuario: string;
+  pnombre?: string;
+  snombre?: string;
+  papellido?: string;
+  sapellido?: string;
+  email?: string;
+  activo?: boolean;
 };
 
 export type Especificacion = {
