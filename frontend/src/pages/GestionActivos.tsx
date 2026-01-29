@@ -109,7 +109,7 @@ export default function GestionInventario() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden px-0 sm:px-1 lg:px-2 xl:px-3 2xl:px-4 py-6 sm:py-8 lg:py-10">
+    <div className="min-h-screen bg-white text-neutral-900 relative overflow-hidden px-0 sm:px-1 lg:px-2 xl:px-3 2xl:px-4 py-6 sm:py-8 lg:py-10">
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div
           className="absolute -top-24 -left-24 h-80 w-80 rounded-full blur-3xl"
@@ -257,3 +257,4 @@ export default function GestionInventario() {
     </div>
   );
 }
+

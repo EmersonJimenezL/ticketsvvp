@@ -24,7 +24,7 @@ export default function Menu() {
   }, [user, navigate]);
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden flex items-center justify-center">
+    <div className="min-h-screen bg-white text-neutral-900 relative overflow-hidden flex items-center justify-center">
       {/* Gradientes decorativos */}
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div
@@ -111,3 +111,4 @@ export default function Menu() {
     </div>
   );
 }
+

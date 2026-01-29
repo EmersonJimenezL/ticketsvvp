@@ -222,7 +222,7 @@ export default function NuevoTicket() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden flex items-center justify-center px-4 py-16 md:py-24">
+    <div className="min-h-screen bg-white text-neutral-900 relative overflow-hidden flex items-center justify-center px-4 py-16 md:py-24">
       {/* Fondos decorativos */}
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div
@@ -382,3 +382,4 @@ export default function NuevoTicket() {
     </div>
   );
 }
+

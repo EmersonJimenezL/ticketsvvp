@@ -408,7 +408,7 @@ export function StatsView({ stats }: StatsViewProps) {
       </div>
 
       {/* Contenido visual de las métricas */}
-      <div className="space-y-6 bg-neutral-950 p-8">
+      <div className="space-y-6 bg-white p-8">
         {/* Encabezado del informe */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-md">
           <div className="flex items-center justify-between">

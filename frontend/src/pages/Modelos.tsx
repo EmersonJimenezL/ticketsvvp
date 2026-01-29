@@ -128,7 +128,7 @@ export default function Modelos() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 relative overflow-hidden px-4 py-10">
+    <div className="min-h-screen bg-white text-neutral-900 relative overflow-hidden px-4 py-10">
       {/* fondos decorativos */}
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div
@@ -560,3 +560,4 @@ export default function Modelos() {
     </div>
   );
 }
+
