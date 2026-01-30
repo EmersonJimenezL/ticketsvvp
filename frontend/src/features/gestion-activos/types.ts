@@ -54,6 +54,7 @@ export type CentroUsuario = {
   papellido?: string;
   sapellido?: string;
   email?: string;
+  rol?: string[];
   activo?: boolean;
 };
 

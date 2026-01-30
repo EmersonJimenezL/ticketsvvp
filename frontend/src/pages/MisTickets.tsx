@@ -217,7 +217,7 @@ export default function MisTickets() {
   function colorEstado(s: Ticket["state"]) {
     switch (s) {
       case "recibido":
-        return "bg-neutral-700 text-neutral-200";
+        return "bg-neutral-200 text-neutral-800 border-neutral-300";
       case "enProceso":
         return "bg-blue-600/20 text-blue-300 border-blue-600/40";
       case "resuelto":
@@ -225,7 +225,7 @@ export default function MisTickets() {
       case "conDificultades":
         return "bg-amber-600/20 text-amber-300 border-amber-600/40";
       default:
-        return "bg-neutral-700 text-neutral-200";
+        return "bg-neutral-200 text-neutral-800 border-neutral-300";
     }
   }
   function colorRiesgo(r: Ticket["risk"]) {

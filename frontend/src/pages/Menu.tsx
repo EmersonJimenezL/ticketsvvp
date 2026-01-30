@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { isContaAdmin } from "../auth/isContaAdmin";
 import logo from "../assets/vivipra.png";
 import AppHeader from "../components/AppHeader";
 
@@ -13,6 +14,7 @@ export default function Menu() {
   const nombre =
     [user?.primerNombre, user?.primerApellido].filter((part) => part && part.trim())
       .join(" ") || user?.nombreUsuario || "Usuario";
+  const showContaPanel = isContaAdmin(user || undefined);
 
   // Bloquear acceso completo a /menu para administradores
   useEffect(() => {
@@ -106,6 +108,31 @@ export default function Menu() {
               </button>
             </div>
           </Link>
+
+          {showContaPanel && (
+            <Link
+              to="/admin/conta"
+              className="group rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Panel Contabilidad</h2>
+                <span className="rounded-full px-3 py-1 text-xs bg-orange-600/20 text-orange-300 border border-orange-600/30">
+                  Admin
+                </span>
+              </div>
+              <p className="mt-3 text-neutral-300 text-sm">
+                Revisa tickets de usuarios con rol usrconta.
+              </p>
+              <div className="mt-5">
+                <button
+                  className="w-full rounded-xl bg-orange-600 px-4 py-3 font-semibold transition group-hover:bg-orange-500"
+                  type="button"
+                >
+                  Ver tickets
+                </button>
+              </div>
+            </Link>
+          )}
         </div>
       </div>
     </div>

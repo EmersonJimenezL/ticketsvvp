@@ -351,7 +351,6 @@ export async function generateActaEntregaPdf(input: ActaPdfInput) {
   const almacenamiento = safeText(spec?.almacenamiento);
   const so = safeText(spec?.so);
   const serie = safeText(input.activo.numeroSerie);
-  const licenciaOffice = safeText(input.licenciaOffice);
 
   const tableX = margin;
   const tableWidth = pageWidth - margin * 2;

@@ -13,6 +13,8 @@ import AdminHome from "./pages/AdminHome";
 import GestionActivos from "./pages/GestionActivos"; // nueva ruta
 import Modelos from "./pages/Modelos"; // especificaciones tecnicas
 import AdminTicketsHistorico from "./pages/AdminTicketsHistorico";
+import AdminConta from "./pages/AdminConta";
+import RequireContaAdmin from "./routes/RequireContaAdmin";
 
 export default function App() {
   return (
@@ -50,6 +52,13 @@ export default function App() {
               element={<AdminTicketsHistorico />}
             />
             <Route path="/admin/modelos" element={<Modelos />} />
+          </Route>
+
+          {/* admin contabilidad */}
+          <Route element={<RequireAuth />}>
+            <Route element={<RequireContaAdmin />}>
+              <Route path="/admin/conta" element={<AdminConta />} />
+            </Route>
           </Route>
 
           {/* gestion de activos */}
