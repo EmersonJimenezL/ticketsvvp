@@ -315,7 +315,7 @@ export default function MisTickets() {
 
         {ticket.comment && (
           <div className="mt-3 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2">
-            <p className="text-sm text-orange-200">
+            <p className="text-sm text-neutral-900">
               <span className="font-semibold">Comentario:</span> {ticket.comment}
             </p>
           </div>

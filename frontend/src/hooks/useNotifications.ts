@@ -1,10 +1,92 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { onNotification } from "../services/socket";
 import type { NotificationData } from "../services/socket";
+import { useAuth } from "../auth/AuthContext";
+import { isTicketAdmin } from "../auth/isTicketAdmin";
+
+function normalizeValue(value?: string) {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
 
 export function useNotifications() {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const isAdmin = useMemo(() => isTicketAdmin(user || undefined), [user]);
+
+  const currentUsername = useMemo(
+    () => normalizeValue(user?.nombreUsuario || user?.usuario),
+    [user]
+  );
+  const currentFullName = useMemo(() => {
+    const full =
+      (user?.primerNombre || user?.pnombre || "") +
+      " " +
+      (user?.primerApellido || user?.papellido || "");
+    return normalizeValue(full);
+  }, [user]);
+  const currentEmail = useMemo(
+    () => normalizeValue(user?.email),
+    [user]
+  );
+
+  const shouldNotify = useCallback(
+    (notification: NotificationData) => {
+      if (!user) return false;
+
+      if (notification.type === "nuevoTicket") {
+        return isAdmin;
+      }
+
+      if (notification.type === "ticketAsignado") {
+        if (isAdmin) {
+          return false;
+        }
+
+        const raw = notification.raw || {};
+        const candidates = [
+          raw.userId,
+          raw.usuario,
+          raw.username,
+          raw.user,
+          raw.owner,
+          raw.createdBy,
+          raw.solicitante,
+          raw.requester,
+          raw.destinatario,
+          raw.to,
+          raw.email,
+          raw.userEmail,
+          raw.correo,
+          raw.asignadoA,
+          raw.assignedTo,
+          raw.asignadoPara,
+          raw.userName,
+          raw.userFullName,
+        ]
+          .filter((value) => typeof value === "string")
+          .map((value) => normalizeValue(value));
+
+        if (!candidates.length) {
+          return false;
+        }
+
+        return candidates.some(
+          (value) =>
+            (currentUsername && value === currentUsername) ||
+            (currentEmail && value === currentEmail) ||
+            (currentFullName && value === currentFullName)
+        );
+      }
+
+      return true;
+    },
+    [user, isAdmin, currentUsername, currentEmail, currentFullName]
+  );
 
   // Función para obtener o crear el AudioContext
   const getAudioContext = useCallback(() => {
@@ -89,11 +171,13 @@ export function useNotifications() {
   useEffect(() => {
     // Escuchar notificaciones desde socket
     const cleanup = onNotification((data) => {
-      addNotification(data);
+      if (shouldNotify(data)) {
+        addNotification(data);
+      }
     });
 
     return cleanup;
-  }, [addNotification]);
+  }, [addNotification, shouldNotify]);
 
   return {
     notifications,

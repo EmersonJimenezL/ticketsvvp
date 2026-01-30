@@ -114,7 +114,7 @@ async function getLogoData() {
           0,
           0,
           cropWidth,
-          cropHeight
+          cropHeight,
         );
         resolve({
           dataUrl: cropCanvas.toDataURL("image/png"),
@@ -258,6 +258,9 @@ function drawCheckbox(pdf: jsPDF, x: number, y: number, checked: boolean) {
 }
 
 export async function generateActaEntregaPdf(input: ActaPdfInput) {
+  if (!input.numeroActa || input.numeroActa.trim() === "") {
+    throw new Error("Numero de acta requerido para generar el PDF.");
+  }
   const pdf = new jsPDF("p", "mm", "a4");
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
@@ -265,9 +268,6 @@ export async function generateActaEntregaPdf(input: ActaPdfInput) {
   let y = 12;
 
   const logoData = await getLogoData();
-
-  pdf.setFillColor(...THEME.dark);
-  pdf.rect(0, 0, pageWidth, 10, "F");
 
   const logoWidth = 70;
   let logoHeight = 22;
@@ -289,10 +289,7 @@ export async function generateActaEntregaPdf(input: ActaPdfInput) {
   const badgeY = logoY + (logoHeight - badgeHeight) / 2;
   pdf.setFillColor(...THEME.mid);
   pdf.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 1.4, 1.4, "F");
-  const numeroActaValue =
-    input.numeroActa && input.numeroActa.trim() !== ""
-      ? input.numeroActa.trim()
-      : "S/C";
+  const numeroActaValue = input.numeroActa.trim();
   const badgeText = numeroActaValue.startsWith("ACTA-")
     ? numeroActaValue
     : `Acta N° ${numeroActaValue}`;
@@ -465,7 +462,12 @@ export async function generateActaEntregaPdf(input: ActaPdfInput) {
       officeLineY += 6;
       officeX = margin + 2;
     }
-    drawCheckbox(pdf, officeX, officeLineY - 3, Boolean(officeChecks[tipoOffice]));
+    drawCheckbox(
+      pdf,
+      officeX,
+      officeLineY - 3,
+      Boolean(officeChecks[tipoOffice]),
+    );
     pdf.text(tipoOffice, officeX + 6, officeLineY);
     officeX += 6 + labelWidth + 6;
   });
@@ -529,7 +531,10 @@ export async function generateActaEntregaPdf(input: ActaPdfInput) {
 
   const obsWidth = pageWidth - margin * 2;
   const obsPadding = 4;
-  const obsLines = pdf.splitTextToSize(observaciones, obsWidth - obsPadding * 2);
+  const obsLines = pdf.splitTextToSize(
+    observaciones,
+    obsWidth - obsPadding * 2,
+  );
   const obsTextHeight = obsLines.length * 4.2;
   const obsHeight = Math.max(12, obsTextHeight + 6);
 

@@ -17,8 +17,10 @@ import {
   type Ticket,
   type TicketsMetrics,
 } from "../services/tickets";
+import { sendTicketEmail } from "../services/email";
 import { useAuth } from "../auth/AuthContext";
 import AppHeader from "../components/AppHeader";
+import { useCentroUsuarios } from "../features/gestion-activos/hooks/useCentroUsuarios";
 
 const RISK_ORDER: Record<Ticket["risk"], number> = {
   alto: 3,
@@ -55,6 +57,7 @@ const ASSIGN_OPTIONS = [
 ] as const;
 
 type SortOption = "risk" | "createdAsc" | "createdDesc" | "resolvedDesc";
+type TicketEmailEvent = "asignado" | "estado" | "resuelto";
 const SORT_LABEL: Record<SortOption, string> = {
   risk: "Riesgo (alto -> bajo)",
   createdAsc: "Creacion (antiguo -> reciente)",
@@ -110,6 +113,21 @@ function normalizeString(str: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+function resolveOwnerDisplay(ticket: Ticket) {
+  const ownerFullName =
+    (ticket.userFullName ?? "").trim() ||
+    [ticket.userName ?? "", ticket.userLastName ?? ""]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+  return (
+    ownerFullName ||
+    (ticket.userName ?? "").trim() ||
+    ticket.userId ||
+    "Sin usuario"
+  );
 }
 
 function formatResolutionTime(hours: number | null) {
@@ -504,6 +522,7 @@ export default function Admin() {
     index: number;
     total: number;
   } | null>(null);
+  const { usuarios: centroUsuarios } = useCentroUsuarios();
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -513,6 +532,133 @@ export default function Admin() {
     user?.nombreUsuario === "mcontreras" || user?.usuario === "mcontreras";
   const isAuthorizedUser = AUTHORIZED_USERS.includes(
     (user?.nombreUsuario || user?.usuario) as any
+  );
+
+  const correoPorUsuario = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const u of centroUsuarios) {
+      const key = (u.usuario || "").trim().toLowerCase();
+      const email = (u.email || "").trim();
+      if (key && email && !map.has(key)) {
+        map.set(key, email);
+      }
+    }
+    return map;
+  }, [centroUsuarios]);
+
+  const resolveCorreo = useCallback(
+    (userId?: string) => {
+      if (!userId) return "";
+      return correoPorUsuario.get(userId.trim().toLowerCase()) || "";
+    },
+    [correoPorUsuario]
+  );
+
+  const notifyTicketByEmail = useCallback(
+    async (
+      ticket: Ticket,
+      evento: TicketEmailEvent,
+      extras?: {
+        newState?: Ticket["state"];
+        assignedTo?: string;
+        prevState?: Ticket["state"];
+      }
+    ) => {
+      const destinatario = resolveCorreo(ticket.userId);
+      if (!destinatario) {
+        console.warn(
+          `[email] sin correo para usuario '${ticket.userId}' en centro de aplicaciones`
+        );
+        return;
+      }
+
+      const ownerDisplay = resolveOwnerDisplay(ticket);
+      const assignedTo = extras?.assignedTo || ticket.asignadoA || "Sin asignar";
+      const state = extras?.newState || ticket.state;
+      const fecha = new Date().toLocaleString("es-CL");
+      const prevState = extras?.prevState;
+
+      let asunto = "";
+      let mensaje = "";
+      const detailLines = [
+        `Ticket: ${ticket.ticketId}`,
+        `Categoria: ${ticket.title}`,
+        `Estado: ${state}`,
+        prevState ? `Estado anterior: ${prevState}` : "",
+        `Riesgo: ${ticket.risk}`,
+        `Asignado a: ${assignedTo}`,
+        `Fecha: ${fecha}`,
+      ].filter(Boolean);
+      const description = ticket.description
+        ? `Descripcion: ${ticket.description}`
+        : "";
+
+      if (evento === "asignado") {
+        asunto = `Ticket ${ticket.ticketId} asignado`;
+        mensaje = [
+          `Hola ${ownerDisplay},`,
+          "",
+          "Tu ticket fue asignado a un trabajador.",
+          "",
+          ...detailLines,
+          description,
+          "",
+          "Sistema de Tickets VVP.",
+        ].filter(Boolean).join("\n");
+      } else if (evento === "resuelto") {
+        asunto = `Ticket ${ticket.ticketId} resuelto`;
+        mensaje = [
+          `Hola ${ownerDisplay},`,
+          "",
+          "Tu ticket fue marcado como resuelto.",
+          "",
+          ...detailLines,
+          description,
+          "",
+          "Sistema de Tickets VVP.",
+        ].filter(Boolean).join("\n");
+      } else {
+        asunto = `Ticket ${ticket.ticketId} actualizado`;
+        mensaje = [
+          `Hola ${ownerDisplay},`,
+          "",
+          `Tu ticket cambió de estado a "${state}".`,
+          "",
+          ...detailLines,
+          description,
+          "",
+          "Sistema de Tickets VVP.",
+        ].filter(Boolean).join("\n");
+      }
+
+      const nota = {
+        origen: "ticket",
+        ticketId: ticket.ticketId,
+        title: ticket.title,
+        state,
+        risk: ticket.risk,
+        asignadoA: assignedTo,
+        userId: ticket.userId,
+        userName: ownerDisplay,
+        description: ticket.description,
+        fecha,
+      };
+
+      try {
+        const response = await sendTicketEmail({
+          destinatario,
+          asunto,
+          mensaje,
+          nota,
+        });
+        if (!response.ok) {
+          console.warn("[email] envio fallido:", response.error);
+        }
+      } catch (err) {
+        console.warn("[email] error enviando correo:", err);
+      }
+    },
+    [resolveCorreo]
   );
 
   const refreshTickets = useCallback(async () => {
@@ -699,6 +845,15 @@ export default function Admin() {
       if (!response.ok) {
         throw new Error(response.error || "No se pudo actualizar el ticket.");
       }
+      if (patch.state && patch.state !== previous.state) {
+        const updatedTicket = { ...ticket, ...patch };
+        const evento: TicketEmailEvent =
+          patch.state === "resuelto" ? "resuelto" : "estado";
+        void notifyTicketByEmail(updatedTicket, evento, {
+          newState: patch.state,
+          prevState: previous.state,
+        });
+      }
       if (patch.state === "resuelto") {
         setCommentDraft((draft) => {
           if (!(ticket.ticketId in draft)) return draft;
@@ -775,6 +930,17 @@ export default function Admin() {
         throw new Error(response.error || "No se pudo asignar el ticket.");
       }
 
+      if (asignadoA) {
+        const updatedTicket = {
+          ...ticket,
+          asignadoA,
+          fechaAsignacion: new Date().toISOString(),
+        };
+        void notifyTicketByEmail(updatedTicket, "asignado", {
+          assignedTo: asignadoA,
+        });
+      }
+
       await refreshTickets();
     } catch (err: any) {
       setItems((list) =>
@@ -791,17 +957,7 @@ export default function Admin() {
   }
 
   const renderTicketCard = (ticket: Ticket) => {
-    const ownerFullName =
-      (ticket.userFullName ?? "").trim() ||
-      [ticket.userName ?? "", ticket.userLastName ?? ""]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-    const ownerDisplay =
-      ownerFullName ||
-      (ticket.userName ?? "").trim() ||
-      ticket.userId ||
-      "Sin usuario";
+    const ownerDisplay = resolveOwnerDisplay(ticket);
 
     // Verificar si el usuario actual es el asignado al ticket
     const userFullName = `${user?.pnombre || ""} ${

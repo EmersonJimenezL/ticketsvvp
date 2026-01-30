@@ -51,6 +51,7 @@ export type NotificationData = {
   title: string;
   message: string;
   timestamp: string;
+  raw?: any;
 };
 
 export function onNotification(
@@ -66,6 +67,7 @@ export function onNotification(
       title: "Ticket Asignado",
       message: `Se te asignó el ticket ${data.ticketId}`,
       timestamp: new Date().toISOString(),
+      raw: data,
     });
   };
 
@@ -77,6 +79,7 @@ export function onNotification(
       title: "Nuevo Ticket",
       message: `Nuevo ticket creado: ${data.title || data.ticketId}`,
       timestamp: new Date().toISOString(),
+      raw: data,
     });
   };
 

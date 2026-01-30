@@ -49,13 +49,13 @@ export function DataTable<T>({
   }
 
   return (
-    <table className="min-w-full text-sm">
-      <thead className="bg-black sticky top-0 z-10 backdrop-blur">
+    <table className="min-w-full text-sm text-neutral-900">
+      <thead className="bg-neutral-50 sticky top-0 z-10 border-b border-neutral-200">
         <tr>
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`px-4 py-3 text-left text-sm font-medium text-neutral-300 ${
+                className={`px-4 py-3 text-left text-sm font-semibold text-neutral-600 ${
                   col.className || ""
                 }`}
               >
@@ -63,7 +63,7 @@ export function DataTable<T>({
               </th>
             ))}
             {actions && actions.length > 0 && (
-              <th className="px-4 py-3 text-right text-sm font-medium text-neutral-300">
+              <th className="px-4 py-3 text-right text-sm font-semibold text-neutral-600">
                 Acciones
               </th>
             )}
@@ -73,12 +73,12 @@ export function DataTable<T>({
           {data.map((item) => (
             <tr
               key={keyExtractor(item)}
-              className="border-t border-white/10 odd:bg-white/[0.03] hover:bg-white/10 transition-colors"
+              className="border-t border-neutral-200 odd:bg-neutral-50/60 hover:bg-orange-50/40 transition-colors"
             >
               {columns.map((col) => (
                 <td
                   key={col.key}
-                  className={`px-4 py-3 text-sm text-neutral-200 ${col.className || ""}`}
+                  className={`px-4 py-3 text-sm text-neutral-800 ${col.className || ""}`}
                 >
                   {col.render(item)}
                 </td>

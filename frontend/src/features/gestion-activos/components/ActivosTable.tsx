@@ -111,7 +111,7 @@ export function ActivosTable({
       ),
       onClick: onEdit,
       className:
-        "flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition",
+        "flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white hover:bg-neutral-100 transition text-neutral-700",
     },
     {
       label: "Asignar",
@@ -122,7 +122,7 @@ export function ActivosTable({
       ),
       onClick: onAssign,
       className:
-        "flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition",
+        "flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white hover:bg-neutral-100 transition text-neutral-700",
     },
     {
       label: "Acta",
@@ -136,7 +136,7 @@ export function ActivosTable({
       onClick: onDownloadActa,
       disabled: (activo) => !activo.asignadoPara,
       className:
-        "flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition",
+        "flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white hover:bg-neutral-100 transition text-neutral-700",
     },
     {
       label: "Eliminar",
@@ -158,12 +158,12 @@ export function ActivosTable({
       ),
       onClick: onHistory,
       className:
-        "flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition",
+        "flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white hover:bg-neutral-100 transition text-neutral-700",
     },
   ];
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md overflow-hidden">
+    <div className="rounded-2xl border border-neutral-200 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)] overflow-hidden">
       <div className="overflow-x-auto">
         <DataTable
           columns={columns}
@@ -176,7 +176,7 @@ export function ActivosTable({
       </div>
 
       {totalPages > 1 && onPageChange && (
-        <div className="px-4 py-4 border-t border-white/10 bg-white/5">
+        <div className="px-4 py-4 border-t border-neutral-200 bg-white">
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}

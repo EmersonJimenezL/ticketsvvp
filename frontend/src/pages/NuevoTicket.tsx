@@ -222,7 +222,7 @@ export default function NuevoTicket() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 relative overflow-hidden flex items-center justify-center px-4 py-16 md:py-24">
+    <div className="min-h-screen bg-white text-neutral-900 relative overflow-hidden flex items-center justify-center px-4 py-10">
       {/* Fondos decorativos */}
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div
@@ -239,7 +239,7 @@ export default function NuevoTicket() {
         />
       </div>
 
-      <div className="relative w-full max-w-2xl my-10">
+      <div className="relative w-full max-w-2xl">
         <AppHeader
           title="Crear ticket"
           subtitle="Completa el formulario y guarda tu incidencia"
@@ -248,15 +248,15 @@ export default function NuevoTicket() {
 
         <form
           onSubmit={onSubmit}
-          className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.5)] space-y-5"
+          className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.5)] space-y-4"
         >
           {/* Categoría */}
           <div className="space-y-2 text-center">
-            <label className="text-lg text-neutral-300 mb-44">
+            <label className="text-lg text-neutral-300">
               <strong>Categoría</strong>
             </label>
             <select
-              className="w-full rounded-xl mt-5 bg-neutral-900/70 px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              className="w-full rounded-xl mt-2 bg-neutral-900/70 px-4 py-2.5 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
               value={title ?? ""}
               onChange={(e) =>
                 setTitle(e.target.value as TicketPayload["title"])
@@ -279,8 +279,8 @@ export default function NuevoTicket() {
               <strong>Descripción</strong>
             </label>
             <textarea
-              rows={5}
-              className="w-full rounded-xl mt-5 bg-neutral-900/70 px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              rows={4}
+              className="w-full rounded-xl mt-2 bg-neutral-900/70 px-4 py-2.5 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe el problema o solicitud con el mayor detalle posible."
@@ -301,7 +301,7 @@ export default function NuevoTicket() {
               multiple
               disabled={compressing}
               onChange={(e) => onFilesSelected(e.target.files)}
-              className="w-full rounded-xl mt-2 bg-neutral-900/70 px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full rounded-xl mt-2 bg-neutral-900/70 px-4 py-2.5 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-60 disabled:cursor-not-allowed"
             />
             {compressing && (
               <div className="mt-3 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-sm text-orange-300 flex items-center gap-2">
