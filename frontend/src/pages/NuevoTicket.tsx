@@ -1,8 +1,10 @@
 // src/pages/NuevoTicket.tsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { createTicket } from "../services/tickets";
+import { sendTicketEmail } from "../services/email";
+import { useCentroUsuarios } from "../features/gestion-activos/hooks/useCentroUsuarios";
 import type { TicketPayload } from "../services/tickets";
 import AppHeader from "../components/AppHeader";
 
@@ -32,6 +34,7 @@ const RISKS: TicketPayload["risk"][] = ["alto", "medio", "bajo"];
 export default function NuevoTicket() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { usuarios: centroUsuarios } = useCentroUsuarios();
 
   // Bloquear acceso a administradores
   useEffect(() => {
@@ -51,6 +54,17 @@ export default function NuevoTicket() {
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [compressing, setCompressing] = useState(false);
   const submittingRef = useRef(false);
+
+  const adminEmails = useMemo(() => {
+    const emails = new Set<string>();
+    (centroUsuarios || []).forEach((u) => {
+      const roles = Array.isArray(u.rol) ? u.rol : u.rol ? [u.rol] : [];
+      if (!roles.includes("admin")) return;
+      const email = (u.email || "").trim();
+      if (email) emails.add(email);
+    });
+    return Array.from(emails);
+  }, [centroUsuarios]);
 
   // Función para comprimir una imagen
   async function compressImage(file: File): Promise<string> {
@@ -204,6 +218,25 @@ export default function NuevoTicket() {
       const resp = await createTicket(payload);
       if (!resp.ok) throw new Error(resp.error || "Error al crear el ticket");
       setCreatedId(ticketId);
+      const destinatarios = adminEmails.join(",");
+      if (destinatarios) {
+        void sendTicketEmail({
+          destinatario: destinatarios,
+          asunto: `Nuevo ticket ${ticketId}`,
+          mensaje: `Se creó un nuevo ticket en ${title} por ${payload.userName || payload.userId}.`,
+          nota: {
+            origen: "ticket",
+            ticketId,
+            title,
+            state: payload.state,
+            risk: payload.risk,
+            userName: payload.userName,
+            userId: payload.userId,
+            fecha: new Date().toLocaleString("es-CL"),
+            description: payload.description,
+          },
+        });
+      }
       // Redirigir a MisTickets tras crear exitosamente
       navigate("/tickets");
     } catch (err: any) {
