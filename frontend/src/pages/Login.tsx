@@ -72,7 +72,7 @@ export default function Login() {
             <img
               src={logo}
               alt="Vivipra"
-              className="h-16 w-auto rounded-md ring-1 ring-white/10"
+              className="h-32 w-auto"
             />
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight">
@@ -94,7 +94,7 @@ export default function Login() {
               <img
                 src={logo}
                 alt="Vivipra"
-                className="h-10 w-auto rounded ring-1 ring-white/10"
+                className="h-10 w-auto"
               />
               <h2 className="text-xl font-bold">Iniciar sesión</h2>
             </div>
