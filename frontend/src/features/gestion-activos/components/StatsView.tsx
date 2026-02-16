@@ -364,19 +364,28 @@ export function StatsView({ stats }: StatsViewProps) {
     cantidad: value,
   }));
 
+  const totalLicencias = stats.raw.total || 0;
+  const disponibles = stats.raw.disponibles || 0;
+  const ocupadas = stats.raw.ocupadas || Math.max(totalLicencias - disponibles, 0);
+  const sapTotal = sapLicencias.reduce((acc, [, cantidad]) => acc + cantidad, 0);
+  const officeTotal = officeLicencias.reduce((acc, [, cantidad]) => acc + cantidad, 0);
+  const disponibilidadPct =
+    totalLicencias > 0 ? Math.round((disponibles / totalLicencias) * 100) : 0;
+  const usoPct = totalLicencias > 0 ? Math.round((ocupadas / totalLicencias) * 100) : 0;
+
   return (
     <div className="space-y-6">
       {/* Selector de tipo de informe y botón de generar */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+      <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
         <div className="flex flex-wrap justify-between items-center gap-4">
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-neutral-300">
+            <label className="text-sm font-medium text-neutral-700">
               Tipo de Informe:
             </label>
             <select
               value={reportType}
               onChange={(e) => setReportType(e.target.value as any)}
-              className="rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 outline-none focus:ring-2 focus:ring-orange-500"
             >
               <option value="general">General (Todas las licencias)</option>
               <option value="sap">Solo Licencias SAP</option>
@@ -408,18 +417,18 @@ export function StatsView({ stats }: StatsViewProps) {
       </div>
 
       {/* Contenido visual de las métricas */}
-      <div className="space-y-6 bg-white p-8">
+      <div className="space-y-6">
         {/* Encabezado del informe */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-md">
-          <div className="flex items-center justify-between">
+        <div className="rounded-2xl border border-neutral-200 bg-gradient-to-r from-neutral-50 via-orange-50/60 to-white p-6 shadow-[0_12px_35px_rgba(0,0,0,0.06)]">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-bold text-white mb-2">
+              <h1 className="text-3xl font-bold text-neutral-900 mb-1">
                 Informe de Métricas
               </h1>
-              <p className="text-lg text-neutral-300">
+              <p className="text-base text-neutral-700">
                 Gestión de Activos y Licencias
               </p>
-              <p className="text-sm text-neutral-400 mt-2">
+              <p className="text-sm text-neutral-500 mt-1">
                 Fecha:{" "}
                 {new Date().toLocaleDateString("es-ES", {
                   year: "numeric",
@@ -432,19 +441,81 @@ export function StatsView({ stats }: StatsViewProps) {
               <img
                 src={logoBase64}
                 alt="VVP Logo"
-                className="w-32 h-32 object-contain"
+                className="h-20 w-20 rounded-xl border border-neutral-200 bg-white object-contain p-2 shadow-sm"
               />
             ) : (
-              <div className="w-32 h-32 rounded-xl bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center shadow-2xl">
-                <span className="text-4xl font-bold text-white">VVP</span>
+              <div className="h-20 w-20 rounded-xl bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center shadow-xl">
+                <span className="text-2xl font-bold text-white">VVP</span>
               </div>
             )}
           </div>
         </div>
 
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              Total licencias
+            </p>
+            <p className="mt-2 text-3xl font-bold text-neutral-900">{totalLicencias}</p>
+          </div>
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+              Disponibles
+            </p>
+            <p className="mt-2 text-3xl font-bold text-emerald-800">{disponibles}</p>
+          </div>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+              En uso
+            </p>
+            <p className="mt-2 text-3xl font-bold text-amber-800">{ocupadas}</p>
+          </div>
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+              Licencias SAP
+            </p>
+            <p className="mt-2 text-3xl font-bold text-blue-800">{sapTotal}</p>
+          </div>
+          <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
+              Licencias Office
+            </p>
+            <p className="mt-2 text-3xl font-bold text-cyan-800">{officeTotal}</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,0.05)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold text-neutral-900">Resumen de licencias</h3>
+            <span className="text-sm text-neutral-500">
+              Disponibilidad {disponibilidadPct}% | En uso {usoPct}%
+            </span>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <p className="mb-1 text-sm font-medium text-neutral-700">Licencias disponibles</p>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-neutral-200">
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${disponibilidadPct}%` }}
+                />
+              </div>
+            </div>
+            <div>
+              <p className="mb-1 text-sm font-medium text-neutral-700">Licencias en uso</p>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-neutral-200">
+                <div
+                  className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                  style={{ width: `${usoPct}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Detalles por tipo (tabla) - SAP y Office separados */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
-          <h3 className="text-xl font-semibold text-white mb-6">
+        <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-[0_10px_28px_rgba(0,0,0,0.05)]">
+          <h3 className="text-xl font-semibold text-neutral-900 mb-6">
             Detalle de Licencias por Tipo
           </h3>
 
@@ -452,24 +523,24 @@ export function StatsView({ stats }: StatsViewProps) {
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <h4 className="text-lg font-semibold text-white">
+              <h4 className="text-lg font-semibold text-blue-800">
                 Licencias SAP
               </h4>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3 px-4 text-neutral-300 font-semibold">
+                  <tr className="border-b border-neutral-200 bg-neutral-50">
+                    <th className="text-left py-3 px-4 text-neutral-700 font-semibold">
                       Tipo de Licencia
                     </th>
-                    <th className="text-right py-3 px-4 text-neutral-300 font-semibold">
+                    <th className="text-right py-3 px-4 text-neutral-700 font-semibold">
                       Cantidad
                     </th>
-                    <th className="text-right py-3 px-4 text-neutral-300 font-semibold">
+                    <th className="text-right py-3 px-4 text-neutral-700 font-semibold">
                       % del Total
                     </th>
-                    <th className="text-left py-3 px-4 text-neutral-300 font-semibold">
+                    <th className="text-left py-3 px-4 text-neutral-700 font-semibold">
                       Representación
                     </th>
                   </tr>
@@ -483,17 +554,17 @@ export function StatsView({ stats }: StatsViewProps) {
                     return (
                       <tr
                         key={tipo}
-                        className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                        className="border-b border-neutral-100 hover:bg-blue-50/40 transition-colors"
                       >
-                        <td className="py-3 px-4 text-neutral-100">{tipo}</td>
-                        <td className="py-3 px-4 text-right text-white font-semibold">
+                        <td className="py-3 px-4 text-neutral-800">{tipo}</td>
+                        <td className="py-3 px-4 text-right text-neutral-900 font-semibold">
                           {cantidad}
                         </td>
-                        <td className="py-3 px-4 text-right text-neutral-300">
+                        <td className="py-3 px-4 text-right text-neutral-600">
                           {porcentaje}%
                         </td>
                         <td className="py-3 px-4">
-                          <div className="h-2 rounded-full bg-white/10 overflow-hidden max-w-xs">
+                          <div className="h-2 rounded-full bg-neutral-200 overflow-hidden max-w-xs">
                             <div
                               className="h-full rounded-full transition-all duration-500"
                               style={{
@@ -510,7 +581,7 @@ export function StatsView({ stats }: StatsViewProps) {
                     <tr>
                       <td
                         colSpan={4}
-                        className="py-4 px-4 text-center text-neutral-400"
+                        className="py-4 px-4 text-center text-neutral-500"
                       >
                         No hay licencias SAP registradas
                       </td>
@@ -525,24 +596,24 @@ export function StatsView({ stats }: StatsViewProps) {
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-              <h4 className="text-lg font-semibold text-white">
+              <h4 className="text-lg font-semibold text-emerald-800">
                 Licencias Microsoft Office
               </h4>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3 px-4 text-neutral-300 font-semibold">
+                  <tr className="border-b border-neutral-200 bg-neutral-50">
+                    <th className="text-left py-3 px-4 text-neutral-700 font-semibold">
                       Tipo de Licencia
                     </th>
-                    <th className="text-right py-3 px-4 text-neutral-300 font-semibold">
+                    <th className="text-right py-3 px-4 text-neutral-700 font-semibold">
                       Cantidad
                     </th>
-                    <th className="text-right py-3 px-4 text-neutral-300 font-semibold">
+                    <th className="text-right py-3 px-4 text-neutral-700 font-semibold">
                       % del Total
                     </th>
-                    <th className="text-left py-3 px-4 text-neutral-300 font-semibold">
+                    <th className="text-left py-3 px-4 text-neutral-700 font-semibold">
                       Representación
                     </th>
                   </tr>
@@ -556,17 +627,17 @@ export function StatsView({ stats }: StatsViewProps) {
                     return (
                       <tr
                         key={tipo}
-                        className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                        className="border-b border-neutral-100 hover:bg-emerald-50/40 transition-colors"
                       >
-                        <td className="py-3 px-4 text-neutral-100">{tipo}</td>
-                        <td className="py-3 px-4 text-right text-white font-semibold">
+                        <td className="py-3 px-4 text-neutral-800">{tipo}</td>
+                        <td className="py-3 px-4 text-right text-neutral-900 font-semibold">
                           {cantidad}
                         </td>
-                        <td className="py-3 px-4 text-right text-neutral-300">
+                        <td className="py-3 px-4 text-right text-neutral-600">
                           {porcentaje}%
                         </td>
                         <td className="py-3 px-4">
-                          <div className="h-2 rounded-full bg-white/10 overflow-hidden max-w-xs">
+                          <div className="h-2 rounded-full bg-neutral-200 overflow-hidden max-w-xs">
                             <div
                               className="h-full rounded-full transition-all duration-500"
                               style={{
@@ -583,7 +654,7 @@ export function StatsView({ stats }: StatsViewProps) {
                     <tr>
                       <td
                         colSpan={4}
-                        className="py-4 px-4 text-center text-neutral-400"
+                        className="py-4 px-4 text-center text-neutral-500"
                       >
                         No hay licencias Microsoft Office registradas
                       </td>
@@ -596,12 +667,12 @@ export function StatsView({ stats }: StatsViewProps) {
         </div>
 
         {/* Gráfico de barras - Licencias por Proveedor */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
+        <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-[0_10px_28px_rgba(0,0,0,0.05)]">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-white">
+            <h3 className="text-xl font-semibold text-neutral-900">
               Licencias por Proveedor
             </h3>
-            <span className="text-sm text-neutral-400">
+            <span className="text-sm text-neutral-500">
               {stats.porProveedor.length} proveedores
             </span>
           </div>
@@ -612,16 +683,16 @@ export function StatsView({ stats }: StatsViewProps) {
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="rgba(255,255,255,0.1)"
+                stroke="rgba(17,24,39,0.12)"
               />
-              <XAxis dataKey="name" stroke="#a3a3a3" />
-              <YAxis stroke="#a3a3a3" />
+              <XAxis dataKey="name" stroke="#4b5563" />
+              <YAxis stroke="#4b5563" />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "rgba(0, 0, 0, 0.8)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #d1d5db",
                   borderRadius: "8px",
-                  color: "#fff",
+                  color: "#111827",
                 }}
               />
               <Legend />

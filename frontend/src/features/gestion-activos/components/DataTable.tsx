@@ -22,6 +22,7 @@ type DataTableProps<T> = {
   keyExtractor: (item: T) => string;
   emptyMessage?: string;
   loading?: boolean;
+  onRowClick?: (item: T) => void;
 };
 
 export function DataTable<T>({
@@ -31,6 +32,7 @@ export function DataTable<T>({
   keyExtractor,
   emptyMessage = "No hay datos para mostrar",
   loading = false,
+  onRowClick,
 }: DataTableProps<T>) {
   if (loading) {
     return (
@@ -73,7 +75,22 @@ export function DataTable<T>({
           {data.map((item) => (
             <tr
               key={keyExtractor(item)}
-              className="border-t border-neutral-200 odd:bg-neutral-50/60 hover:bg-orange-50/40 transition-colors"
+              className={`border-t border-neutral-200 odd:bg-neutral-50/60 hover:bg-orange-50/40 transition-colors ${
+                onRowClick ? "cursor-pointer" : ""
+              }`}
+              onClick={onRowClick ? () => onRowClick(item) : undefined}
+              onKeyDown={
+                onRowClick
+                  ? (event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onRowClick(item);
+                      }
+                    }
+                  : undefined
+              }
+              role={onRowClick ? "button" : undefined}
+              tabIndex={onRowClick ? 0 : undefined}
             >
               {columns.map((col) => (
                 <td
@@ -91,7 +108,13 @@ export function DataTable<T>({
                       return (
                         <button
                           key={idx}
-                          onClick={() => !isDisabled && action.onClick(item)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (!isDisabled) {
+                              action.onClick(item);
+                            }
+                          }}
+                          onKeyDown={(event) => event.stopPropagation()}
                           disabled={isDisabled}
                           className={action.className || "px-3 py-1 rounded-lg text-sm transition bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"}
                           aria-label={action.label}

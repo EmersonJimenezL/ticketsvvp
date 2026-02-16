@@ -345,7 +345,6 @@ export async function generateActaEntregaPdf(input: ActaPdfInput) {
   const modelo = safeText(input.activo.modelo);
   const marca = safeText(input.activo.marca);
   const tipo = safeText(input.activo.categoria);
-  const accesorios = safeText(input.accesorios ?? input.activo.detalles);
   const procesador = safeText(joinParts(spec?.procesador, spec?.frecuenciaGhz));
   const ram = safeText(spec?.ram);
   const almacenamiento = safeText(spec?.almacenamiento);
@@ -372,26 +371,26 @@ export async function generateActaEntregaPdf(input: ActaPdfInput) {
     {
       label: "Marca:",
       value: marca,
-      rightLabel: "Accesorios:",
-      rightValue: accesorios,
-    },
-    {
-      label: "Modelo:",
-      value: modelo,
       rightLabel: "Serie:",
       rightValue: serie,
     },
     {
-      label: "Procesador:",
-      value: procesador,
-      rightLabel: "Ram:",
-      rightValue: ram,
+      label: "Modelo:",
+      value: modelo,
+      rightLabel: "Procesador:",
+      rightValue: procesador,
     },
     {
-      label: "HDD:",
-      value: almacenamiento,
-      rightLabel: "OS:",
-      rightValue: so,
+      label: "Ram:",
+      value: ram,
+      rightLabel: "HDD:",
+      rightValue: almacenamiento,
+    },
+    {
+      label: "OS:",
+      value: so,
+      rightLabel: "",
+      rightValue: "",
     },
   ];
 

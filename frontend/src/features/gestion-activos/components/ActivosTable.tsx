@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DataTable, type Column, type Action } from "./DataTable";
 import { Pagination } from "./Pagination";
 import type { Activo } from "../types";
@@ -29,6 +30,11 @@ export function ActivosTable({
   onDelete,
   onHistory,
 }: ActivosTableProps) {
+  const [selectedActivo, setSelectedActivo] = useState<Activo | null>(null);
+
+  const formatDate = (value?: string) =>
+    value ? new Date(value).toLocaleDateString() : "-";
+
   const columns: Column<Activo>[] = [
     {
       key: "categoria",
@@ -67,10 +73,7 @@ export function ActivosTable({
     {
       key: "fechaCompra",
       label: "Compra",
-      render: (activo) =>
-        activo.fechaCompra
-          ? new Date(activo.fechaCompra).toLocaleDateString()
-          : "-",
+      render: (activo) => formatDate(activo.fechaCompra),
     },
     {
       key: "numeroFactura",
@@ -81,8 +84,10 @@ export function ActivosTable({
     {
       key: "detalles",
       label: "Detalles",
-      render: (activo) => activo.detalles || "-",
-      className: "max-w-[260px] truncate",
+      render: (activo) => (
+        <span title={activo.detalles || undefined}>{activo.detalles || "-"}</span>
+      ),
+      className: "w-[170px] max-w-[170px] truncate",
     },
     {
       key: "asignadoPara",
@@ -93,10 +98,7 @@ export function ActivosTable({
     {
       key: "fechaAsignacion",
       label: "Asignacion",
-      render: (activo) =>
-        activo.fechaAsignacion
-          ? new Date(activo.fechaAsignacion).toLocaleDateString()
-          : "-",
+      render: (activo) => formatDate(activo.fechaAsignacion),
     },
   ];
 
@@ -163,29 +165,131 @@ export function ActivosTable({
   ];
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)] overflow-hidden">
-      <div className="overflow-x-auto">
-        <DataTable
-          columns={columns}
-          data={items}
-          actions={actions}
-          keyExtractor={(activo) => activo._id || ""}
-          emptyMessage="Sin resultados"
-          loading={loading}
-        />
-      </div>
-
-      {totalPages > 1 && onPageChange && (
-        <div className="px-4 py-4 border-t border-neutral-200 bg-white">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={onPageChange}
-            hasNextPage={currentPage < totalPages}
-            hasPrevPage={currentPage > 1}
+    <>
+      <div className="rounded-2xl border border-neutral-200 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)] overflow-hidden">
+        <div className="overflow-x-auto">
+          <DataTable
+            columns={columns}
+            data={items}
+            actions={actions}
+            keyExtractor={(activo) => activo._id || ""}
+            emptyMessage="Sin resultados"
+            loading={loading}
+            onRowClick={setSelectedActivo}
           />
         </div>
+        {!loading && items.length > 0 && (
+          <div className="border-t border-neutral-200 px-4 py-2 text-xs text-neutral-500">
+            Haz clic en una fila para ver el detalle completo del activo.
+          </div>
+        )}
+
+        {totalPages > 1 && onPageChange && (
+          <div className="px-4 py-4 border-t border-neutral-200 bg-white">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={onPageChange}
+              hasNextPage={currentPage < totalPages}
+              hasPrevPage={currentPage > 1}
+            />
+          </div>
+        )}
+      </div>
+
+      {selectedActivo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+          onClick={() => setSelectedActivo(null)}
+        >
+          <div
+            className="w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl border border-white/10 bg-white p-6 text-neutral-900 shadow-[0_18px_60px_rgba(0,0,0,0.45)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold">Detalle del activo</h3>
+                <p className="text-sm text-neutral-500">
+                  {`${selectedActivo.marca || "-"} ${selectedActivo.modelo || "-"}`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedActivo(null)}
+                className="rounded-xl border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 transition hover:bg-neutral-100"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Categoria</p>
+                <p className="mt-1 text-sm">{selectedActivo.categoria || "-"}</p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Marca</p>
+                <p className="mt-1 text-sm">{selectedActivo.marca || "-"}</p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Modelo</p>
+                <p className="mt-1 text-sm">{selectedActivo.modelo || "-"}</p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Serie</p>
+                <p className="mt-1 text-sm">{selectedActivo.numeroSerie || "-"}</p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Sucursal</p>
+                <p className="mt-1 text-sm">{selectedActivo.sucursal || "-"}</p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Centro costo</p>
+                <p className="mt-1 text-sm">{selectedActivo.centroCosto || "-"}</p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Fecha compra</p>
+                <p className="mt-1 text-sm">{formatDate(selectedActivo.fechaCompra)}</p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Factura</p>
+                <p className="mt-1 text-sm">{selectedActivo.numeroFactura || "-"}</p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Asignado a</p>
+                <p className="mt-1 text-sm">{selectedActivo.asignadoPara || "-"}</p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Fecha asignacion</p>
+                <p className="mt-1 text-sm">{formatDate(selectedActivo.fechaAsignacion)}</p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 md:col-span-2">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Numero acta</p>
+                <p className="mt-1 text-sm break-words">
+                  {Array.isArray(selectedActivo.numeroacta) &&
+                  selectedActivo.numeroacta.length > 0
+                    ? selectedActivo.numeroacta.join(", ")
+                    : "-"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 md:col-span-2">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Detalles</p>
+                <p className="mt-1 whitespace-pre-line text-sm">
+                  {selectedActivo.detalles || "-"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Creado</p>
+                <p className="mt-1 text-sm">{formatDate(selectedActivo.createdAt)}</p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                <p className="text-xs font-semibold uppercase text-neutral-500">Actualizado</p>
+                <p className="mt-1 text-sm">{formatDate(selectedActivo.updatedAt)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
-    </div>
+    </>
   );
 }
