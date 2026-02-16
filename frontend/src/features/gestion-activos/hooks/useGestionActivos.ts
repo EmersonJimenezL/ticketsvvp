@@ -141,8 +141,20 @@ async function patchAsignacionActivo(input: {
 
 function parseDateOrNow(value?: string) {
   if (!value) return new Date();
-  const raw = value.includes("T") ? value : `${value}T00:00:00`;
-  const parsed = new Date(raw);
+  const normalized = value.trim();
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(normalized);
+  if (dateMatch) {
+    const year = Number(dateMatch[1]);
+    const month = Number(dateMatch[2]);
+    const day = Number(dateMatch[3]);
+    // Usar fecha local al mediodia evita desfases por conversion UTC/local.
+    const parsedFromDatePart = new Date(year, month - 1, day, 12, 0, 0, 0);
+    if (!Number.isNaN(parsedFromDatePart.getTime())) {
+      return parsedFromDatePart;
+    }
+  }
+
+  const parsed = new Date(normalized);
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 

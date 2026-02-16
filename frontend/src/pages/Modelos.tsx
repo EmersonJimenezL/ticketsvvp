@@ -68,10 +68,7 @@ export default function Modelos() {
   }, [cargar]);
 
   async function onSubmit() {
-    if (!form.modelo.trim()) {
-      setError("El campo 'modelo' es obligatorio");
-      return;
-    }
+    const modeloNormalizado = form.modelo.trim();
     try {
       setLoading(true);
       setError(null);
@@ -83,7 +80,7 @@ export default function Modelos() {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          modelo: form.modelo.trim(),
+          modelo: modeloNormalizado,
           categoria: form.categoria || undefined,
           marca: form.marca || undefined,
           procesador: form.procesador || undefined,

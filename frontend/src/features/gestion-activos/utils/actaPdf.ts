@@ -520,40 +520,16 @@ export async function generateActaEntregaPdf(input: ActaPdfInput) {
     y += sapRowHeight;
   });
 
-  const observacionesRaw = input.activo.detalles || "";
-  const observaciones =
-    observacionesRaw && observacionesRaw.trim() !== ""
-      ? observacionesRaw.trim()
-      : "-";
-
   y += 6;
 
   const obsWidth = pageWidth - margin * 2;
   const obsPadding = 4;
-  const obsLines = pdf.splitTextToSize(
-    observaciones,
-    obsWidth - obsPadding * 2,
-  );
-  const obsTextHeight = obsLines.length * 4.2;
-  const obsHeight = Math.max(12, obsTextHeight + 6);
-
-  pdf.setDrawColor(...THEME.border);
-  pdf.rect(margin, y, obsWidth, obsHeight);
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(8.5);
-  pdf.setTextColor(...THEME.text);
-  pdf.text("Observaciones:", margin + obsPadding, y + 5);
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(8.5);
-  pdf.text(obsLines, margin + obsPadding, y + 10);
-
-  y += obsHeight + 6;
-
-  const extraHeight = 16;
+  const extraHeight = 22;
   pdf.setDrawColor(...THEME.border);
   pdf.rect(margin, y, obsWidth, extraHeight);
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(8.5);
+  pdf.setTextColor(...THEME.text);
   pdf.text("Observaciones adicionales:", margin + obsPadding, y + 5);
   y += extraHeight + 6;
 

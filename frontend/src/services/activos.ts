@@ -83,7 +83,7 @@ export async function listActivos(params: ListActivosQuery = {}) {
   const search = qs.toString() ? `?${qs.toString()}` : "";
   const json = await httpJSON<{ ok: boolean; data: Activo[]; error?: string }>(
     "activos",
-    `${BASE}${search}`
+    `${BASE}${search}`,
   );
   if (!json.ok) throw new Error(json.error || "Error listando activos");
   return json.data;
@@ -96,7 +96,7 @@ export async function createActivo(payload: Partial<Activo>) {
     {
       method: "POST",
       body: JSON.stringify(payload),
-    }
+    },
   );
   if (!json.ok) throw new Error(json.error || "Error creando activo");
   return json.data;
@@ -109,7 +109,7 @@ export async function updateActivo(id: string, changes: Partial<Activo>) {
     {
       method: "PATCH",
       body: JSON.stringify(changes),
-    }
+    },
   );
   if (!json.ok) throw new Error(json.error || "Error actualizando activo");
   return json.data;
@@ -119,7 +119,7 @@ export async function deleteActivo(id: string) {
   const json = await httpJSON<{ ok: boolean; error?: string }>(
     "activos",
     `${BASE}/${id}`,
-    { method: "DELETE" }
+    { method: "DELETE" },
   );
   if (!json.ok) throw new Error(json.error || "Error eliminando activo");
 }
@@ -128,7 +128,7 @@ export async function assignActivo(
   id: string,
   asignadoPara: string,
   asignadoPor: string,
-  fechaAsignacion?: string
+  fechaAsignacion?: string,
 ) {
   const json = await httpJSON<{ ok: boolean; data: Activo; error?: string }>(
     "activos",
@@ -136,7 +136,7 @@ export async function assignActivo(
     {
       method: "POST",
       body: JSON.stringify({ asignadoPara, asignadoPor, fechaAsignacion }),
-    }
+    },
   );
   if (!json.ok) throw new Error(json.error || "Error asignando activo");
   return json.data;
@@ -150,7 +150,7 @@ export async function assignLicencia(
     usuarioCodigo: string;
     asignadoPor: string;
     fechaAsignacion?: string;
-  }
+  },
 ) {
   const json = await httpJSON<{ ok: boolean; data: Activo; error?: string }>(
     "activos",
@@ -158,7 +158,7 @@ export async function assignLicencia(
     {
       method: "POST",
       body: JSON.stringify(body),
-    }
+    },
   );
   if (!json.ok) throw new Error(json.error || "Error asignando licencia");
   return json.data;
@@ -168,7 +168,7 @@ export async function liberarLicencia(id: string) {
   const json = await httpJSON<{ ok: boolean; data: Activo; error?: string }>(
     "activos",
     `${BASE}/${id}/licencia/liberar`,
-    { method: "POST" }
+    { method: "POST" },
   );
   if (!json.ok) throw new Error(json.error || "Error liberando licencia");
   return json.data;
@@ -176,7 +176,9 @@ export async function liberarLicencia(id: string) {
 
 export async function updateLicencia(
   id: string,
-  changes: Partial<Pick<Licencia, "tipo" | "estado" | "expiraEn" | "proveedor">>
+  changes: Partial<
+    Pick<Licencia, "tipo" | "estado" | "expiraEn" | "proveedor">
+  >,
 ) {
   const json = await httpJSON<{ ok: boolean; data: Activo; error?: string }>(
     "activos",
@@ -184,7 +186,7 @@ export async function updateLicencia(
     {
       method: "PATCH",
       body: JSON.stringify(changes),
-    }
+    },
   );
   if (!json.ok) throw new Error(json.error || "Error actualizando licencia");
   return json.data;
