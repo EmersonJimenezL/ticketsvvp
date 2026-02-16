@@ -707,8 +707,80 @@ export function useGestionActivos() {
 
   const descargarActa = useCallback(
     async (activo: Activo) => {
-      const actas = getNumeroActaList(activo);
-      let numeroActa = actas.length ? String(actas[actas.length - 1]) : "";
+      setGlobalError(null);
+
+      let activoForPdf: Activo = activo;
+      let actas = getNumeroActaList(activoForPdf).map((item) => String(item));
+
+      // Si no hay correlativo guardado, intentar generarlo/persistir desde backend.
+      if (!actas.length) {
+        const id = String(activoForPdf._id || "");
+        const asignadoPara = (activoForPdf.asignadoPara || "").trim();
+        const fechaAsignacion = activoForPdf.fechaAsignacion
+          ? String(activoForPdf.fechaAsignacion).slice(0, 10)
+          : parseDateOrNow(undefined).toISOString().slice(0, 10);
+
+        if (!id || !asignadoPara) {
+          setGlobalError(
+            "Este activo no tiene datos de asignacion para generar un acta.",
+          );
+          return;
+        }
+
+        try {
+          const assignJson = await patchAsignacionActivo({
+            id,
+            asignadoPara,
+            fechaAsignacion,
+            asignadoPor,
+          });
+
+          let updatedActivo: Activo | null =
+            (assignJson?.data as Activo | undefined) || null;
+          let numeroGenerado = resolveNumeroActa(assignJson, updatedActivo, activo);
+
+          if (!numeroGenerado && id) {
+            const refreshed = await fetchActivoFromList(id);
+            if (refreshed) {
+              updatedActivo = refreshed;
+              const refreshedActas = getNumeroActaList(refreshed).map((item) =>
+                String(item),
+              );
+              if (refreshedActas.length) {
+                numeroGenerado = String(
+                  refreshedActas[refreshedActas.length - 1],
+                );
+              }
+            }
+          }
+
+          if (updatedActivo) {
+            activoForPdf = updatedActivo;
+          }
+
+          actas = getNumeroActaList(activoForPdf).map((item) => String(item));
+          if (!actas.length && numeroGenerado) {
+            actas = [String(numeroGenerado)];
+          }
+
+          if (!actas.length) {
+            setGlobalError(
+              "No se pudo generar ni recuperar el correlativo del acta para este activo.",
+            );
+            return;
+          }
+
+          await refrescar();
+        } catch (err: any) {
+          setGlobalError(
+            err?.message ||
+              "No se pudo generar el correlativo del acta para este activo.",
+          );
+          return;
+        }
+      }
+
+      let numeroActa = String(actas[actas.length - 1] || "");
       if (actas.length > 1) {
         const seleccion = window.prompt(
           `Actas disponibles: ${actas.join(", ")}\n` +
@@ -722,32 +794,41 @@ export function useGestionActivos() {
         if (seleccion) {
           numeroActa = seleccion;
         }
-      } else if (!actas.length) {
-        setGlobalError(
-          "Este activo no tiene actas registradas. Primero genera el correlativo.",
-        );
-        return;
       }
 
       const spec = specs.find(
-        (item) => item.modelo && item.modelo === activo?.modelo,
+        (item) => item.modelo && item.modelo === activoForPdf?.modelo,
       );
+      const actaExtras = (activoForPdf as any)?.acta || {};
+      const correo =
+        actaExtras.correo ||
+        actaExtras.email ||
+        actaExtras.mail ||
+        actaExtras.correoCorporativo ||
+        resolveCorreo(activoForPdf.asignadoPara);
+      const rut = actaExtras.rut || actaExtras.RUT;
 
       try {
         await generateActaEntregaPdf({
           numeroActa,
-          fecha: parseDateOrNow(activo.fechaAsignacion),
-          asignadoPara: activo.asignadoPara || "",
+          fecha: parseDateOrNow(activoForPdf.fechaAsignacion),
+          asignadoPara: activoForPdf.asignadoPara || "",
           asignadoPor,
-          correo: resolveCorreo(activo.asignadoPara),
-          activo,
+          correo,
+          rut,
+          activo: activoForPdf,
           spec,
+          accesorios: actaExtras.accesorios,
+          licenciaOffice: actaExtras.licenciaOffice,
+          officeLicencias: actaExtras.officeLicencias,
+          sapCuenta: actaExtras.sapCuenta,
+          sapBo: actaExtras.sapBo,
         });
       } catch (err) {
         console.error("Error generando acta PDF:", err);
       }
     },
-    [specs, asignadoPor, resolveCorreo],
+    [specs, asignadoPor, resolveCorreo, refrescar],
   );
 
   // Modal de eliminación
