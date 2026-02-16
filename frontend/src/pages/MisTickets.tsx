@@ -60,6 +60,7 @@ export default function MisTickets() {
   const [statusTab, setStatusTab] = useState<"pendientes" | "resueltos">(
     "pendientes"
   );
+  const [focusedTicketId, setFocusedTicketId] = useState<string | null>(null);
   const [imageModal, setImageModal] = useState<{ src: string; index: number; total: number } | null>(null);
 
   const handleRateTicket = useCallback(
@@ -213,6 +214,26 @@ export default function MisTickets() {
     () => sortedTickets.filter((ticket) => ticket.state === "resuelto"),
     [sortedTickets]
   );
+  const focusedTicket = useMemo(
+    () =>
+      focusedTicketId
+        ? items.find((ticket) => ticket.ticketId === focusedTicketId) || null
+        : null,
+    [focusedTicketId, items]
+  );
+
+  useEffect(() => {
+    if (!focusedTicketId) return;
+
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setFocusedTicketId(null);
+      }
+    };
+
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [focusedTicketId]);
 
   function colorEstado(s: Ticket["state"]) {
     switch (s) {
@@ -241,22 +262,61 @@ export default function MisTickets() {
     }
   }
 
-  const renderTicketCard = (ticket: Ticket) => (
-    <div
-      key={ticket.ticketId}
-      className="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
+  const renderTicketCard = (ticket: Ticket, mode: "grid" | "focus" = "grid") => {
+    const isFocusMode = mode === "focus";
+
+    return (
+      <article
+        key={ticket.ticketId}
+        className={`rounded-2xl border border-white/10 bg-white/5 transition ${
+          isFocusMode
+            ? "mx-auto w-full max-w-[1450px] rounded-3xl border border-white/20 bg-neutral-900/35 p-6 ring-1 ring-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.65)] md:p-8"
+            : "cursor-pointer p-5 hover:bg-white/10"
+        }`}
+        onClick={(event) => {
+          if (isFocusMode) return;
+          const target = event.target as HTMLElement;
+          if (target.closest("button, a, input, select, textarea, label")) return;
+          setFocusedTicketId(ticket.ticketId);
+        }}
+        onKeyDown={
+          isFocusMode
+            ? undefined
+            : (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setFocusedTicketId(ticket.ticketId);
+                }
+              }
+        }
+        role={isFocusMode ? undefined : "button"}
+        tabIndex={isFocusMode ? undefined : 0}
+      >
+      <div className={isFocusMode ? "mx-auto w-full max-w-5xl" : ""}>
+      <div
+        className={`flex flex-wrap items-start justify-between gap-3 ${
+          isFocusMode ? "border-b border-white/10 pb-4" : ""
+        }`}
+      >
         <div>
           <div className="text-xs text-neutral-400">Ticket</div>
-          <div className="text-lg font-semibold text-neutral-100">
+          <div
+            className={`font-semibold text-neutral-100 ${
+              isFocusMode ? "text-2xl" : "text-lg"
+            }`}
+          >
             {ticket.ticketId}
           </div>
         </div>
-        <div className="text-xs text-neutral-400">
+        <div className={`text-xs text-neutral-400 ${isFocusMode ? "text-sm" : ""}`}>
           {ticket.ticketTime ? new Date(ticket.ticketTime).toLocaleString() : ""}
         </div>
       </div>
+      {!isFocusMode && (
+        <p className="mt-2 text-xs text-neutral-500">
+          Haz clic para ver en primer plano.
+        </p>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span className="rounded-lg border border-orange-600/30 bg-orange-600/20 px-2 py-1 text-xs text-orange-300">
@@ -275,12 +335,20 @@ export default function MisTickets() {
       </div>
 
       <div className="mt-3 text-neutral-200">
-        <p className="whitespace-pre-line text-sm text-neutral-300">
+        <p
+          className={`whitespace-pre-line text-sm text-neutral-300 ${
+            isFocusMode ? "mx-auto max-w-5xl text-base leading-relaxed" : ""
+          }`}
+        >
           {ticket.description}
         </p>
 
         {/* Mostrar quien est  atendiendo el ticket */}
-        <div className="mt-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2">
+        <div
+          className={`mt-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 ${
+            isFocusMode ? "mx-auto max-w-4xl" : ""
+          }`}
+        >
           {ticket.asignadoA ? (
             <p className="text-sm text-blue-300">
               <span className="font-semibold">Atendido por:</span> {ticket.asignadoA}
@@ -292,29 +360,45 @@ export default function MisTickets() {
           )}
         </div>
         {Array.isArray(ticket.images) && ticket.images.length > 0 && (
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-            {ticket.images.map((src, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => setImageModal({ src, index, total: ticket.images!.length })}
-                className="group relative h-28 w-full overflow-hidden rounded-md border border-white/10 transition hover:border-orange-500/50"
-              >
-                <img
-                  src={src}
-                  alt={`img-${index}`}
-                  className="h-full w-full object-cover transition group-hover:scale-105"
-                />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
-                  <span className="text-xs font-semibold text-white">Ver imagen</span>
-                </div>
-              </button>
-            ))}
+          <div className={isFocusMode ? "mx-auto max-w-4xl" : ""}>
+            <div
+              className={`mt-4 gap-3 ${
+                isFocusMode
+                  ? "grid justify-center [grid-template-columns:repeat(auto-fit,minmax(260px,420px))]"
+                  : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4"
+              }`}
+            >
+              {ticket.images.map((src, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => setImageModal({ src, index, total: ticket.images!.length })}
+                  className={`group relative w-full overflow-hidden rounded-xl border border-white/10 transition hover:border-orange-500/50 ${
+                    isFocusMode
+                      ? "h-44 max-w-[420px] bg-neutral-950/40 shadow-[0_8px_25px_rgba(0,0,0,0.4)]"
+                      : "h-28"
+                  }`}
+                >
+                  <img
+                    src={src}
+                    alt={`img-${index}`}
+                    className="h-full w-full object-cover transition group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
+                    <span className="text-xs font-semibold text-white">Ver imagen</span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
         {ticket.comment && (
-          <div className="mt-3 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2">
+          <div
+            className={`mt-3 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 ${
+              isFocusMode ? "mx-auto max-w-4xl" : ""
+            }`}
+          >
             <p className="text-sm text-neutral-900">
               <span className="font-semibold">Comentario:</span> {ticket.comment}
             </p>
@@ -335,8 +419,10 @@ export default function MisTickets() {
           />
         )}
       </div>
-    </div>
-  );
+      </div>
+      </article>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 relative overflow-hidden px-4 py-10">
@@ -458,7 +544,7 @@ export default function MisTickets() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {pendingTickets.map(renderTicketCard)}
+                  {pendingTickets.map((ticket) => renderTicketCard(ticket))}
                 </div>
               )
             ) : resolvedTickets.length === 0 ? (
@@ -467,12 +553,36 @@ export default function MisTickets() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {resolvedTickets.map(renderTicketCard)}
+                {resolvedTickets.map((ticket) => renderTicketCard(ticket))}
               </div>
             )}
           </div>
         )}
       </div>
+
+      {/* Modal de ticket en primer plano */}
+      {focusedTicket && (
+        <div
+          className="fixed inset-0 z-40 bg-black/80 p-3 md:p-5"
+          onClick={() => setFocusedTicketId(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setFocusedTicketId(null)}
+            className="absolute right-6 top-5 z-10 rounded-xl border border-white/20 bg-black/50 px-4 py-2 text-sm text-white transition hover:bg-black/70"
+          >
+            Cerrar vista
+          </button>
+          <div
+            className="h-full w-full overflow-y-auto rounded-2xl border border-white/20 bg-black/30 shadow-[0_18px_50px_rgba(0,0,0,0.55)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="px-2 py-3 md:px-4 md:py-5">
+              {renderTicketCard(focusedTicket, "focus")}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de imagen ampliada */}
       {imageModal && (

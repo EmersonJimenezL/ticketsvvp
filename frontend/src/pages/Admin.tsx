@@ -517,6 +517,7 @@ export default function Admin() {
   const [metrics, setMetrics] = useState<TicketsMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [metricsError, setMetricsError] = useState<string | null>(null);
+  const [focusedTicketId, setFocusedTicketId] = useState<string | null>(null);
   const [imageModal, setImageModal] = useState<{
     src: string;
     index: number;
@@ -827,6 +828,27 @@ export default function Admin() {
     return sortTicketsByOption(filtered, sortBy, true);
   }, [items, riskFilter, sortBy]);
 
+  const focusedTicket = useMemo(
+    () =>
+      focusedTicketId
+        ? items.find((ticket) => ticket.ticketId === focusedTicketId) || null
+        : null,
+    [focusedTicketId, items]
+  );
+
+  useEffect(() => {
+    if (!focusedTicketId) return;
+
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setFocusedTicketId(null);
+      }
+    };
+
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [focusedTicketId]);
+
   async function onPatch(
     ticket: Ticket,
     patch: Partial<Pick<Ticket, "risk" | "state">>
@@ -956,7 +978,8 @@ export default function Admin() {
     }
   }
 
-  const renderTicketCard = (ticket: Ticket) => {
+  const renderTicketCard = (ticket: Ticket, mode: "grid" | "focus" = "grid") => {
+    const isFocusMode = mode === "focus";
     const ownerDisplay = resolveOwnerDisplay(ticket);
 
     // Verificar si el usuario actual es el asignado al ticket
@@ -973,14 +996,47 @@ export default function Admin() {
     return (
       <article
         key={ticket.ticketId}
-        className={`rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.5)] ring-1 ${
+        className={`rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.5)] ring-1 ${
           RISK_RING[ticket.risk]
-        } transition hover:bg-white/10`}
+        } transition ${
+          isFocusMode
+            ? "mx-auto w-full max-w-[1450px] rounded-3xl border border-white/20 bg-neutral-900/35 p-6 ring-1 ring-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.65)] md:p-8"
+            : "cursor-pointer p-5 hover:bg-white/10"
+        }`}
+        onClick={(event) => {
+          if (isFocusMode) return;
+          const target = event.target as HTMLElement;
+          if (target.closest("button, a, input, select, textarea, label")) return;
+          setFocusedTicketId(ticket.ticketId);
+        }}
+        onKeyDown={
+          isFocusMode
+            ? undefined
+            : (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setFocusedTicketId(ticket.ticketId);
+                }
+              }
+        }
+        role={isFocusMode ? undefined : "button"}
+        tabIndex={isFocusMode ? undefined : 0}
       >
-        <header className="flex items-start justify-between gap-4">
+        <div className={isFocusMode ? "mx-auto w-full max-w-5xl" : ""}>
+        <header
+          className={`flex items-start justify-between gap-4 ${
+            isFocusMode ? "border-b border-white/10 pb-4" : ""
+          }`}
+        >
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold truncate">{ticket.title}</h3>
+              <h3
+                className={`text-lg font-semibold ${
+                  isFocusMode ? "text-xl md:text-2xl" : "truncate"
+                }`}
+              >
+                {ticket.title}
+              </h3>
               <span
                 className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                   RISK_BADGE[ticket.risk]
@@ -989,39 +1045,55 @@ export default function Admin() {
                 {ticket.risk}
               </span>
             </div>
-            <p className="mt-1 text-sm text-neutral-300">
+            <p
+              className={`mt-1 text-sm text-neutral-300 ${
+                isFocusMode ? "mx-auto max-w-5xl text-base leading-relaxed" : ""
+              }`}
+            >
               {ticket.description}
             </p>
             {Array.isArray(ticket.images) && ticket.images.length > 0 && (
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {ticket.images.map((src, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() =>
-                      setImageModal({
-                        src,
-                        index,
-                        total: ticket.images!.length,
-                      })
-                    }
-                    className="group relative h-24 w-full overflow-hidden rounded-lg border border-white/10 transition hover:border-orange-500/50"
-                  >
-                    <img
-                      src={src}
-                      alt={`img-${index}`}
-                      className="h-full w-full object-cover transition group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
-                      <span className="text-xs font-semibold text-white">
-                        Ver imagen
-                      </span>
-                    </div>
-                  </button>
-                ))}
+              <div className={isFocusMode ? "mx-auto max-w-4xl" : ""}>
+                <div
+                  className={`mt-4 gap-3 ${
+                    isFocusMode
+                      ? "grid justify-center [grid-template-columns:repeat(auto-fit,minmax(260px,420px))]"
+                      : "grid grid-cols-2 sm:grid-cols-3"
+                  }`}
+                >
+                  {ticket.images.map((src, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() =>
+                        setImageModal({
+                          src,
+                          index,
+                          total: ticket.images!.length,
+                        })
+                      }
+                      className={`group relative w-full overflow-hidden rounded-xl border border-white/10 transition hover:border-orange-500/50 ${
+                        isFocusMode
+                          ? "h-44 max-w-[420px] bg-neutral-950/40 shadow-[0_8px_25px_rgba(0,0,0,0.4)]"
+                          : "h-24"
+                      }`}
+                    >
+                      <img
+                        src={src}
+                        alt={`img-${index}`}
+                        className="h-full w-full object-cover transition group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
+                        <span className="text-xs font-semibold text-white">
+                          Ver imagen
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
-            <p className="mt-1 text-xs text-neutral-400">
+            <p className={`mt-2 text-xs text-neutral-400 ${isFocusMode ? "text-sm" : ""}`}>
               {ownerDisplay} -{" "}
               {ticket.ticketTime
                 ? new Date(ticket.ticketTime).toLocaleString()
@@ -1029,9 +1101,14 @@ export default function Admin() {
             </p>
           </div>
         </header>
+        {!isFocusMode && (
+          <p className="mt-2 text-xs text-neutral-500">
+            Haz clic para ver en primer plano.
+          </p>
+        )}
 
         {!canEditTicket && ticket.asignadoA && (
-          <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+          <div className={`mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 ${isFocusMode ? "mx-auto max-w-4xl" : ""}`}>
             <p className="text-sm text-red-300">
               <span className="font-semibold">
                 Ticket asignado a {ticket.asignadoA}
@@ -1040,7 +1117,7 @@ export default function Admin() {
           </div>
         )}
         {!ticket.asignadoA && (
-          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+          <div className={`mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 ${isFocusMode ? "mx-auto max-w-4xl" : ""}`}>
             <p className="text-sm text-amber-300">
               <span className="font-semibold">Ticket sin asignar:</span> Este
               ticket no puede editarse hasta que sea asignado a un trabajador.
@@ -1048,7 +1125,11 @@ export default function Admin() {
           </div>
         )}
 
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div
+          className={`mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 ${
+            isFocusMode ? "mx-auto max-w-4xl" : ""
+          }`}
+        >
           <label className="flex flex-col gap-1">
             <span className="text-xs text-neutral-400">Riesgo</span>
             <select
@@ -1105,7 +1186,7 @@ export default function Admin() {
         </div>
 
         {isAuthorizedUser && (
-          <div className="mt-3">
+          <div className={`mt-3 ${isFocusMode ? "mx-auto max-w-4xl" : ""}`}>
             <label className="flex flex-col gap-1">
               <span className="text-xs text-neutral-400">Asignado a</span>
               <select
@@ -1135,11 +1216,11 @@ export default function Admin() {
           </div>
         )}
 
-        <div className="mt-4">
+        <div className={`mt-4 ${isFocusMode ? "mx-auto max-w-4xl" : ""}`}>
           <label className="flex flex-col gap-1">
             <span className="text-xs text-neutral-400">Comentario</span>
             <textarea
-              rows={3}
+              rows={isFocusMode ? 5 : 3}
               value={commentDraft[ticket.ticketId] ?? ticket.comment ?? ""}
               onChange={(event) =>
                 setCommentDraft((draft) => ({
@@ -1180,6 +1261,7 @@ export default function Admin() {
               </span>
             )}
           </div>
+        </div>
         </div>
       </article>
     );
@@ -1405,7 +1487,7 @@ export default function Admin() {
                 </div>
               ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {pendingTickets.map(renderTicketCard)}
+              {pendingTickets.map((ticket) => renderTicketCard(ticket))}
             </div>
           )
         ) : resolvedTickets.length === 0 && !loading ? (
@@ -1414,7 +1496,7 @@ export default function Admin() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {resolvedTickets.map(renderTicketCard)}
+            {resolvedTickets.map((ticket) => renderTicketCard(ticket))}
           </div>
         )}
           </>
@@ -1482,7 +1564,9 @@ export default function Admin() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {myAssignedPendingTickets.map(renderTicketCard)}
+                  {myAssignedPendingTickets.map((ticket) =>
+                    renderTicketCard(ticket)
+                  )}
                 </div>
               )
             ) : myAssignedResolved.length === 0 ? (
@@ -1491,7 +1575,7 @@ export default function Admin() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {myAssignedResolved.map(renderTicketCard)}
+                {myAssignedResolved.map((ticket) => renderTicketCard(ticket))}
               </div>
             )}
           </>
@@ -1567,7 +1651,7 @@ export default function Admin() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {allTicketsPending.map(renderTicketCard)}
+                  {allTicketsPending.map((ticket) => renderTicketCard(ticket))}
                 </div>
               )
             ) : allTicketsResolved.length === 0 ? (
@@ -1576,7 +1660,7 @@ export default function Admin() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {allTicketsResolved.map(renderTicketCard)}
+                {allTicketsResolved.map((ticket) => renderTicketCard(ticket))}
               </div>
             )}
           </>
@@ -1656,6 +1740,30 @@ export default function Admin() {
           </>
         )}
       </div>
+
+      {/* Modal de ticket en primer plano */}
+      {focusedTicket && (
+        <div
+          className="fixed inset-0 z-40 bg-black/80 p-3 md:p-5"
+          onClick={() => setFocusedTicketId(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setFocusedTicketId(null)}
+            className="absolute right-6 top-5 z-10 rounded-xl border border-white/20 bg-black/50 px-4 py-2 text-sm text-white transition hover:bg-black/70"
+          >
+            Cerrar vista
+          </button>
+          <div
+            className="h-full w-full overflow-y-auto rounded-2xl border border-white/20 bg-black/30 shadow-[0_18px_50px_rgba(0,0,0,0.55)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="px-2 py-3 md:px-4 md:py-5">
+              {renderTicketCard(focusedTicket, "focus")}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de imagen ampliada */}
       {imageModal && (
