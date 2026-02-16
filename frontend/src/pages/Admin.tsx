@@ -64,6 +64,61 @@ const SORT_LABEL: Record<SortOption, string> = {
   createdDesc: "Creacion (reciente -> antiguo)",
   resolvedDesc: "Resuelto (reciente -> antiguo)",
 };
+const MAX_RESPONSE_IMAGES = 5;
+
+async function compressImageToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("El archivo seleccionado no es una imagen."));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const image = new Image();
+      image.onload = () => {
+        const sizeMb = file.size / (1024 * 1024);
+        let maxDimension = 1600;
+        let quality = 0.82;
+        if (sizeMb > 5) {
+          maxDimension = 1024;
+          quality = 0.62;
+        } else if (sizeMb > 2) {
+          maxDimension = 1280;
+          quality = 0.7;
+        }
+
+        let width = image.width;
+        let height = image.height;
+        if (width > height) {
+          if (width > maxDimension) {
+            height = (height * maxDimension) / width;
+            width = maxDimension;
+          }
+        } else if (height > maxDimension) {
+          width = (width * maxDimension) / height;
+          height = maxDimension;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        if (!context) {
+          reject(new Error("No se pudo procesar la imagen seleccionada."));
+          return;
+        }
+
+        context.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      image.onerror = () => reject(new Error("No se pudo cargar la imagen seleccionada."));
+      image.src = event.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("No se pudo leer la imagen seleccionada."));
+    reader.readAsDataURL(file);
+  });
+}
 
 function getTicketDateValue(ticket: Ticket) {
   return new Date(ticket.ticketTime || ticket.createdAt || 0).getTime();
@@ -503,6 +558,12 @@ export default function Admin() {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
+  const [responseImagesDraft, setResponseImagesDraft] = useState<
+    Record<string, string[]>
+  >({});
+  const [compressingResponseImages, setCompressingResponseImages] = useState<
+    Record<string, boolean>
+  >({});
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("todos");
   const [sortBy, setSortBy] = useState<SortOption>("createdAsc");
   const [unassignedView, setUnassignedView] = useState<
@@ -849,6 +910,74 @@ export default function Admin() {
     return () => window.removeEventListener("keydown", onEscape);
   }, [focusedTicketId]);
 
+  const getResponseImagesDraft = useCallback(
+    (ticket: Ticket) => {
+      if (Object.prototype.hasOwnProperty.call(responseImagesDraft, ticket.ticketId)) {
+        return responseImagesDraft[ticket.ticketId] ?? [];
+      }
+      return Array.isArray(ticket.imagesRespuesta) ? ticket.imagesRespuesta : [];
+    },
+    [responseImagesDraft]
+  );
+
+  async function onResponseImagesSelected(ticket: Ticket, files: FileList | null) {
+    if (!files?.length) return;
+
+    const currentImages = getResponseImagesDraft(ticket);
+    const remainingSlots = MAX_RESPONSE_IMAGES - currentImages.length;
+    if (remainingSlots <= 0) {
+      setError(
+        `Solo puedes adjuntar hasta ${MAX_RESPONSE_IMAGES} imagenes en la respuesta TI.`
+      );
+      return;
+    }
+
+    const selectedFiles = Array.from(files).slice(0, remainingSlots);
+    setCompressingResponseImages((state) => ({ ...state, [ticket.ticketId]: true }));
+    setError(null);
+
+    try {
+      const compressed = await Promise.all(
+        selectedFiles.map(async (file) => {
+          try {
+            return await compressImageToDataUrl(file);
+          } catch (err) {
+            console.error("No se pudo comprimir imagen de respuesta:", err);
+            return "";
+          }
+        })
+      );
+
+      const validImages = compressed.filter(Boolean);
+      if (validImages.length) {
+        setResponseImagesDraft((state) => ({
+          ...state,
+          [ticket.ticketId]: [...currentImages, ...validImages],
+        }));
+      }
+      if (validImages.length < selectedFiles.length) {
+        setError(
+          `${selectedFiles.length - validImages.length} imagen(es) de respuesta no pudieron procesarse.`
+        );
+      }
+    } catch {
+      setError("No se pudieron procesar las imagenes de respuesta.");
+    } finally {
+      setCompressingResponseImages((state) => ({
+        ...state,
+        [ticket.ticketId]: false,
+      }));
+    }
+  }
+
+  function onRemoveResponseImage(ticket: Ticket, imageIndex: number) {
+    const currentImages = getResponseImagesDraft(ticket);
+    setResponseImagesDraft((state) => ({
+      ...state,
+      [ticket.ticketId]: currentImages.filter((_, index) => index !== imageIndex),
+    }));
+  }
+
   async function onPatch(
     ticket: Ticket,
     patch: Partial<Pick<Ticket, "risk" | "state">>
@@ -898,29 +1027,42 @@ export default function Admin() {
 
   async function onSaveComment(ticket: Ticket) {
     const draft = commentDraft[ticket.ticketId] ?? ticket.comment ?? "";
+    const draftImages = getResponseImagesDraft(ticket);
     setSaving((state) => ({ ...state, [ticket.ticketId]: true }));
     setError(null);
     const previousComment = ticket.comment ?? "";
+    const previousResponseImages = Array.isArray(ticket.imagesRespuesta)
+      ? ticket.imagesRespuesta
+      : [];
 
     try {
       setItems((list) =>
         list.map((item) =>
-          item.ticketId === ticket.ticketId ? { ...item, comment: draft } : item
+          item.ticketId === ticket.ticketId
+            ? { ...item, comment: draft, imagesRespuesta: draftImages }
+            : item
         )
       );
-      const response = await patchTicket(ticket.ticketId, { comment: draft });
+      const response = await patchTicket(ticket.ticketId, {
+        comment: draft,
+        imagesRespuesta: draftImages,
+      });
       if (!response.ok) {
-        throw new Error(response.error || "No se pudo guardar el comentario.");
+        throw new Error(response.error || "No se pudo guardar la respuesta TI.");
       }
     } catch (err: any) {
       setItems((list) =>
         list.map((item) =>
           item.ticketId === ticket.ticketId
-            ? { ...item, comment: previousComment }
+            ? {
+                ...item,
+                comment: previousComment,
+                imagesRespuesta: previousResponseImages,
+              }
             : item
         )
       );
-      setError(err?.message || "Error guardando comentario.");
+      setError(err?.message || "Error guardando la respuesta TI.");
     } finally {
       setSaving((state) => ({ ...state, [ticket.ticketId]: false }));
     }
@@ -992,6 +1134,11 @@ export default function Admin() {
 
     // Un ticket puede editarse solo si está asignado al usuario actual
     const canEditTicket = ticket.asignadoA && isAssignedToCurrentUser;
+    const requestImages = Array.isArray(ticket.images) ? ticket.images : [];
+    const responseImages = getResponseImagesDraft(ticket);
+    const responseComment = commentDraft[ticket.ticketId] ?? ticket.comment ?? "";
+    const hasResponseContent =
+      Boolean(responseComment.trim()) || responseImages.length > 0;
 
     return (
       <article
@@ -1050,55 +1197,137 @@ export default function Admin() {
                 isFocusMode ? "mx-auto max-w-5xl text-base leading-relaxed" : ""
               }`}
             >
-              {ticket.description}
+              ID: {ticket.ticketId}
             </p>
-            {Array.isArray(ticket.images) && ticket.images.length > 0 && (
-              <div className={isFocusMode ? "mx-auto max-w-4xl" : ""}>
-                <div
-                  className={`mt-4 gap-3 ${
-                    isFocusMode
-                      ? "grid justify-center [grid-template-columns:repeat(auto-fit,minmax(260px,420px))]"
-                      : "grid grid-cols-2 sm:grid-cols-3"
-                  }`}
-                >
-                  {ticket.images.map((src, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() =>
-                        setImageModal({
-                          src,
-                          index,
-                          total: ticket.images!.length,
-                        })
-                      }
-                      className={`group relative w-full overflow-hidden rounded-xl border border-white/10 transition hover:border-orange-500/50 ${
-                        isFocusMode
-                          ? "h-44 max-w-[420px] bg-neutral-950/40 shadow-[0_8px_25px_rgba(0,0,0,0.4)]"
-                          : "h-24"
-                      }`}
-                    >
-                      <img
-                        src={src}
-                        alt={`img-${index}`}
-                        className="h-full w-full object-cover transition group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
-                        <span className="text-xs font-semibold text-white">
-                          Ver imagen
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <p className={`mt-2 text-xs text-neutral-400 ${isFocusMode ? "text-sm" : ""}`}>
+            <p
+              className={`mt-1 text-xs text-neutral-400 ${
+                isFocusMode ? "text-sm" : ""
+              }`}
+            >
               {ownerDisplay} -{" "}
               {ticket.ticketTime
                 ? new Date(ticket.ticketTime).toLocaleString()
                 : "sin fecha"}
             </p>
+
+            <div
+              className={`mt-4 grid grid-cols-1 gap-3 ${
+                isFocusMode ? "mx-auto max-w-5xl lg:grid-cols-2" : ""
+              }`}
+            >
+              <section className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-sky-800">
+                  Solicitud del usuario
+                </p>
+                <p className="mt-2 whitespace-pre-line text-sm text-neutral-200">
+                  {ticket.description}
+                </p>
+                {requestImages.length > 0 ? (
+                  <div
+                    className={`mt-3 gap-3 ${
+                      isFocusMode
+                        ? "grid [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]"
+                        : "grid grid-cols-2 sm:grid-cols-3"
+                    }`}
+                  >
+                    {requestImages.map((src, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() =>
+                          setImageModal({
+                            src,
+                            index,
+                            total: requestImages.length,
+                          })
+                        }
+                        className={`group relative w-full overflow-hidden rounded-xl border border-white/10 transition hover:border-sky-400/60 ${
+                          isFocusMode
+                            ? "h-40 bg-neutral-950/40 shadow-[0_8px_25px_rgba(0,0,0,0.4)]"
+                            : "h-24"
+                        }`}
+                      >
+                        <img
+                          src={src}
+                          alt={`ticket-${index}`}
+                          className="h-full w-full object-cover transition group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
+                          <span className="text-xs font-semibold text-white">
+                            Ver imagen
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-sky-100/80">Sin imagenes adjuntas.</p>
+                )}
+              </section>
+
+              <section className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-orange-200">
+                  Respuesta TI
+                </p>
+                {hasResponseContent ? (
+                  <>
+                    {responseComment.trim() ? (
+                      <p className="mt-2 whitespace-pre-line text-sm text-neutral-200">
+                        {responseComment}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-neutral-400">
+                        Sin comentario de respuesta.
+                      </p>
+                    )}
+
+                    {responseImages.length > 0 && (
+                      <div
+                        className={`mt-3 gap-3 ${
+                          isFocusMode
+                            ? "grid [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]"
+                            : "grid grid-cols-2 sm:grid-cols-3"
+                        }`}
+                      >
+                        {responseImages.map((src, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() =>
+                              setImageModal({
+                                src,
+                                index,
+                                total: responseImages.length,
+                              })
+                            }
+                            className={`group relative w-full overflow-hidden rounded-xl border border-white/10 transition hover:border-orange-400/60 ${
+                              isFocusMode
+                                ? "h-40 bg-neutral-950/40 shadow-[0_8px_25px_rgba(0,0,0,0.4)]"
+                                : "h-24"
+                            }`}
+                          >
+                            <img
+                              src={src}
+                              alt={`respuesta-${index}`}
+                              className="h-full w-full object-cover transition group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
+                              <span className="text-xs font-semibold text-white">
+                                Ver imagen
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="mt-2 text-sm text-neutral-400">
+                    Aun no hay respuesta de TI en este ticket.
+                  </p>
+                )}
+              </section>
+            </div>
           </div>
         </header>
         {!isFocusMode && (
@@ -1216,12 +1445,19 @@ export default function Admin() {
           </div>
         )}
 
-        <div className={`mt-4 ${isFocusMode ? "mx-auto max-w-4xl" : ""}`}>
+        <div
+          className={`mt-4 rounded-xl border border-white/10 bg-black/20 p-3 ${
+            isFocusMode ? "mx-auto max-w-4xl" : ""
+          }`}
+        >
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-orange-200">
+            Editor de respuesta TI
+          </p>
           <label className="flex flex-col gap-1">
-            <span className="text-xs text-neutral-400">Comentario</span>
+            <span className="text-xs text-neutral-400">Comentario de respuesta</span>
             <textarea
               rows={isFocusMode ? 5 : 3}
-              value={commentDraft[ticket.ticketId] ?? ticket.comment ?? ""}
+              value={responseComment}
               onChange={(event) =>
                 setCommentDraft((draft) => ({
                   ...draft,
@@ -1239,21 +1475,102 @@ export default function Admin() {
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
             />
           </label>
-          <div className="mt-2 flex items-center gap-3">
+
+          <div className="mt-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-neutral-400">Imagenes de respuesta</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                disabled={!canEditTicket || compressingResponseImages[ticket.ticketId]}
+                onChange={(event) => {
+                  void onResponseImagesSelected(ticket, event.target.files);
+                  event.currentTarget.value = "";
+                }}
+                className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
+                title={
+                  !canEditTicket
+                    ? ticket.asignadoA
+                      ? "Solo el usuario asignado puede agregar imagenes"
+                      : "El ticket debe estar asignado para agregar imagenes"
+                    : ""
+                }
+              />
+            </label>
+            <p className="mt-1 text-xs text-neutral-400">
+              Maximo {MAX_RESPONSE_IMAGES} imagenes en la respuesta TI.
+            </p>
+            {compressingResponseImages[ticket.ticketId] && (
+              <p className="mt-2 text-xs text-orange-300">
+                Procesando imagenes de respuesta...
+              </p>
+            )}
+            {responseImages.length > 0 && (
+              <div
+                className={`mt-3 gap-3 ${
+                  isFocusMode
+                    ? "grid [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]"
+                    : "grid grid-cols-2 sm:grid-cols-3"
+                }`}
+              >
+                {responseImages.map((src, index) => (
+                  <div
+                    key={index}
+                    className="group relative h-24 overflow-hidden rounded-xl border border-white/10"
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setImageModal({
+                          src,
+                          index,
+                          total: responseImages.length,
+                        })
+                      }
+                      className="h-full w-full"
+                    >
+                      <img
+                        src={src}
+                        alt={`respuesta-draft-${index}`}
+                        className="h-full w-full object-cover transition group-hover:scale-105"
+                      />
+                    </button>
+                    {canEditTicket && (
+                      <button
+                        type="button"
+                        onClick={() => onRemoveResponseImage(ticket, index)}
+                        className="absolute right-1 top-1 rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white transition hover:bg-red-500"
+                        title="Quitar imagen de respuesta"
+                      >
+                        x
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-3 flex items-center gap-3">
             <button
               type="button"
               onClick={() => onSaveComment(ticket)}
-              disabled={saving[ticket.ticketId] || !canEditTicket}
+              disabled={
+                saving[ticket.ticketId] ||
+                !canEditTicket ||
+                compressingResponseImages[ticket.ticketId]
+              }
               className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold transition hover:bg-orange-500 disabled:opacity-60"
               title={
                 !canEditTicket
                   ? ticket.asignadoA
-                    ? "Solo el usuario asignado puede agregar comentarios"
-                    : "El ticket debe estar asignado para poder agregar comentarios"
+                    ? "Solo el usuario asignado puede guardar la respuesta"
+                    : "El ticket debe estar asignado para guardar la respuesta"
                   : ""
               }
             >
-              {saving[ticket.ticketId] ? "Guardando..." : "Guardar comentario"}
+              {saving[ticket.ticketId] ? "Guardando..." : "Guardar respuesta TI"}
             </button>
             {ticket.resolucionTime && (
               <span className="text-xs text-neutral-400">

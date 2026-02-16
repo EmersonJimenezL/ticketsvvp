@@ -264,6 +264,12 @@ export default function MisTickets() {
 
   const renderTicketCard = (ticket: Ticket, mode: "grid" | "focus" = "grid") => {
     const isFocusMode = mode === "focus";
+    const requestImages = Array.isArray(ticket.images) ? ticket.images : [];
+    const responseImages = Array.isArray(ticket.imagesRespuesta)
+      ? ticket.imagesRespuesta
+      : [];
+    const hasResponseContent =
+      Boolean((ticket.comment || "").trim()) || responseImages.length > 0;
 
     return (
       <article
@@ -335,14 +341,6 @@ export default function MisTickets() {
       </div>
 
       <div className="mt-3 text-neutral-200">
-        <p
-          className={`whitespace-pre-line text-sm text-neutral-300 ${
-            isFocusMode ? "mx-auto max-w-5xl text-base leading-relaxed" : ""
-          }`}
-        >
-          {ticket.description}
-        </p>
-
         {/* Mostrar quien est  atendiendo el ticket */}
         <div
           className={`mt-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 ${
@@ -359,51 +357,112 @@ export default function MisTickets() {
             </p>
           )}
         </div>
-        {Array.isArray(ticket.images) && ticket.images.length > 0 && (
-          <div className={isFocusMode ? "mx-auto max-w-4xl" : ""}>
-            <div
-              className={`mt-4 gap-3 ${
-                isFocusMode
-                  ? "grid justify-center [grid-template-columns:repeat(auto-fit,minmax(260px,420px))]"
-                  : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4"
-              }`}
-            >
-              {ticket.images.map((src, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => setImageModal({ src, index, total: ticket.images!.length })}
-                  className={`group relative w-full overflow-hidden rounded-xl border border-white/10 transition hover:border-orange-500/50 ${
-                    isFocusMode
-                      ? "h-44 max-w-[420px] bg-neutral-950/40 shadow-[0_8px_25px_rgba(0,0,0,0.4)]"
-                      : "h-28"
-                  }`}
-                >
-                  <img
-                    src={src}
-                    alt={`img-${index}`}
-                    className="h-full w-full object-cover transition group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
-                    <span className="text-xs font-semibold text-white">Ver imagen</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {ticket.comment && (
-          <div
-            className={`mt-3 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 ${
-              isFocusMode ? "mx-auto max-w-4xl" : ""
-            }`}
-          >
-            <p className="text-sm text-neutral-900">
-              <span className="font-semibold">Comentario:</span> {ticket.comment}
+        <div
+          className={`mt-4 grid grid-cols-1 gap-3 ${
+            isFocusMode ? "mx-auto max-w-5xl lg:grid-cols-2" : ""
+          }`}
+        >
+          <section className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-sky-800">
+              Solicitud del usuario
             </p>
-          </div>
-        )}
+            <p className="mt-2 whitespace-pre-line text-sm text-neutral-200">
+              {ticket.description}
+            </p>
+            {requestImages.length > 0 ? (
+              <div
+                className={`mt-3 gap-3 ${
+                  isFocusMode
+                    ? "grid [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]"
+                    : "grid grid-cols-2 sm:grid-cols-3"
+                }`}
+              >
+                {requestImages.map((src, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() =>
+                      setImageModal({ src, index, total: requestImages.length })
+                    }
+                    className={`group relative w-full overflow-hidden rounded-xl border border-white/10 transition hover:border-sky-400/60 ${
+                      isFocusMode
+                        ? "h-40 bg-neutral-950/40 shadow-[0_8px_25px_rgba(0,0,0,0.4)]"
+                        : "h-28"
+                    }`}
+                  >
+                    <img
+                      src={src}
+                      alt={`ticket-${index}`}
+                      className="h-full w-full object-cover transition group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
+                      <span className="text-xs font-semibold text-white">Ver imagen</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-sky-100/80">Sin imagenes adjuntas.</p>
+            )}
+          </section>
+
+          <section className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-orange-200">
+              Respuesta TI
+            </p>
+            {hasResponseContent ? (
+              <>
+                {ticket.comment?.trim() ? (
+                  <p className="mt-2 whitespace-pre-line text-sm text-neutral-200">
+                    {ticket.comment}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-neutral-400">
+                    Sin comentario de respuesta.
+                  </p>
+                )}
+
+                {responseImages.length > 0 && (
+                  <div
+                    className={`mt-3 gap-3 ${
+                      isFocusMode
+                        ? "grid [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]"
+                        : "grid grid-cols-2 sm:grid-cols-3"
+                    }`}
+                  >
+                    {responseImages.map((src, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() =>
+                          setImageModal({ src, index, total: responseImages.length })
+                        }
+                        className={`group relative w-full overflow-hidden rounded-xl border border-white/10 transition hover:border-orange-400/60 ${
+                          isFocusMode
+                            ? "h-40 bg-neutral-950/40 shadow-[0_8px_25px_rgba(0,0,0,0.4)]"
+                            : "h-28"
+                        }`}
+                      >
+                        <img
+                          src={src}
+                          alt={`respuesta-${index}`}
+                          className="h-full w-full object-cover transition group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
+                          <span className="text-xs font-semibold text-white">Ver imagen</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="mt-2 text-sm text-neutral-400">
+                Aun no hay respuesta de TI en este ticket.
+              </p>
+            )}
+          </section>
+        </div>
         {ticket.resolucionTime && (
           <p className="mt-1 text-xs text-neutral-400">
             Resuelto: {new Date(ticket.resolucionTime).toLocaleString()}

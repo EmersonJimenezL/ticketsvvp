@@ -21,6 +21,7 @@ export type Ticket = {
   resolucionTime?: string;
   comment?: string;
   images?: string[]; // data URLs de imagenes opcionales
+  imagesRespuesta?: string[]; // data URLs de imagenes agregadas por TI
   createdAt?: string;
   updatedAt?: string;
   asignadoA?: string; // Nombre completo de quien está asignado el ticket
@@ -100,7 +101,7 @@ export function fetchTicketsMetrics() {
 
 export function patchTicket(
   ticketId: string,
-  payload: Partial<Pick<Ticket, "risk" | "state" | "comment">>
+  payload: Partial<Pick<Ticket, "risk" | "state" | "comment" | "imagesRespuesta">>
 ) {
   return httpJSON<TicketResponse>("tickets", `/api/ticketvvp/${ticketId}`, {
     method: "PATCH",
