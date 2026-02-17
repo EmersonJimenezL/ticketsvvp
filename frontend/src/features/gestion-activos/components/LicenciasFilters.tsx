@@ -24,16 +24,16 @@ export function LicenciasFilters({
   };
 
   return (
-    <div className="flex items-center gap-3 flex-wrap">
+    <div className="flex flex-wrap items-start gap-3">
       <input
-        className="rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 min-w-[200px]"
+        className="w-full rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:min-w-[200px] sm:w-auto"
         value={values.busqueda}
         onChange={(event) => handleChange({ busqueda: event.target.value })}
         placeholder="Buscar cuenta o asignado a..."
       />
 
       <select
-        className="rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+        className="w-full rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:w-auto"
         value={values.proveedor}
         onChange={(event) =>
           handleChange({ proveedor: event.target.value, tipoLicencia: "" })
@@ -48,7 +48,7 @@ export function LicenciasFilters({
       </select>
 
       <select
-        className="rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+        className="w-full rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:w-auto"
         value={values.tipoLicencia}
         onChange={(event) => handleChange({ tipoLicencia: event.target.value })}
       >
@@ -61,7 +61,7 @@ export function LicenciasFilters({
       </select>
 
       <select
-        className="rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+        className="w-full rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:w-auto"
         value={values.sucursal}
         onChange={(event) =>
           handleChange({ sucursal: event.target.value as "" | Sucursal })
@@ -75,7 +75,7 @@ export function LicenciasFilters({
         ))}
       </select>
 
-      <label className="inline-flex items-center gap-2 text-sm text-neutral-300">
+      <label className="inline-flex w-full items-center gap-2 text-sm text-neutral-300 sm:w-auto">
         <input
           type="checkbox"
           checked={values.soloDisponibles}
@@ -89,7 +89,7 @@ export function LicenciasFilters({
 
       <button
         onClick={onReset}
-        className="ml-auto rounded-lg border border-white/10 px-3 py-1.5 text-sm hover:bg-white/10 transition"
+        className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-sm transition hover:bg-white/10 sm:ml-auto sm:w-auto"
         disabled={disabled}
       >
         Limpiar

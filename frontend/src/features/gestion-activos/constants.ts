@@ -1,4 +1,5 @@
 const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:3000";
+
 export const API_BASE = `${BASE_URL}/api`;
 export const CENTRO_APLICACIONES_URL =
   import.meta.env.VITE_CENTRO_APLICACIONES ||
@@ -54,4 +55,7 @@ export const OPCIONES_CENTRO_COSTO = [
   "Logistica",
 ] as const;
 
+export type CategoriaActivo = (typeof OPCIONES_CATEGORIA)[number];
+export type ProveedorLicencia = (typeof OPCIONES_PROVEEDOR)[number];
 export type Sucursal = (typeof OPCIONES_SUCURSAL)[number];
+export type CentroCosto = (typeof OPCIONES_CENTRO_COSTO)[number];

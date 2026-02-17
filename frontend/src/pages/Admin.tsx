@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Area,
@@ -12,6 +12,7 @@ import {
 import {
   fetchTicketsMetrics,
   listTickets,
+  listTicketsPaginated,
   patchTicket,
   assignTicket,
   type Ticket,
@@ -21,12 +22,8 @@ import { sendTicketEmail } from "../services/email";
 import { useAuth } from "../auth/AuthContext";
 import AppHeader from "../components/AppHeader";
 import { useCentroUsuarios } from "../features/gestion-activos/hooks/useCentroUsuarios";
+import { Pagination } from "../features/gestion-activos/components/Pagination";
 
-const RISK_ORDER: Record<Ticket["risk"], number> = {
-  alto: 3,
-  medio: 2,
-  bajo: 1,
-};
 const RISK_BADGE: Record<Ticket["risk"], string> = {
   alto: "bg-red-500/15 text-red-300 ring-1 ring-red-500/30",
   medio: "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30",
@@ -65,6 +62,22 @@ const SORT_LABEL: Record<SortOption, string> = {
   resolvedDesc: "Resuelto (reciente -> antiguo)",
 };
 const MAX_RESPONSE_IMAGES = 5;
+const PAGE_SIZE = 12;
+
+function mapSortOptionToBackend(sortBy: SortOption) {
+  switch (sortBy) {
+    case "risk":
+      return "risk";
+    case "createdAsc":
+      return "createdAsc";
+    case "createdDesc":
+      return "createdDesc";
+    case "resolvedDesc":
+      return "resolvedDesc";
+    default:
+      return "createdAsc";
+  }
+}
 
 async function compressImageToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -118,48 +131,6 @@ async function compressImageToDataUrl(file: File): Promise<string> {
     reader.onerror = () => reject(new Error("No se pudo leer la imagen seleccionada."));
     reader.readAsDataURL(file);
   });
-}
-
-function getTicketDateValue(ticket: Ticket) {
-  return new Date(ticket.ticketTime || ticket.createdAt || 0).getTime();
-}
-
-function getResolvedDateValue(ticket: Ticket) {
-  return new Date(
-    ticket.resolucionTime ||
-      ticket.updatedAt ||
-      ticket.ticketTime ||
-      ticket.createdAt ||
-      0
-  ).getTime();
-}
-
-function sortTicketsByOption(
-  list: Ticket[],
-  sortBy: SortOption,
-  useResolvedDate: boolean
-) {
-  const sorted = [...list];
-  const dateValue = (ticket: Ticket) =>
-    useResolvedDate ? getResolvedDateValue(ticket) : getTicketDateValue(ticket);
-
-  switch (sortBy) {
-    case "createdAsc":
-      sorted.sort((a, b) => getTicketDateValue(a) - getTicketDateValue(b));
-      break;
-    case "createdDesc":
-      sorted.sort((a, b) => getTicketDateValue(b) - getTicketDateValue(a));
-      break;
-    case "resolvedDesc":
-      sorted.sort((a, b) => dateValue(b) - dateValue(a));
-      break;
-    default:
-      sorted.sort(
-        (a, b) => RISK_ORDER[b.risk] - RISK_ORDER[a.risk] || dateValue(a) - dateValue(b)
-      );
-      break;
-  }
-  return sorted;
 }
 
 function normalizeString(str: string): string {
@@ -575,6 +546,28 @@ export default function Admin() {
   const [allView, setAllView] = useState<"pendientes" | "resueltos">(
     "pendientes"
   );
+  const [unassignedPage, setUnassignedPage] = useState(1);
+  const [myAssignedPage, setMyAssignedPage] = useState(1);
+  const [allPage, setAllPage] = useState(1);
+  const [unassignedPageItems, setUnassignedPageItems] = useState<Ticket[]>([]);
+  const [myAssignedPageItems, setMyAssignedPageItems] = useState<Ticket[]>([]);
+  const [allPageItems, setAllPageItems] = useState<Ticket[]>([]);
+  const [unassignedTotalCount, setUnassignedTotalCount] = useState(0);
+  const [myAssignedTotalCount, setMyAssignedTotalCount] = useState(0);
+  const [allTotalCount, setAllTotalCount] = useState(0);
+  const [unassignedListLoading, setUnassignedListLoading] = useState(false);
+  const [myAssignedListLoading, setMyAssignedListLoading] = useState(false);
+  const [allListLoading, setAllListLoading] = useState(false);
+  const [unassignedPendingCountServer, setUnassignedPendingCountServer] =
+    useState(0);
+  const [unassignedResolvedCountServer, setUnassignedResolvedCountServer] =
+    useState(0);
+  const [myAssignedPendingCountServer, setMyAssignedPendingCountServer] =
+    useState(0);
+  const [myAssignedResolvedCountServer, setMyAssignedResolvedCountServer] =
+    useState(0);
+  const [allPendingCountServer, setAllPendingCountServer] = useState(0);
+  const [allResolvedCountServer, setAllResolvedCountServer] = useState(0);
   const [metrics, setMetrics] = useState<TicketsMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [metricsError, setMetricsError] = useState<string | null>(null);
@@ -584,10 +577,46 @@ export default function Admin() {
     index: number;
     total: number;
   } | null>(null);
+  const ticketsStartRef = useRef<HTMLDivElement | null>(null);
   const { usuarios: centroUsuarios } = useCentroUsuarios();
 
   const { user } = useAuth();
   const navigate = useNavigate();
+  const assignedUserFullName = useMemo(
+    () => `${user?.pnombre || ""} ${user?.papellido || ""}`.trim(),
+    [user?.pnombre, user?.papellido]
+  );
+
+  const scrollToTicketsStart = useCallback(() => {
+    const target = ticketsStartRef.current;
+    if (!target) return;
+    const top = target.getBoundingClientRect().top + window.scrollY - 96;
+    window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+  }, []);
+
+  const handleUnassignedPageChange = useCallback(
+    (page: number) => {
+      setUnassignedPage(page);
+      requestAnimationFrame(scrollToTicketsStart);
+    },
+    [scrollToTicketsStart]
+  );
+
+  const handleMyAssignedPageChange = useCallback(
+    (page: number) => {
+      setMyAssignedPage(page);
+      requestAnimationFrame(scrollToTicketsStart);
+    },
+    [scrollToTicketsStart]
+  );
+
+  const handleAllPageChange = useCallback(
+    (page: number) => {
+      setAllPage(page);
+      requestAnimationFrame(scrollToTicketsStart);
+    },
+    [scrollToTicketsStart]
+  );
 
   // Permisos de asignación
   const canAssignTickets =
@@ -739,6 +768,172 @@ export default function Admin() {
     }
   }, []);
 
+  const fetchPagedCount = useCallback(
+    async (params: Parameters<typeof listTicketsPaginated>[0]) => {
+      const response = await listTicketsPaginated({
+        ...params,
+        limit: 1,
+        skip: 0,
+      });
+      if (!response.ok) {
+        throw new Error(response.error || "No se pudieron obtener conteos.");
+      }
+      return response.count ?? 0;
+    },
+    []
+  );
+
+  const refreshServerCounts = useCallback(async () => {
+    try {
+      const [unassignedPending, unassignedResolved, allPending, allResolved] =
+        await Promise.all([
+          fetchPagedCount({ unassigned: true, excludeState: "resuelto" }),
+          fetchPagedCount({ unassigned: true, state: "resuelto" }),
+          fetchPagedCount({ excludeState: "resuelto" }),
+          fetchPagedCount({ state: "resuelto" }),
+        ]);
+
+      setUnassignedPendingCountServer(unassignedPending);
+      setUnassignedResolvedCountServer(unassignedResolved);
+      setAllPendingCountServer(allPending);
+      setAllResolvedCountServer(allResolved);
+
+      if (!assignedUserFullName) {
+        setMyAssignedPendingCountServer(0);
+        setMyAssignedResolvedCountServer(0);
+        return;
+      }
+
+      const [myPending, myResolved] = await Promise.all([
+        fetchPagedCount({
+          asignadoA: assignedUserFullName,
+          excludeState: "resuelto",
+        }),
+        fetchPagedCount({
+          asignadoA: assignedUserFullName,
+          state: "resuelto",
+        }),
+      ]);
+
+      setMyAssignedPendingCountServer(myPending);
+      setMyAssignedResolvedCountServer(myResolved);
+    } catch (err: any) {
+      setError(err?.message || "No se pudieron obtener conteos de tickets.");
+    }
+  }, [assignedUserFullName, fetchPagedCount]);
+
+  const fetchUnassignedPage = useCallback(async () => {
+    try {
+      setUnassignedListLoading(true);
+      const params: Parameters<typeof listTicketsPaginated>[0] = {
+        unassigned: true,
+        sortBy: mapSortOptionToBackend(sortBy),
+        limit: PAGE_SIZE,
+        skip: (unassignedPage - 1) * PAGE_SIZE,
+      };
+
+      if (riskFilter !== "todos") {
+        params.risk = riskFilter;
+      }
+      if (unassignedView === "resueltos") {
+        params.state = "resuelto";
+      } else {
+        params.excludeState = "resuelto";
+      }
+
+      const response = await listTicketsPaginated(params);
+      if (!response.ok) {
+        throw new Error(response.error || "No se pudieron cargar tickets.");
+      }
+      setUnassignedPageItems(Array.isArray(response.data) ? response.data : []);
+      setUnassignedTotalCount(response.count ?? 0);
+    } catch (err: any) {
+      setError(err?.message || "Error al paginar tickets sin asignar.");
+    } finally {
+      setUnassignedListLoading(false);
+    }
+  }, [riskFilter, sortBy, unassignedPage, unassignedView]);
+
+  const fetchMyAssignedPage = useCallback(async () => {
+    if (!assignedUserFullName) {
+      setMyAssignedPageItems([]);
+      setMyAssignedTotalCount(0);
+      return;
+    }
+
+    try {
+      setMyAssignedListLoading(true);
+      const params: Parameters<typeof listTicketsPaginated>[0] = {
+        asignadoA: assignedUserFullName,
+        sortBy: mapSortOptionToBackend(sortBy),
+        limit: PAGE_SIZE,
+        skip: (myAssignedPage - 1) * PAGE_SIZE,
+      };
+
+      if (myAssignedView === "resueltos") {
+        params.state = "resuelto";
+      } else {
+        params.excludeState = "resuelto";
+      }
+
+      const response = await listTicketsPaginated(params);
+      if (!response.ok) {
+        throw new Error(response.error || "No se pudieron cargar tickets.");
+      }
+      setMyAssignedPageItems(Array.isArray(response.data) ? response.data : []);
+      setMyAssignedTotalCount(response.count ?? 0);
+    } catch (err: any) {
+      setError(err?.message || "Error al paginar mis tickets asignados.");
+    } finally {
+      setMyAssignedListLoading(false);
+    }
+  }, [assignedUserFullName, myAssignedPage, myAssignedView, sortBy]);
+
+  const fetchAllPage = useCallback(async () => {
+    try {
+      setAllListLoading(true);
+      const params: Parameters<typeof listTicketsPaginated>[0] = {
+        sortBy: mapSortOptionToBackend(sortBy),
+        limit: PAGE_SIZE,
+        skip: (allPage - 1) * PAGE_SIZE,
+      };
+
+      if (riskFilter !== "todos") {
+        params.risk = riskFilter;
+      }
+      if (allView === "resueltos") {
+        params.state = "resuelto";
+      } else {
+        params.excludeState = "resuelto";
+      }
+
+      const response = await listTicketsPaginated(params);
+      if (!response.ok) {
+        throw new Error(response.error || "No se pudieron cargar tickets.");
+      }
+      setAllPageItems(Array.isArray(response.data) ? response.data : []);
+      setAllTotalCount(response.count ?? 0);
+    } catch (err: any) {
+      setError(err?.message || "Error al paginar todos los tickets.");
+    } finally {
+      setAllListLoading(false);
+    }
+  }, [allPage, allView, riskFilter, sortBy]);
+
+  const refreshActiveTabPage = useCallback(async () => {
+    if (activeTab === "tickets") {
+      await fetchUnassignedPage();
+      return;
+    }
+    if (activeTab === "misAsignados") {
+      await fetchMyAssignedPage();
+      return;
+    }
+    if (activeTab === "todos") {
+      await fetchAllPage();
+    }
+  }, [activeTab, fetchAllPage, fetchMyAssignedPage, fetchUnassignedPage]);
+
   const refreshMetrics = useCallback(async () => {
     try {
       setMetricsError(null);
@@ -758,41 +953,23 @@ export default function Admin() {
   useEffect(() => {
     void refreshTickets();
     void refreshMetrics();
-  }, [refreshTickets, refreshMetrics]);
+    void refreshServerCounts();
+  }, [
+    refreshTickets,
+    refreshMetrics,
+    refreshServerCounts,
+  ]);
 
   // Auto-refresh cada 30 segundos para mantener datos actualizados
   useEffect(() => {
     const interval = setInterval(() => {
       void refreshTickets();
+      void refreshServerCounts();
+      void refreshActiveTabPage();
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [refreshTickets]);
-
-  const pendingTickets = useMemo(() => {
-    // En la pestaña "Tickets" solo mostramos tickets sin asignar
-    const pending = items.filter(
-      (ticket) => ticket.state !== "resuelto" && !ticket.asignadoA
-    );
-    const filtered =
-      riskFilter === "todos"
-        ? pending
-        : pending.filter((ticket) => ticket.risk === riskFilter);
-
-    return sortTicketsByOption(filtered, sortBy, false);
-  }, [items, riskFilter, sortBy]);
-  const resolvedTickets = useMemo(() => {
-    // En la pestaña "Tickets" solo mostramos tickets sin asignar
-    const resolved = items.filter(
-      (ticket) => ticket.state === "resuelto" && !ticket.asignadoA
-    );
-    const filtered =
-      riskFilter === "todos"
-        ? resolved
-        : resolved.filter((ticket) => ticket.risk === riskFilter);
-
-    return sortTicketsByOption(filtered, sortBy, true);
-  }, [items, riskFilter, sortBy]);
+  }, [refreshTickets, refreshServerCounts, refreshActiveTabPage]);
 
   // Métricas de asignación por trabajador
   const assignmentMetrics = useMemo(() => {
@@ -824,77 +1001,77 @@ export default function Admin() {
     });
   }, [items]);
 
-  // Tickets asignados al usuario actual
-  const myAssignedTickets = useMemo(() => {
-    const userFullName = `${user?.pnombre || ""} ${
-      user?.papellido || ""
-    }`.trim();
-    const normalizedUserName = normalizeString(userFullName);
+  const myAssignedTotalCountServer = useMemo(
+    () => myAssignedPendingCountServer + myAssignedResolvedCountServer,
+    [myAssignedPendingCountServer, myAssignedResolvedCountServer]
+  );
 
-    return items.filter((t) => {
-      if (!t.asignadoA) return false;
-      return normalizeString(t.asignadoA) === normalizedUserName;
-    });
-  }, [items, user]);
+  const unassignedTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(unassignedTotalCount / PAGE_SIZE)),
+    [unassignedTotalCount]
+  );
+  const myAssignedTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(myAssignedTotalCount / PAGE_SIZE)),
+    [myAssignedTotalCount]
+  );
+  const allTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(allTotalCount / PAGE_SIZE)),
+    [allTotalCount]
+  );
 
-  const myAssignedPending = useMemo(() => {
-    return myAssignedTickets.filter((t) => t.state !== "resuelto").length;
-  }, [myAssignedTickets]);
+  useEffect(() => {
+    setUnassignedPage(1);
+  }, [unassignedView, riskFilter, sortBy]);
 
-  const myAssignedResolved = useMemo(() => {
-    const list = myAssignedTickets.filter((t) => t.state === "resuelto");
-    return sortTicketsByOption(list, sortBy, true);
-  }, [myAssignedTickets, sortBy]);
+  useEffect(() => {
+    setMyAssignedPage(1);
+  }, [myAssignedView, sortBy]);
 
-  const myAssignedPendingTickets = useMemo(() => {
-    const list = myAssignedTickets.filter((t) => t.state !== "resuelto");
-    return sortTicketsByOption(list, sortBy, false);
-  }, [myAssignedTickets, sortBy]);
+  useEffect(() => {
+    setAllPage(1);
+  }, [allView, riskFilter, sortBy]);
 
-  // Contadores para los badges de las pestañas
-  const allTicketsPendingCount = useMemo(() => {
-    return items.filter((t) => t.state !== "resuelto").length;
-  }, [items]);
+  useEffect(() => {
+    setUnassignedPage((page) => Math.min(page, unassignedTotalPages));
+  }, [unassignedTotalPages]);
 
-  const allTicketsResolvedCount = useMemo(() => {
-    return items.filter((t) => t.state === "resuelto").length;
-  }, [items]);
+  useEffect(() => {
+    setMyAssignedPage((page) => Math.min(page, myAssignedTotalPages));
+  }, [myAssignedTotalPages]);
 
-  const unassignedPendingCount = useMemo(() => {
-    return items.filter((t) => t.state !== "resuelto" && !t.asignadoA).length;
-  }, [items]);
+  useEffect(() => {
+    setAllPage((page) => Math.min(page, allTotalPages));
+  }, [allTotalPages]);
 
-  const unassignedResolvedCount = useMemo(() => {
-    return items.filter((t) => t.state === "resuelto" && !t.asignadoA).length;
-  }, [items]);
+  useEffect(() => {
+    void fetchUnassignedPage();
+  }, [fetchUnassignedPage]);
 
-  // Todos los tickets (asignados y sin asignar) - solo para pestaña "Todos"
-  const allTicketsPending = useMemo(() => {
-    const pending = items.filter((ticket) => ticket.state !== "resuelto");
-    const filtered =
-      riskFilter === "todos"
-        ? pending
-        : pending.filter((ticket) => ticket.risk === riskFilter);
+  useEffect(() => {
+    void fetchMyAssignedPage();
+  }, [fetchMyAssignedPage]);
 
-    return sortTicketsByOption(filtered, sortBy, false);
-  }, [items, riskFilter, sortBy]);
+  useEffect(() => {
+    void fetchAllPage();
+  }, [fetchAllPage]);
 
-  const allTicketsResolved = useMemo(() => {
-    const resolved = items.filter((ticket) => ticket.state === "resuelto");
-    const filtered =
-      riskFilter === "todos"
-        ? resolved
-        : resolved.filter((ticket) => ticket.risk === riskFilter);
-
-    return sortTicketsByOption(filtered, sortBy, true);
-  }, [items, riskFilter, sortBy]);
+  const ticketsPool = useMemo(
+    () => [
+      ...unassignedPageItems,
+      ...myAssignedPageItems,
+      ...allPageItems,
+      ...items,
+    ],
+    [allPageItems, items, myAssignedPageItems, unassignedPageItems]
+  );
 
   const focusedTicket = useMemo(
     () =>
       focusedTicketId
-        ? items.find((ticket) => ticket.ticketId === focusedTicketId) || null
+        ? ticketsPool.find((ticket) => ticket.ticketId === focusedTicketId) ||
+          null
         : null,
-    [focusedTicketId, items]
+    [focusedTicketId, ticketsPool]
   );
 
   useEffect(() => {
@@ -1012,6 +1189,8 @@ export default function Admin() {
           return rest;
         });
       }
+      await refreshActiveTabPage();
+      void refreshServerCounts();
       void refreshMetrics();
     } catch (err: any) {
       setItems((list) =>
@@ -1050,6 +1229,7 @@ export default function Admin() {
       if (!response.ok) {
         throw new Error(response.error || "No se pudo guardar la respuesta TI.");
       }
+      await refreshActiveTabPage();
     } catch (err: any) {
       setItems((list) =>
         list.map((item) =>
@@ -1106,6 +1286,8 @@ export default function Admin() {
       }
 
       await refreshTickets();
+      await refreshActiveTabPage();
+      void refreshServerCounts();
     } catch (err: any) {
       setItems((list) =>
         list.map((item) =>
@@ -1604,7 +1786,7 @@ export default function Admin() {
           />
         </div>
         <div className="relative mx-auto w-full max-w-screen-2xl space-y-6">
-          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex items-center justify-between">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,0.6)]">
             <div>
               <h2 className="text-2xl font-extrabold tracking-tight">
                 Panel de administracion
@@ -1667,21 +1849,21 @@ export default function Admin() {
         )}
 
         {/* Tabs */}
-        <div className="mb-6 flex gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
+        <div className="mb-6 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
           {isAuthorizedUser && (
             <button
               type="button"
               onClick={() => setActiveTab("todos")}
-              className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto sm:flex-1 ${
                 activeTab === "todos"
                   ? "bg-orange-600 text-white"
                   : "text-neutral-300 hover:bg-white/10"
               }`}
             >
               Todos{" "}
-              {allTicketsPendingCount > 0 && (
+              {allPendingCountServer > 0 && (
                 <span className="ml-1 inline-flex items-center justify-center rounded-full bg-sky-400 px-2 py-0.5 text-xs font-bold text-neutral-900">
-                  {allTicketsPendingCount}
+                  {allPendingCountServer}
                 </span>
               )}
             </button>
@@ -1689,16 +1871,16 @@ export default function Admin() {
           <button
             type="button"
             onClick={() => setActiveTab("tickets")}
-            className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+            className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto sm:flex-1 ${
               activeTab === "tickets"
                 ? "bg-orange-600 text-white"
                 : "text-neutral-300 hover:bg-white/10"
             }`}
           >
             Sin Asignar{" "}
-            {unassignedPendingCount > 0 && (
+            {unassignedPendingCountServer > 0 && (
               <span className="ml-1 inline-flex items-center justify-center rounded-full bg-sky-400 px-2 py-0.5 text-xs font-bold text-neutral-900">
-                {unassignedPendingCount}
+                {unassignedPendingCountServer}
               </span>
             )}
           </button>
@@ -1706,16 +1888,16 @@ export default function Admin() {
             <button
               type="button"
               onClick={() => setActiveTab("misAsignados")}
-              className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto sm:flex-1 ${
                 activeTab === "misAsignados"
                   ? "bg-orange-600 text-white"
                   : "text-neutral-300 hover:bg-white/10"
               }`}
             >
               Mis Tickets{" "}
-              {myAssignedPending > 0 && (
+              {myAssignedPendingCountServer > 0 && (
                 <span className="ml-1 inline-flex items-center justify-center rounded-full bg-sky-400 px-2 py-0.5 text-xs font-bold text-neutral-900">
-                  {myAssignedPending}
+                  {myAssignedPendingCountServer}
                 </span>
               )}
             </button>
@@ -1723,7 +1905,7 @@ export default function Admin() {
           <button
             type="button"
             onClick={() => setActiveTab("metricas")}
-            className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+            className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto sm:flex-1 ${
               activeTab === "metricas"
                 ? "bg-orange-600 text-white"
                 : "text-neutral-300 hover:bg-white/10"
@@ -1733,18 +1915,22 @@ export default function Admin() {
           </button>
         </div>
 
+        {(activeTab === "tickets" ||
+          activeTab === "misAsignados" ||
+          activeTab === "todos") && <div ref={ticketsStartRef} className="h-0" />}
+
         {activeTab === "tickets" && (
           <>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3">
-                <label className="text-sm text-neutral-300">
+                <label className="w-full text-sm text-neutral-300 sm:w-auto">
                   Riesgo
                   <select
                     value={riskFilter}
                     onChange={(event) =>
                       setRiskFilter(event.target.value as RiskFilter)
                     }
-                    className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 sm:ml-2 sm:mt-0 sm:w-auto"
                   >
                     {RISK_FILTER_OPTIONS.map((option) => (
                       <option key={option} value={option}>
@@ -1753,14 +1939,14 @@ export default function Admin() {
                     ))}
                   </select>
                 </label>
-                <label className="text-sm text-neutral-300">
+                <label className="w-full text-sm text-neutral-300 sm:w-auto">
                   Ordenar
                   <select
                     value={sortBy}
                     onChange={(event) =>
                       setSortBy(event.target.value as SortOption)
                     }
-                    className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 sm:ml-2 sm:mt-0 sm:w-auto"
                   >
                     {(Object.keys(SORT_LABEL) as SortOption[]).map((option) => (
                       <option key={option} value={option}>
@@ -1772,50 +1958,72 @@ export default function Admin() {
               </div>
             </div>
 
-            <div className="mb-4 flex gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
+            <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
               <button
                 type="button"
                 onClick={() => setUnassignedView("pendientes")}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto sm:flex-1 ${
                   unassignedView === "pendientes"
                     ? "bg-orange-600 text-white"
                     : "text-neutral-300 hover:bg-white/10"
                 }`}
               >
-                Pendientes ({unassignedPendingCount})
+                Pendientes ({unassignedPendingCountServer})
               </button>
               <button
                 type="button"
                 onClick={() => setUnassignedView("resueltos")}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto sm:flex-1 ${
                   unassignedView === "resueltos"
                     ? "bg-orange-600 text-white"
                     : "text-neutral-300 hover:bg-white/10"
                 }`}
               >
-                Resueltos ({unassignedResolvedCount})
+                Resueltos ({unassignedResolvedCountServer})
               </button>
             </div>
 
             {unassignedView === "pendientes" ? (
-              pendingTickets.length === 0 && !loading ? (
+              unassignedTotalCount === 0 && !unassignedListLoading ? (
                 <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
                   No hay tickets pendientes.
                 </div>
               ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {pendingTickets.map((ticket) => renderTicketCard(ticket))}
-            </div>
-          )
-        ) : resolvedTickets.length === 0 && !loading ? (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
-            No hay tickets resueltos con los filtros seleccionados.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {resolvedTickets.map((ticket) => renderTicketCard(ticket))}
-          </div>
-        )}
+                <>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {unassignedPageItems.map((ticket) =>
+                      renderTicketCard(ticket)
+                    )}
+                  </div>
+                  <Pagination
+                    currentPage={unassignedPage}
+                    totalPages={unassignedTotalPages}
+                    onPageChange={handleUnassignedPageChange}
+                    hasNextPage={unassignedPage < unassignedTotalPages}
+                    hasPrevPage={unassignedPage > 1}
+                  />
+                </>
+              )
+            ) : unassignedTotalCount === 0 && !unassignedListLoading ? (
+              <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
+                No hay tickets resueltos con los filtros seleccionados.
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {unassignedPageItems.map((ticket) =>
+                    renderTicketCard(ticket)
+                  )}
+                </div>
+                <Pagination
+                  currentPage={unassignedPage}
+                  totalPages={unassignedTotalPages}
+                  onPageChange={handleUnassignedPageChange}
+                  hasNextPage={unassignedPage < unassignedTotalPages}
+                  hasPrevPage={unassignedPage > 1}
+                />
+              </>
+            )}
           </>
         )}
 
@@ -1834,66 +2042,86 @@ export default function Admin() {
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-orange-500">
-                    {myAssignedTickets.length}
+                    {myAssignedTotalCountServer}
                   </div>
                   <div className="text-xs text-neutral-400">
                     Total asignados
                   </div>
-                  {myAssignedPending > 0 && (
+                  {myAssignedPendingCountServer > 0 && (
                     <div className="mt-1 text-sm font-semibold text-red-400">
-                      {myAssignedPending} pendiente
-                      {myAssignedPending !== 1 ? "s" : ""}
+                      {myAssignedPendingCountServer} pendiente
+                      {myAssignedPendingCountServer !== 1 ? "s" : ""}
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="mb-4 flex gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
+            <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
               <button
                 type="button"
                 onClick={() => setMyAssignedView("pendientes")}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto sm:flex-1 ${
                   myAssignedView === "pendientes"
                     ? "bg-orange-600 text-white"
                     : "text-neutral-300 hover:bg-white/10"
                 }`}
               >
-                Pendientes ({myAssignedPendingTickets.length})
+                Pendientes ({myAssignedPendingCountServer})
               </button>
               <button
                 type="button"
                 onClick={() => setMyAssignedView("resueltos")}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto sm:flex-1 ${
                   myAssignedView === "resueltos"
                     ? "bg-orange-600 text-white"
                     : "text-neutral-300 hover:bg-white/10"
                 }`}
               >
-                Resueltos ({myAssignedResolved.length})
+                Resueltos ({myAssignedResolvedCountServer})
               </button>
             </div>
 
             {myAssignedView === "pendientes" ? (
-              myAssignedPendingTickets.length === 0 ? (
+              myAssignedTotalCount === 0 && !myAssignedListLoading ? (
                 <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300 text-center">
                   No tienes tickets pendientes asignados.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {myAssignedPendingTickets.map((ticket) =>
-                    renderTicketCard(ticket)
-                  )}
-                </div>
+                <>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {myAssignedPageItems.map((ticket) =>
+                      renderTicketCard(ticket)
+                    )}
+                  </div>
+                  <Pagination
+                    currentPage={myAssignedPage}
+                    totalPages={myAssignedTotalPages}
+                    onPageChange={handleMyAssignedPageChange}
+                    hasNextPage={myAssignedPage < myAssignedTotalPages}
+                    hasPrevPage={myAssignedPage > 1}
+                  />
+                </>
               )
-            ) : myAssignedResolved.length === 0 ? (
+            ) : myAssignedTotalCount === 0 && !myAssignedListLoading ? (
               <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300 text-center">
                 No tienes tickets resueltos asignados.
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {myAssignedResolved.map((ticket) => renderTicketCard(ticket))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {myAssignedPageItems.map((ticket) =>
+                    renderTicketCard(ticket)
+                  )}
+                </div>
+                <Pagination
+                  currentPage={myAssignedPage}
+                  totalPages={myAssignedTotalPages}
+                  onPageChange={handleMyAssignedPageChange}
+                  hasNextPage={myAssignedPage < myAssignedTotalPages}
+                  hasPrevPage={myAssignedPage > 1}
+                />
+              </>
             )}
           </>
         )}
@@ -1901,14 +2129,14 @@ export default function Admin() {
           <>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3">
-                <label className="text-sm text-neutral-300">
+                <label className="w-full text-sm text-neutral-300 sm:w-auto">
                   Riesgo
                   <select
                     value={riskFilter}
                     onChange={(event) =>
                       setRiskFilter(event.target.value as RiskFilter)
                     }
-                    className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 sm:ml-2 sm:mt-0 sm:w-auto"
                   >
                     {RISK_FILTER_OPTIONS.map((option) => (
                       <option key={option} value={option}>
@@ -1917,14 +2145,14 @@ export default function Admin() {
                     ))}
                   </select>
                 </label>
-                <label className="text-sm text-neutral-300">
+                <label className="w-full text-sm text-neutral-300 sm:w-auto">
                   Ordenar
                   <select
                     value={sortBy}
                     onChange={(event) =>
                       setSortBy(event.target.value as SortOption)
                     }
-                    className="ml-2 rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500"
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 sm:ml-2 sm:mt-0 sm:w-auto"
                   >
                     {Object.entries(SORT_LABEL).map(([key, label]) => (
                       <option key={key} value={key}>
@@ -1936,49 +2164,67 @@ export default function Admin() {
               </div>
             </div>
 
-            <div className="mb-4 flex gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
+            <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
               <button
                 type="button"
                 onClick={() => setAllView("pendientes")}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto sm:flex-1 ${
                   allView === "pendientes"
                     ? "bg-orange-600 text-white"
                     : "text-neutral-300 hover:bg-white/10"
                 }`}
               >
-                Pendientes ({allTicketsPendingCount})
+                Pendientes ({allPendingCountServer})
               </button>
               <button
                 type="button"
                 onClick={() => setAllView("resueltos")}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto sm:flex-1 ${
                   allView === "resueltos"
                     ? "bg-orange-600 text-white"
                     : "text-neutral-300 hover:bg-white/10"
                 }`}
               >
-                Resueltos ({allTicketsResolvedCount})
+                Resueltos ({allResolvedCountServer})
               </button>
             </div>
 
             {allView === "pendientes" ? (
-              allTicketsPending.length === 0 ? (
+              allTotalCount === 0 && !allListLoading ? (
                 <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
                   No hay tickets pendientes con los filtros seleccionados.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {allTicketsPending.map((ticket) => renderTicketCard(ticket))}
-                </div>
+                <>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {allPageItems.map((ticket) => renderTicketCard(ticket))}
+                  </div>
+                  <Pagination
+                    currentPage={allPage}
+                    totalPages={allTotalPages}
+                    onPageChange={handleAllPageChange}
+                    hasNextPage={allPage < allTotalPages}
+                    hasPrevPage={allPage > 1}
+                  />
+                </>
               )
-            ) : allTicketsResolved.length === 0 ? (
+            ) : allTotalCount === 0 && !allListLoading ? (
               <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
                 No hay tickets resueltos con los filtros seleccionados.
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {allTicketsResolved.map((ticket) => renderTicketCard(ticket))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {allPageItems.map((ticket) => renderTicketCard(ticket))}
+                </div>
+                <Pagination
+                  currentPage={allPage}
+                  totalPages={allTotalPages}
+                  onPageChange={handleAllPageChange}
+                  hasNextPage={allPage < allTotalPages}
+                  hasPrevPage={allPage > 1}
+                />
+              </>
             )}
           </>
         )}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AppHeader from "../components/AppHeader";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 type Especificacion = {
   _id?: string;
@@ -21,6 +22,8 @@ const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 const API = `${BASE_URL}/api`;
 
 export default function Modelos() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState<Especificacion[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +50,18 @@ export default function Modelos() {
     });
   }, [items, fCategoria, fMarca, fModelo]);
   const filteredCount = filtered.length;
+
+  useEffect(() => {
+    const modeloParam = (searchParams.get("modelo") || "").trim();
+    const marcaParam = (searchParams.get("marca") || "").trim();
+
+    if (modeloParam) {
+      setFModelo(modeloParam);
+    }
+    if (marcaParam) {
+      setFMarca(marcaParam);
+    }
+  }, [searchParams]);
 
   const cargar = useCallback(async () => {
     try {
@@ -155,6 +170,13 @@ export default function Modelos() {
               {error}
             </div>
           )}
+          <button
+            onClick={() => navigate("/admin/gestion-activos")}
+            className="rounded-xl border border-white/10 px-4 py-2 text-sm transition hover:bg-white/10"
+            type="button"
+          >
+            Ir a activos
+          </button>
           <button
             onClick={() => setShowForm(true)}
             className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold hover:bg-orange-500 transition"

@@ -74,6 +74,8 @@ export type Especificacion = {
 
 export type ActivoFilters = {
   categoria: string;
+  marca?: string;
+  modelo?: string;
   sucursal: "" | Sucursal;
   desdeCompra: string;
   hastaCompra: string;

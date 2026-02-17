@@ -47,12 +47,18 @@ export function AssignModal({
             {context.asignadoPara ? "Reasignar" : "Asignar"} {context.titulo}
           </h3>
           <button
-            className="rounded-xl border border-white/10 px-4 py-2 hover:bg-white/10 transition"
+            className="rounded-xl border border-white/10 px-4 py-2 transition hover:-translate-y-0.5 hover:bg-white/10 hover:shadow-[0_8px_22px_rgba(0,0,0,0.25)] active:translate-y-0 active:scale-[0.98] disabled:opacity-60"
             onClick={onClose}
+            disabled={loading}
           >
             Cerrar
           </button>
         </div>
+        {loading && (
+          <div className="mb-3 rounded-xl border border-orange-400/40 bg-orange-500/10 px-3 py-2 text-sm text-orange-200">
+            Guardando asignacion...
+          </div>
+        )}
         <div className="space-y-3">
           <div>
             <label className="block text-sm text-neutral-300">Asignado a</label>
@@ -90,17 +96,21 @@ export function AssignModal({
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <button
-            className="rounded-xl border border-white/10 px-4 py-2 hover:bg-white/10 transition"
+            className="rounded-xl border border-white/10 px-4 py-2 transition hover:-translate-y-0.5 hover:bg-white/10 hover:shadow-[0_8px_22px_rgba(0,0,0,0.25)] active:translate-y-0 active:scale-[0.98] disabled:opacity-60"
             onClick={onClose}
+            disabled={loading}
           >
             Cancelar
           </button>
           <button
-            className="rounded-xl bg-orange-600 px-5 py-2 font-semibold transition hover:bg-orange-500 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-5 py-2 font-semibold transition hover:-translate-y-0.5 hover:bg-orange-500 hover:shadow-[0_10px_24px_rgba(249,115,22,0.45)] active:translate-y-0 active:scale-[0.96] disabled:opacity-60"
             onClick={onSubmit}
             disabled={loading}
           >
-            Guardar
+            {loading && (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+            )}
+            {loading ? "Guardando..." : "Guardar"}
           </button>
         </div>
       </div>

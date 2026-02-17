@@ -111,43 +111,70 @@ export function useLicencias() {
   }, []);
 
   const createLicencia = useCallback(async (data: Partial<Licencia>) => {
-    const response = await fetch(`${API_BASE}/licencias`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    const json = await response.json();
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_BASE}/licencias`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await response.json();
 
-    if (!json.ok) {
-      throw new Error(json.error || "Error al crear licencia");
+      if (!json.ok) {
+        throw new Error(json.error || "Error al crear licencia");
+      }
+
+      return json.data;
+    } catch (err: any) {
+      setError(err.message || "Error al crear licencia");
+      throw err;
+    } finally {
+      setLoading(false);
     }
-
-    return json.data;
   }, []);
 
   const updateLicencia = useCallback(async (id: string, data: Partial<Licencia>) => {
-    const response = await fetch(`${API_BASE}/licencias/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    const json = await response.json();
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_BASE}/licencias/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await response.json();
 
-    if (!json.ok) {
-      throw new Error(json.error || "Error al actualizar licencia");
+      if (!json.ok) {
+        throw new Error(json.error || "Error al actualizar licencia");
+      }
+
+      return json.data;
+    } catch (err: any) {
+      setError(err.message || "Error al actualizar licencia");
+      throw err;
+    } finally {
+      setLoading(false);
     }
-
-    return json.data;
   }, []);
 
   const deleteLicencia = useCallback(async (id: string) => {
-    const response = await fetch(`${API_BASE}/licencias/${id}`, {
-      method: "DELETE",
-    });
-    const json = await response.json();
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_BASE}/licencias/${id}`, {
+        method: "DELETE",
+      });
+      const json = await response.json();
 
-    if (!json.ok) {
-      throw new Error(json.error || "Error al eliminar licencia");
+      if (!json.ok) {
+        throw new Error(json.error || "Error al eliminar licencia");
+      }
+    } catch (err: any) {
+      setError(err.message || "Error al eliminar licencia");
+      throw err;
+    } finally {
+      setLoading(false);
     }
   }, []);
 

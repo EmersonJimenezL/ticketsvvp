@@ -213,6 +213,8 @@ export default function GestionInventario() {
         form={activos.form}
         specs={specs}
         usuarios={usuarios}
+        validationErrors={activos.erroresFormulario}
+        submitError={activos.mensajeFormulario}
         onClose={activos.cerrarFormulario}
         onSubmit={activos.enviar}
         onChange={activos.actualizarForm}

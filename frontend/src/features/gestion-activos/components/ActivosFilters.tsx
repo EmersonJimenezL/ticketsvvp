@@ -22,9 +22,9 @@ export function ActivosFilters({
   };
 
   return (
-    <div className="flex items-center gap-3 flex-wrap">
+    <div className="flex flex-wrap items-start gap-3">
       <select
-        className="rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+        className="w-full rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:w-auto"
         value={values.categoria}
         onChange={(event) => handleChange({ categoria: event.target.value })}
       >
@@ -36,8 +36,24 @@ export function ActivosFilters({
         ))}
       </select>
 
+      <input
+        type="text"
+        className="w-full rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:w-[220px]"
+        value={values.marca || ""}
+        onChange={(event) => handleChange({ marca: event.target.value })}
+        placeholder="Filtrar por marca"
+      />
+
+      <input
+        type="text"
+        className="w-full rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:w-[240px]"
+        value={values.modelo || ""}
+        onChange={(event) => handleChange({ modelo: event.target.value })}
+        placeholder="Filtrar por modelo"
+      />
+
       <select
-        className="rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+        className="w-full rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:w-auto"
         value={values.sucursal}
         onChange={(event) =>
           handleChange({ sucursal: event.target.value as "" | Sucursal })
@@ -51,7 +67,7 @@ export function ActivosFilters({
         ))}
       </select>
 
-      <label className="inline-flex items-center gap-2 text-sm text-neutral-300">
+      <label className="inline-flex w-full items-center gap-2 text-sm text-neutral-300 sm:w-auto">
         <input
           type="checkbox"
           checked={values.soloSinAsignacion}
@@ -65,7 +81,7 @@ export function ActivosFilters({
 
       <button
         onClick={onReset}
-        className="ml-auto rounded-lg border border-white/10 px-3 py-1.5 text-sm hover:bg-white/10 transition"
+        className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-sm transition hover:bg-white/10 sm:ml-auto sm:w-auto"
         disabled={disabled}
       >
         Limpiar

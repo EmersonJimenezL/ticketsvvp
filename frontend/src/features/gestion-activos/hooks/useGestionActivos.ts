@@ -6,6 +6,7 @@ import { useLicenciaForm } from "./useLicenciaForm";
 import { useEspecificaciones } from "./useEspecificaciones";
 import { useCentroUsuarios } from "./useCentroUsuarios";
 import { validateActivo } from "../validation/activoValidation";
+import type { ValidationError } from "../validation/activoValidation";
 import { validateLicencia } from "../validation/licenciaValidation";
 import { useAuth } from "../../../auth/AuthContext";
 import type {
@@ -160,6 +161,8 @@ function parseDateOrNow(value?: string) {
 
 const ACTIVO_FILTERS_DEFAULT: ActivoFilters = {
   categoria: "",
+  marca: "",
+  modelo: "",
   sucursal: "",
   desdeCompra: "",
   hastaCompra: "",
@@ -185,6 +188,12 @@ const LICENCIA_FILTERS_DEFAULT: LicenciaFilters = {
 export function useGestionActivos() {
   const [tab, setTab] = useState<TabKey>("activos");
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [activoFormErrors, setActivoFormErrors] = useState<ValidationError[]>(
+    [],
+  );
+  const [activoFormErrorMessage, setActivoFormErrorMessage] = useState<
+    string | null
+  >(null);
   const { user } = useAuth();
   const asignadoPor = useMemo(() => buildUserName(user), [user]);
   const { usuarios: centroUsuarios } = useCentroUsuarios();
@@ -381,21 +390,53 @@ export function useGestionActivos() {
 
   // Handlers de formularios de activos
   const abrirCrearActivo = useCallback(() => {
+    setActivoFormErrors([]);
+    setActivoFormErrorMessage(null);
     activoForm.openCreate();
   }, [activoForm]);
 
   const abrirEditarActivo = useCallback(
     (activo: Activo) => {
+      setActivoFormErrors([]);
+      setActivoFormErrorMessage(null);
       activoForm.openEdit(activo);
     },
     [activoForm],
   );
 
+  const cerrarFormularioActivo = useCallback(() => {
+    setActivoFormErrors([]);
+    setActivoFormErrorMessage(null);
+    activoForm.closeForm();
+  }, [activoForm]);
+
+  const actualizarFormActivo = useCallback(
+    (changes: Partial<Activo>) => {
+      activoForm.updateForm(changes);
+      const changedFields = Object.keys(changes);
+      if (changedFields.length > 0) {
+        setActivoFormErrors((prev) =>
+          prev.filter((error) => !changedFields.includes(error.field)),
+        );
+      }
+      if (activoFormErrorMessage) {
+        setActivoFormErrorMessage(null);
+      }
+    },
+    [activoForm, activoFormErrorMessage],
+  );
+
   const enviarActivo = useCallback(async () => {
     setGlobalError(null);
+    setActivoFormErrorMessage(null);
+    setActivoFormErrors([]);
+
     const errors = validateActivo(activoForm.form, Boolean(activoForm.editId));
     if (errors.length > 0) {
-      setGlobalError(errors.map((e) => e.message).join(", "));
+      setActivoFormErrors(errors);
+      setActivoFormErrorMessage(
+        "Revisa los campos marcados antes de guardar el activo.",
+      );
       return;
     }
 
@@ -520,10 +561,14 @@ export function useGestionActivos() {
         }
       }
 
+      setActivoFormErrors([]);
+      setActivoFormErrorMessage(null);
       activoForm.closeForm();
       await cargarActivos();
     } catch (err: any) {
-      setGlobalError(err.message || "Error al guardar activo");
+      const message = err.message || "Error al guardar activo";
+      setGlobalError(message);
+      setActivoFormErrorMessage(message);
     }
   }, [
     activoForm,
@@ -1009,10 +1054,12 @@ export function useGestionActivos() {
       mostrarFormulario: activoForm.showForm,
       editarId: activoForm.editId,
       form: activoForm.form,
+      erroresFormulario: activoFormErrors,
+      mensajeFormulario: activoFormErrorMessage,
       abrirCrear: abrirCrearActivo,
       abrirEditar: abrirEditarActivo,
-      cerrarFormulario: activoForm.closeForm,
-      actualizarForm: activoForm.updateForm,
+      cerrarFormulario: cerrarFormularioActivo,
+      actualizarForm: actualizarFormActivo,
       enviar: enviarActivo,
       descargarActa,
     },

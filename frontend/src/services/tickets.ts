@@ -64,6 +64,7 @@ export type TicketsMetricsResponse = {
   data: TicketsMetrics;
   error?: string;
 };
+
 export function createTicket(payload: TicketPayload) {
   return httpJSON<TicketResponse>("tickets", "/api/ticketvvp", {
     method: "POST",
@@ -75,6 +76,11 @@ export function listTickets(params: {
   userId?: string;
   state?: Ticket["state"];
   title?: Ticket["title"];
+  risk?: Ticket["risk"];
+  asignadoA?: string;
+  unassigned?: boolean;
+  excludeState?: Ticket["state"];
+  sortBy?: string;
   limit?: number;
   skip?: number;
 }) {
@@ -82,10 +88,42 @@ export function listTickets(params: {
   if (params.userId) qs.set("userId", params.userId);
   if (params.state) qs.set("state", params.state);
   if (params.title) qs.set("title", params.title);
+  if (params.risk) qs.set("risk", params.risk);
+  if (params.asignadoA) qs.set("asignadoA", params.asignadoA);
+  if (params.unassigned != null) qs.set("unassigned", String(params.unassigned));
+  if (params.excludeState) qs.set("excludeState", params.excludeState);
+  if (params.sortBy) qs.set("sortBy", params.sortBy);
   if (params.limit != null) qs.set("limit", String(params.limit));
   if (params.skip != null) qs.set("skip", String(params.skip));
   const search = qs.toString() ? `?${qs.toString()}` : "";
   return httpJSON<ListResponse>("tickets", `/api/ticketvvp${search}`);
+}
+
+export function listTicketsPaginated(params: {
+  userId?: string;
+  state?: Ticket["state"];
+  title?: Ticket["title"];
+  risk?: Ticket["risk"];
+  asignadoA?: string;
+  unassigned?: boolean;
+  excludeState?: Ticket["state"];
+  sortBy?: string;
+  limit?: number;
+  skip?: number;
+}) {
+  const qs = new URLSearchParams();
+  if (params.userId) qs.set("userId", params.userId);
+  if (params.state) qs.set("state", params.state);
+  if (params.title) qs.set("title", params.title);
+  if (params.risk) qs.set("risk", params.risk);
+  if (params.asignadoA) qs.set("asignadoA", params.asignadoA);
+  if (params.unassigned != null) qs.set("unassigned", String(params.unassigned));
+  if (params.excludeState) qs.set("excludeState", params.excludeState);
+  if (params.sortBy) qs.set("sortBy", params.sortBy);
+  if (params.limit != null) qs.set("limit", String(params.limit));
+  if (params.skip != null) qs.set("skip", String(params.skip));
+  const search = qs.toString() ? `?${qs.toString()}` : "";
+  return httpJSON<ListResponse>("tickets", `/api/ticketvvp/paginado${search}`);
 }
 
 export function listPendingTicketsAdmin() {

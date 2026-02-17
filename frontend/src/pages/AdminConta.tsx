@@ -166,25 +166,25 @@ export default function AdminConta() {
             <div className="text-sm font-semibold text-neutral-700">
               Tickets ({filteredTickets.length})
             </div>
-            <div className="ml-auto flex flex-wrap gap-2">
+            <div className="ml-auto flex w-full flex-wrap gap-2 sm:w-auto">
               <input
                 type="text"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar usuario"
-                className="h-9 w-48 rounded-lg border border-neutral-200 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-400"
+                className="h-9 w-full rounded-lg border border-neutral-200 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-400 sm:w-48"
               />
               <input
                 type="date"
                 value={fromDate}
                 onChange={(event) => setFromDate(event.target.value)}
-                className="h-9 rounded-lg border border-neutral-200 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-400"
+                className="h-9 w-full rounded-lg border border-neutral-200 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-400 sm:w-auto"
               />
               <input
                 type="date"
                 value={toDate}
                 onChange={(event) => setToDate(event.target.value)}
-                className="h-9 rounded-lg border border-neutral-200 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-400"
+                className="h-9 w-full rounded-lg border border-neutral-200 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-400 sm:w-auto"
               />
             </div>
           </div>
@@ -198,43 +198,72 @@ export default function AdminConta() {
               No hay tickets para mostrar.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm text-neutral-900">
-                <thead className="bg-neutral-50 border-b border-neutral-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600">
-                      Identificador
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600">
-                      Usuario
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600">
-                      Categoría
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTickets.map((ticket) => (
-                    <tr
-                      key={ticket.ticketId}
-                      className="border-t border-neutral-200 odd:bg-neutral-50/60"
-                    >
-                      <td className="px-4 py-3 text-sm text-neutral-800">
-                        {ticket.ticketId}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-800">
-                        {ticket.userFullName ||
-                          ticket.userName ||
-                          ticket.userId ||
-                          "-"}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-800">
-                        {ticket.title}
-                      </td>
+            <div>
+              <div className="divide-y divide-neutral-200 md:hidden">
+                {filteredTickets.map((ticket) => (
+                  <article key={ticket.ticketId} className="space-y-2 px-4 py-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                        Identificador
+                      </p>
+                      <p className="text-sm text-neutral-800 break-words">{ticket.ticketId}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                        Usuario
+                      </p>
+                      <p className="text-sm text-neutral-800 break-words">
+                        {ticket.userFullName || ticket.userName || ticket.userId || "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                        Categoria
+                      </p>
+                      <p className="text-sm text-neutral-800 break-words">{ticket.title}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="min-w-full text-sm text-neutral-900">
+                  <thead className="bg-neutral-50 border-b border-neutral-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600">
+                        Identificador
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600">
+                        Usuario
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600">
+                        Categoría
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredTickets.map((ticket) => (
+                      <tr
+                        key={ticket.ticketId}
+                        className="border-t border-neutral-200 odd:bg-neutral-50/60"
+                      >
+                        <td className="px-4 py-3 text-sm text-neutral-800">
+                          {ticket.ticketId}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-neutral-800">
+                          {ticket.userFullName ||
+                            ticket.userName ||
+                            ticket.userId ||
+                            "-"}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-neutral-800">
+                          {ticket.title}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

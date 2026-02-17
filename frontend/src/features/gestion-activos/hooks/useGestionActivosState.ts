@@ -16,6 +16,8 @@ import { useDebouncedValue } from "./useDebouncedValue";
 
 const ACTIVO_FILTERS_DEFAULT: ActivoFilters = {
   categoria: "",
+  marca: "",
+  modelo: "",
   sucursal: "",
   desdeCompra: "",
   hastaCompra: "",
@@ -77,6 +79,14 @@ export function useGestionActivosState() {
   const fetchActivos = useCallback(async () => {
     const params = new URLSearchParams();
     params.set("limit", "500");
+    const marcaFiltro =
+      typeof activoFilters.marca === "string"
+        ? activoFilters.marca.trim()
+        : "";
+    const modeloFiltro =
+      typeof activoFilters.modelo === "string"
+        ? activoFilters.modelo.trim()
+        : "";
     if (activoFilters.soloSinAsignacion) params.set("soloSinAsignacion", "1");
     if (activoFilters.categoria)
       params.set("categoria", activoFilters.categoria);
@@ -95,7 +105,21 @@ export function useGestionActivosState() {
     if (!json.ok) {
       throw new Error(json.error || "Error al listar activos");
     }
-    setActivos(json.data);
+    const data = Array.isArray(json.data) ? json.data : [];
+    let filtered = data;
+    if (marcaFiltro) {
+      const needleMarca = marcaFiltro.toLowerCase();
+      filtered = filtered.filter((item: Activo) =>
+        (item.marca || "").toLowerCase().includes(needleMarca)
+      );
+    }
+    if (modeloFiltro) {
+      const needleModelo = modeloFiltro.toLowerCase();
+      filtered = filtered.filter((item: Activo) =>
+        (item.modelo || "").toLowerCase().includes(needleModelo)
+      );
+    }
+    setActivos(filtered);
     setVisibleActivos(PAGE_SIZE);
   }, [activoFilters]);
 

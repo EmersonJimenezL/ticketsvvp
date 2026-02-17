@@ -160,7 +160,67 @@ export default function AdminTicketsHistorico() {
                   <h2 className="text-lg font-semibold text-neutral-100">{year}</h2>
                   <span className="text-xs text-neutral-400">{records.length} tickets</span>
                 </header>
-                <div className="overflow-x-auto">
+                <div className="space-y-3 md:hidden">
+                  {records.map((ticket) => (
+                    <article
+                      key={ticket.ticketId}
+                      className="rounded-xl border border-white/10 bg-black/20 p-3"
+                    >
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                            Ticket
+                          </p>
+                          <p className="text-sm font-medium text-neutral-100 break-words">
+                            {ticket.ticketId}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                            Categoria
+                          </p>
+                          <p className="text-sm text-neutral-200 break-words">{ticket.title}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                            Solicitante
+                          </p>
+                          <p className="text-sm text-neutral-200 break-words">
+                            {ticket.ownerDisplay}
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                              Riesgo
+                            </p>
+                            <p className="text-sm text-neutral-200 capitalize">{ticket.risk}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                              Estado
+                            </p>
+                            <p className="text-sm text-neutral-200 capitalize">{ticket.state}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                            Creado
+                          </p>
+                          <p className="text-xs text-neutral-400">{ticket.createdLabel}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                            Resuelto
+                          </p>
+                          <p className="text-xs text-neutral-400">{ticket.resolvedLabel}</p>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="hidden overflow-x-auto md:block">
                   <table className="min-w-full text-left text-sm text-neutral-200">
                     <thead className="text-xs uppercase text-neutral-400">
                       <tr>

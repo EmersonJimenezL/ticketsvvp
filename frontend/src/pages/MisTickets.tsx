@@ -1,10 +1,15 @@
 // src/pages/MisTickets.tsx
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { listTickets, rateTicket, type Ticket } from "../services/tickets";
+import {
+  listTicketsPaginated,
+  rateTicket,
+  type Ticket,
+} from "../services/tickets";
 import AppHeader from "../components/AppHeader";
 import TicketRatingCard from "../components/TicketRatingCard";
+import { Pagination } from "../features/gestion-activos/components/Pagination";
 
 const ESTADOS: Ticket["state"][] = [
   "recibido",
@@ -21,22 +26,7 @@ const TITULOS: Ticket["title"][] = [
   "Otros",
 ];
 
-const FETCH_LIMIT = 200;
-
-function getTicketDateValue(ticket: Ticket) {
-  return new Date(ticket.ticketTime || ticket.createdAt || 0).getTime();
-}
-const RISK_ORDER: Record<Ticket["risk"], number> = {
-  alto: 3,
-  medio: 2,
-  bajo: 1,
-};
-const STATE_ORDER: Record<Ticket["state"], number> = {
-  recibido: 1,
-  enProceso: 2,
-  conDificultades: 3,
-  resuelto: 4,
-};
+const PAGE_SIZE = 12;
 const SORT_OPTIONS = [
   { value: "dateAsc", label: "Fecha (antiguo -> reciente)" },
   { value: "dateDesc", label: "Fecha (reciente -> antiguo)" },
@@ -45,6 +35,23 @@ const SORT_OPTIONS = [
   { value: "titleAsc", label: "Categoria (A -> Z)" },
 ] as const;
 type SortOption = (typeof SORT_OPTIONS)[number]["value"];
+
+function mapSortOptionToBackend(sortBy: SortOption) {
+  switch (sortBy) {
+    case "dateAsc":
+      return "createdAsc";
+    case "dateDesc":
+      return "createdDesc";
+    case "riskDesc":
+      return "risk";
+    case "stateAsc":
+      return "stateAsc";
+    case "titleAsc":
+      return "titleAsc";
+    default:
+      return "createdAsc";
+  }
+}
 
 export default function MisTickets() {
   const { user } = useAuth();
@@ -60,8 +67,28 @@ export default function MisTickets() {
   const [statusTab, setStatusTab] = useState<"pendientes" | "resueltos">(
     "pendientes"
   );
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [resolvedCount, setResolvedCount] = useState(0);
   const [focusedTicketId, setFocusedTicketId] = useState<string | null>(null);
   const [imageModal, setImageModal] = useState<{ src: string; index: number; total: number } | null>(null);
+  const ticketsStartRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToTicketsStart = useCallback(() => {
+    const target = ticketsStartRef.current;
+    if (!target) return;
+    const top = target.getBoundingClientRect().top + window.scrollY - 96;
+    window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+  }, []);
+
+  const handlePageChange = useCallback(
+    (page: number) => {
+      setCurrentPage(page);
+      requestAnimationFrame(scrollToTicketsStart);
+    },
+    [scrollToTicketsStart]
+  );
 
   const handleRateTicket = useCallback(
     async (ticketId: string, score: number, comment: string) => {
@@ -96,6 +123,76 @@ export default function MisTickets() {
     [user?.nombreUsuario]
   );
 
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(totalCount / PAGE_SIZE)),
+    [totalCount]
+  );
+
+  const refreshCounts = useCallback(async () => {
+    if (!user?.nombreUsuario) {
+      setPendingCount(0);
+      setResolvedCount(0);
+      return;
+    }
+
+    const baseParams = {
+      userId: user.nombreUsuario,
+      title: titulo || undefined,
+      limit: 1,
+      skip: 0,
+    };
+
+    try {
+      if (estado === "resuelto") {
+        const resolvedResp = await listTicketsPaginated({
+          ...baseParams,
+          state: "resuelto",
+        });
+        if (!resolvedResp.ok) {
+          throw new Error(resolvedResp.error || "No se pudieron obtener conteos");
+        }
+        setPendingCount(0);
+        setResolvedCount(resolvedResp.count ?? 0);
+        return;
+      }
+
+      if (estado) {
+        const pendingResp = await listTicketsPaginated({
+          ...baseParams,
+          state: estado,
+        });
+        if (!pendingResp.ok) {
+          throw new Error(pendingResp.error || "No se pudieron obtener conteos");
+        }
+        setPendingCount(pendingResp.count ?? 0);
+        setResolvedCount(0);
+        return;
+      }
+
+      const [pendingResp, resolvedResp] = await Promise.all([
+        listTicketsPaginated({
+          ...baseParams,
+          excludeState: "resuelto",
+        }),
+        listTicketsPaginated({
+          ...baseParams,
+          state: "resuelto",
+        }),
+      ]);
+
+      if (!pendingResp.ok || !resolvedResp.ok) {
+        throw new Error(
+          pendingResp.error || resolvedResp.error || "No se pudieron obtener conteos"
+        );
+      }
+
+      setPendingCount(pendingResp.count ?? 0);
+      setResolvedCount(resolvedResp.count ?? 0);
+    } catch (e: any) {
+      setError(e?.message || "No se pudieron obtener conteos.");
+    }
+  }, [user?.nombreUsuario, titulo, estado]);
+
   const cargar = useCallback(
     async (options: { silent?: boolean } = {}) => {
       const { silent = false } = options;
@@ -103,6 +200,7 @@ export default function MisTickets() {
       if (!user?.nombreUsuario) {
         setError("Sesion no valida.");
         setItems([]);
+        setTotalCount(0);
         if (!silent) {
           setLoading(false);
         }
@@ -113,13 +211,28 @@ export default function MisTickets() {
         if (!silent) {
           setLoading(true);
         }
-        const resp = await listTickets({
+        const params: Parameters<typeof listTicketsPaginated>[0] = {
           userId: user.nombreUsuario,
-          limit: FETCH_LIMIT,
-        });
+          title: titulo || undefined,
+          sortBy: mapSortOptionToBackend(sortBy),
+          limit: PAGE_SIZE,
+          skip: (currentPage - 1) * PAGE_SIZE,
+        };
+
+        if (statusTab === "pendientes") {
+          if (estado) {
+            params.state = estado;
+          } else {
+            params.excludeState = "resuelto";
+          }
+        } else {
+          params.state = "resuelto";
+        }
+
+        const resp = await listTicketsPaginated(params);
         if (!resp.ok) throw new Error(resp.error || "Error listando tickets");
-        const next = Array.isArray(resp.data) ? resp.data : [];
-        setItems(next);
+        setItems(Array.isArray(resp.data) ? resp.data : []);
+        setTotalCount(resp.count ?? 0);
         setError(null);
       } catch (e: any) {
         setError(e?.message || "No se pudo obtener tus tickets");
@@ -129,8 +242,27 @@ export default function MisTickets() {
         }
       }
     },
-    [user?.nombreUsuario]
+    [
+      user?.nombreUsuario,
+      titulo,
+      sortBy,
+      currentPage,
+      statusTab,
+      estado,
+    ]
   );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusTab, titulo, estado, sortBy]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
+  useEffect(() => {
+    void refreshCounts();
+  }, [refreshCounts]);
 
   useEffect(() => {
     void cargar();
@@ -139,19 +271,22 @@ export default function MisTickets() {
   // Auto-refresh cada 30 segundos para mantener datos actualizados
   useEffect(() => {
     const interval = setInterval(() => {
-      cargar({ silent: true });
+      void cargar({ silent: true });
+      void refreshCounts();
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [cargar]);
+  }, [cargar, refreshCounts]);
 
   useEffect(() => {
     const onFocus = () => {
       void cargar({ silent: true });
+      void refreshCounts();
     };
     const onVisible = () => {
       if (!document.hidden) {
         void cargar({ silent: true });
+        void refreshCounts();
       }
     };
 
@@ -161,59 +296,8 @@ export default function MisTickets() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [cargar]);
+  }, [cargar, refreshCounts]);
 
-  const filteredTickets = useMemo(() => {
-    return items.filter((ticket) => {
-      if (titulo && ticket.title !== titulo) return false;
-      if (estado && ticket.state !== estado) return false;
-      return true;
-    });
-  }, [items, titulo, estado]);
-
-  const sortedTickets = useMemo(() => {
-    const list = [...filteredTickets];
-    switch (sortBy) {
-      case "dateDesc":
-        list.sort((a, b) => getTicketDateValue(b) - getTicketDateValue(a));
-        break;
-      case "riskDesc":
-        list.sort(
-          (a, b) =>
-            RISK_ORDER[b.risk] - RISK_ORDER[a.risk] ||
-            getTicketDateValue(a) - getTicketDateValue(b)
-        );
-        break;
-      case "stateAsc":
-        list.sort(
-          (a, b) =>
-            STATE_ORDER[a.state] - STATE_ORDER[b.state] ||
-            getTicketDateValue(a) - getTicketDateValue(b)
-        );
-        break;
-      case "titleAsc":
-        list.sort(
-          (a, b) =>
-            a.title.localeCompare(b.title) ||
-            getTicketDateValue(a) - getTicketDateValue(b)
-        );
-        break;
-      case "dateAsc":
-      default:
-        list.sort((a, b) => getTicketDateValue(a) - getTicketDateValue(b));
-        break;
-    }
-    return list;
-  }, [filteredTickets, sortBy]);
-
-  const pendingTickets = useMemo(
-    () => sortedTickets.filter((ticket) => ticket.state !== "resuelto"),
-    [sortedTickets]
-  );
-  const resolvedTickets = useMemo(
-    () => sortedTickets.filter((ticket) => ticket.state === "resuelto"),
-    [sortedTickets]
-  );
   const focusedTicket = useMemo(
     () =>
       focusedTicketId
@@ -522,7 +606,7 @@ export default function MisTickets() {
 
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <select
-            className="min-w-[220px] rounded-xl bg-neutral-900/70 px-4 py-3 ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+            className="w-full rounded-xl bg-neutral-900/70 px-4 py-3 ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:w-auto sm:min-w-[220px]"
             value={titulo}
             onChange={(event) => setTitulo(event.target.value as Ticket["title"] | "")}
           >
@@ -535,7 +619,7 @@ export default function MisTickets() {
           </select>
 
           <select
-            className="min-w-[220px] rounded-xl bg-neutral-900/70 px-4 py-3 ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+            className="w-full rounded-xl bg-neutral-900/70 px-4 py-3 ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:w-auto sm:min-w-[220px]"
             value={estado}
             onChange={(event) => setEstado(event.target.value as Ticket["state"] | "")}
           >
@@ -548,7 +632,7 @@ export default function MisTickets() {
           </select>
 
           <select
-            className="min-w-[240px] rounded-xl bg-neutral-900/70 px-4 py-3 ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+            className="w-full rounded-xl bg-neutral-900/70 px-4 py-3 ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:w-auto sm:min-w-[240px]"
             value={sortBy}
             onChange={(event) => setSortBy(event.target.value as SortOption)}
           >
@@ -571,49 +655,68 @@ export default function MisTickets() {
 
         {!loading && !error && (
           <div className="space-y-6">
-            <div className="flex gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
+            <div ref={ticketsStartRef} className="h-0" />
+            <div className="flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
               <button
                 type="button"
                 onClick={() => setStatusTab("pendientes")}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto sm:flex-1 ${
                   statusTab === "pendientes"
                     ? "bg-orange-600 text-white"
                     : "text-neutral-300 hover:bg-white/10"
                 }`}
               >
-                Pendientes ({pendingTickets.length})
+                Pendientes ({pendingCount})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusTab("resueltos")}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition sm:w-auto sm:flex-1 ${
                   statusTab === "resueltos"
                     ? "bg-orange-600 text-white"
                     : "text-neutral-300 hover:bg-white/10"
                 }`}
               >
-                Resueltos ({resolvedTickets.length})
+                Resueltos ({resolvedCount})
               </button>
             </div>
 
             {statusTab === "pendientes" ? (
-              pendingTickets.length === 0 ? (
+              totalCount === 0 ? (
                 <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
                   No tienes tickets pendientes para los filtros seleccionados.
                 </div>
               ) : (
+                <>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {pendingTickets.map((ticket) => renderTicketCard(ticket))}
-                </div>
+                    {items.map((ticket) => renderTicketCard(ticket))}
+                  </div>
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    hasNextPage={currentPage < totalPages}
+                    hasPrevPage={currentPage > 1}
+                  />
+                </>
               )
-            ) : resolvedTickets.length === 0 ? (
+            ) : totalCount === 0 ? (
               <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-neutral-300">
                 No se encontraron tickets resueltos con los filtros actuales.
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {resolvedTickets.map((ticket) => renderTicketCard(ticket))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {items.map((ticket) => renderTicketCard(ticket))}
+                </div>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  hasNextPage={currentPage < totalPages}
+                  hasPrevPage={currentPage > 1}
+                />
+              </>
             )}
           </div>
         )}

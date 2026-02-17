@@ -5,6 +5,33 @@
     @apply bg-white text-neutral-900;
   }
 
+  button {
+    transition:
+      background-color 0.18s ease,
+      border-color 0.18s ease,
+      color 0.18s ease,
+      opacity 0.18s ease,
+      box-shadow 0.18s ease,
+      transform 0.12s ease;
+  }
+
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:not(:disabled):active {
+    transform: translateY(1px) scale(0.98);
+  }
+
+  button:focus-visible {
+    outline: 2px solid rgba(249, 115, 22, 0.55);
+    outline-offset: 2px;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
   input,
   select,
   textarea {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DataTable, type Column, type Action } from "./DataTable";
 import { Pagination } from "./Pagination";
 import type { Activo } from "../types";
@@ -30,17 +31,27 @@ export function ActivosTable({
   onDelete,
   onHistory,
 }: ActivosTableProps) {
+  const navigate = useNavigate();
   const [selectedActivo, setSelectedActivo] = useState<Activo | null>(null);
 
   const formatDate = (value?: string) =>
     value ? new Date(value).toLocaleDateString() : "-";
 
+  const goToModelDetails = (activo: Activo) => {
+    const modelo = (activo.modelo || "").trim();
+    if (!modelo) return;
+
+    const params = new URLSearchParams();
+    params.set("modelo", modelo);
+    if (activo.marca && activo.marca.trim() !== "") {
+      params.set("marca", activo.marca.trim());
+    }
+
+    setSelectedActivo(null);
+    navigate(`/admin/modelos?${params.toString()}`);
+  };
+
   const columns: Column<Activo>[] = [
-    {
-      key: "categoria",
-      label: "Categoria",
-      render: (activo) => activo.categoria || "-",
-    },
     {
       key: "marca",
       label: "Marca",
@@ -233,7 +244,19 @@ export function ActivosTable({
               </div>
               <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
                 <p className="text-xs font-semibold uppercase text-neutral-500">Modelo</p>
-                <p className="mt-1 text-sm">{selectedActivo.modelo || "-"}</p>
+                {selectedActivo.modelo ? (
+                  <button
+                    type="button"
+                    className="mt-1 inline-flex items-center gap-1 text-left text-sm font-medium text-orange-700 underline decoration-orange-400/70 underline-offset-2 transition hover:text-orange-800"
+                    onClick={() => goToModelDetails(selectedActivo)}
+                    title="Ver detalles del modelo"
+                  >
+                    {selectedActivo.modelo}
+                    <span aria-hidden="true">↗</span>
+                  </button>
+                ) : (
+                  <p className="mt-1 text-sm">-</p>
+                )}
               </div>
               <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
                 <p className="text-xs font-semibold uppercase text-neutral-500">Serie</p>
