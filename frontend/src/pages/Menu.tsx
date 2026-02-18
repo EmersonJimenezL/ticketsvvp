@@ -3,10 +3,9 @@ import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { isContaAdmin } from "../auth/isContaAdmin";
+import { isTicketAdmin } from "../auth/isTicketAdmin";
 import logo from "../assets/vivipra.png";
 import AppHeader from "../components/AppHeader";
-
-const AUTHORIZED_ADMINS = ["mcontreras", "ejimenez", "igonzalez"] as const;
 
 export default function Menu() {
   const { user } = useAuth();
@@ -18,9 +17,7 @@ export default function Menu() {
 
   // Bloquear acceso completo a /menu para administradores
   useEffect(() => {
-    const username = user?.nombreUsuario || user?.usuario;
-    const isAdmin = AUTHORIZED_ADMINS.includes(username as any);
-    if (isAdmin) {
+    if (isTicketAdmin(user || undefined)) {
       navigate("/admin", { replace: true });
     }
   }, [user, navigate]);

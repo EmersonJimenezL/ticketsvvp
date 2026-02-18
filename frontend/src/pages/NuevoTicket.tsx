@@ -2,13 +2,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { isTicketAdmin } from "../auth/isTicketAdmin";
 import { createTicket } from "../services/tickets";
 import { sendTicketEmail } from "../services/email";
 import { useCentroUsuarios } from "../features/gestion-activos/hooks/useCentroUsuarios";
 import type { TicketPayload } from "../services/tickets";
 import AppHeader from "../components/AppHeader";
-
-const AUTHORIZED_ADMINS = ["mcontreras", "ejimenez", "igonzalez"] as const;
 
 // Generador simple de ticketId
 function genTicketId() {
@@ -38,9 +37,7 @@ export default function NuevoTicket() {
 
   // Bloquear acceso a administradores
   useEffect(() => {
-    const username = user?.nombreUsuario || user?.usuario;
-    const isAdmin = AUTHORIZED_ADMINS.includes(username as any);
-    if (isAdmin) {
+    if (isTicketAdmin(user || undefined)) {
       navigate("/menu", { replace: true });
     }
   }, [user, navigate]);

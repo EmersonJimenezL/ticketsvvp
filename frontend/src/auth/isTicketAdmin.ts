@@ -1,11 +1,25 @@
-// Usuarios autorizados para gestionar tickets:
-// - igonzalez: Ignacio González
-// - mcontreras: Mauricio Contreras
-// - ejimenez: Emerson Jiménez
-export const ALLOWED = new Set(["igonzalez", "mcontreras", "ejimenez"]);
+type UserWithRoles = {
+  rol?: string | string[];
+};
 
-export function isTicketAdmin(u?: { rol?: string | string[]; nombreUsuario?: string; usuario?: string }) {
-  // Si el usuario está en la lista ALLOWED, tiene acceso sin importar su rol
-  const username = u?.nombreUsuario || u?.usuario;
-  return !!u && !!username && ALLOWED.has(username);
+function getNormalizedRoles(u?: UserWithRoles): string[] {
+  const roles = Array.isArray(u?.rol)
+    ? u.rol
+    : u?.rol
+      ? [u.rol]
+      : [];
+
+  return roles
+    .map((role) => role.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function isTicketAdmin(u?: UserWithRoles) {
+  const roles = getNormalizedRoles(u);
+  return roles.includes("admin");
+}
+
+export function canAssignTicketsByRole(u?: UserWithRoles) {
+  const roles = getNormalizedRoles(u);
+  return roles.includes("admin") && roles.includes("jefe");
 }

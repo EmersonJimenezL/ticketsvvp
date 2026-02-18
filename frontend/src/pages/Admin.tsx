@@ -20,6 +20,7 @@ import {
 } from "../services/tickets";
 import { sendTicketEmail } from "../services/email";
 import { useAuth } from "../auth/AuthContext";
+import { canAssignTicketsByRole, isTicketAdmin } from "../auth/isTicketAdmin";
 import AppHeader from "../components/AppHeader";
 import { useCentroUsuarios } from "../features/gestion-activos/hooks/useCentroUsuarios";
 import { Pagination } from "../features/gestion-activos/components/Pagination";
@@ -44,8 +45,6 @@ const stateOpts: Ticket["state"][] = [
 const RISK_FILTER_OPTIONS = ["todos", ...riskOpts] as const;
 type RiskFilter = (typeof RISK_FILTER_OPTIONS)[number];
 
-// Usuarios autorizados para gestionar tickets
-const AUTHORIZED_USERS = ["mcontreras", "ejimenez", "igonzalez"] as const;
 const ASSIGN_OPTIONS = [
   { value: "", label: "Sin asignar" },
   { value: "Mauricio Contreras", label: "Mauricio Contreras" },
@@ -439,7 +438,7 @@ function MetricsPanel({
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
           <h4 className="text-sm text-neutral-400">Tickets por usuario</h4>
           <ul className="mt-2 space-y-1 text-sm text-neutral-200">
-            {(metrics?.ticketsByUser ?? []).slice(0, 5).map((item) => {
+            {(metrics?.ticketsByUser ?? []).map((item) => {
               const displayName = resolveUserDisplayName(item);
               const key = `${item.userId || displayName || "desconocido"}-user`;
               return (
@@ -618,12 +617,8 @@ export default function Admin() {
     [scrollToTicketsStart]
   );
 
-  // Permisos de asignación
-  const canAssignTickets =
-    user?.nombreUsuario === "mcontreras" || user?.usuario === "mcontreras";
-  const isAuthorizedUser = AUTHORIZED_USERS.includes(
-    (user?.nombreUsuario || user?.usuario) as any
-  );
+  const isAuthorizedUser = isTicketAdmin(user || undefined);
+  const canAssignTickets = canAssignTicketsByRole(user || undefined);
 
   const correoPorUsuario = useMemo(() => {
     const map = new Map<string, string>();
@@ -1608,7 +1603,7 @@ export default function Admin() {
                 className="block w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-60"
                 title={
                   !canAssignTickets
-                    ? "Solo Mauricio Contreras puede asignar tickets"
+                    ? "Se requieren roles admin y jefe para asignar tickets"
                     : ""
                 }
               >
