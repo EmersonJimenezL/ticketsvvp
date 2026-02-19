@@ -108,6 +108,46 @@ export default function GestionInventario() {
     }
   };
 
+  const handleDisponibilizarActivo = async (item: Activo) => {
+    const itemId = String(item._id || "");
+    if (!itemId) return;
+
+    const assetLabel =
+      `${item.marca || ""} ${item.modelo || ""}`.trim() || "este activo";
+    if (!window.confirm(`¿Deseas quitar la asignación de "${assetLabel}"?`)) {
+      return;
+    }
+
+    const payload = { asignadoPara: "", fechaAsignacion: "" };
+
+    try {
+      // Intentar endpoint de asignación primero y fallback al patch base.
+      let response = await fetch(`${API_BASE}/activos/${itemId}/asignar`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      let json = await response.json().catch(() => ({}));
+
+      if (!response.ok || !json?.ok) {
+        response = await fetch(`${API_BASE}/activos/${itemId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        json = await response.json();
+      }
+
+      if (!response.ok || !json?.ok) {
+        throw new Error(json?.error || "Error al quitar la asignación");
+      }
+
+      await refrescar();
+    } catch (err: any) {
+      alert(`Error: ${err.message || "No se pudo quitar la asignación del activo"}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white text-neutral-900 relative overflow-hidden px-0 sm:px-1 lg:px-2 xl:px-3 2xl:px-4 py-6 sm:py-8 lg:py-10">
       <div className="pointer-events-none absolute inset-0 opacity-40">
@@ -178,6 +218,7 @@ export default function GestionInventario() {
                 onPageChange={activos.goToPage}
                 onEdit={activos.abrirEditar}
                 onAssign={handleAsignarActivo}
+                onMakeAvailable={handleDisponibilizarActivo}
                 onDownloadActa={handleDescargarActa}
                 onDelete={handleEliminarActivo}
                 onHistory={handleHistorialActivo}

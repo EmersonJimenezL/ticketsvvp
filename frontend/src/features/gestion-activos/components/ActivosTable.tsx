@@ -13,6 +13,7 @@ type ActivosTableProps = {
   onPageChange?: (page: number) => void;
   onEdit: (item: Activo) => void;
   onAssign: (item: Activo) => void;
+  onMakeAvailable: (item: Activo) => void;
   onDownloadActa: (item: Activo) => void;
   onDelete: (item: Activo) => void;
   onHistory: (item: Activo) => void;
@@ -27,6 +28,7 @@ export function ActivosTable({
   onPageChange,
   onEdit,
   onAssign,
+  onMakeAvailable,
   onDownloadActa,
   onDelete,
   onHistory,
@@ -150,6 +152,18 @@ export function ActivosTable({
       disabled: (activo) => !activo.asignadoPara,
       className:
         "flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white hover:bg-neutral-100 transition text-neutral-700",
+    },
+    {
+      label: "Disponibilizar",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+        </svg>
+      ),
+      onClick: onMakeAvailable,
+      className:
+        "flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 transition",
+      disabled: (activo) => !activo.asignadoPara?.trim(),
     },
     {
       label: "Eliminar",

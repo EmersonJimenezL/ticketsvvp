@@ -77,14 +77,14 @@ export default function NuevoTicket() {
         img.onload = () => {
           // Configuración de compresión
           const sizeMb = file.size / (1024 * 1024);
-          let maxDim = 1600;
-          let quality = 0.82;
+          let maxDim = 1920;
+          let quality = 0.88;
           if (sizeMb > 5) {
-            maxDim = 1024;
-            quality = 0.62;
-          } else if (sizeMb > 2) {
             maxDim = 1280;
-            quality = 0.7;
+            quality = 0.72;
+          } else if (sizeMb > 2) {
+            maxDim = 1600;
+            quality = 0.8;
           }
 
           let width = img.width;

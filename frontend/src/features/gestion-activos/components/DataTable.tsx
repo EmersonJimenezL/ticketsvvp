@@ -122,12 +122,12 @@ export function DataTable<T>({
       </div>
 
       <table className="hidden min-w-full text-sm text-neutral-900 md:table">
-        <thead className="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50">
+        <thead className="sticky top-0 z-10 border-b-2 border-neutral-300 bg-neutral-100 shadow-[inset_0_-1px_0_0_rgba(0,0,0,0.04)]">
           <tr>
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`px-4 py-3 text-left text-sm font-semibold text-neutral-600 ${
+                className={`px-4 py-3 text-left text-sm font-semibold text-neutral-700 ${
                   col.className || ""
                 }`}
               >
@@ -135,7 +135,7 @@ export function DataTable<T>({
               </th>
             ))}
             {actions && actions.length > 0 && (
-              <th className="px-4 py-3 text-right text-sm font-semibold text-neutral-600">
+              <th className="px-4 py-3 text-right text-sm font-semibold text-neutral-700">
                 Acciones
               </th>
             )}

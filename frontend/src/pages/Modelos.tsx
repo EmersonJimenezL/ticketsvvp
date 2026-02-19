@@ -330,7 +330,7 @@ export default function Modelos() {
           {/* Vista escritorio: tabla */}
           <div className="hidden lg:block overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="text-neutral-300">
+              <thead className="sticky top-0 z-10 border-b-2 border-neutral-300 bg-neutral-100 shadow-[inset_0_-1px_0_0_rgba(0,0,0,0.04)]">
                 <tr>
                   {[
                     "Categoría",
@@ -345,29 +345,29 @@ export default function Modelos() {
                     "Resolución",
                     "Acciones",
                   ].map((h) => (
-                    <th key={h} className="text-left px-4 py-3">
+                    <th key={h} className="px-4 py-3 text-left text-sm font-semibold text-neutral-700">
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/10">
+              <tbody className="divide-y divide-neutral-200">
                 {loading && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-6 text-neutral-300">
+                    <td colSpan={11} className="px-4 py-6 text-neutral-500">
                       Cargando...
                     </td>
                   </tr>
                 )}
                 {!loading && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-6 text-neutral-300">
+                    <td colSpan={11} className="px-4 py-6 text-neutral-500">
                       No hay modelos cargados.
                     </td>
                   </tr>
                 )}
                 {filtered.map((m) => (
-                  <tr key={m._id || m.modelo} className="hover:bg-white/5">
+                  <tr key={m._id || m.modelo} className="odd:bg-neutral-50/60 transition-colors hover:bg-orange-50/40">
                     <td className="px-4 py-3">{m.categoria || "-"}</td>
                     <td className="px-4 py-3">{m.marca || "-"}</td>
                     <td className="px-4 py-3 font-semibold">{m.modelo}</td>

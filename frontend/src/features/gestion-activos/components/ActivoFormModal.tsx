@@ -76,6 +76,16 @@ export function ActivoFormModal({
   }, [activeSelectedSpecKey, form.modelo, specs]);
   const hasValidationErrors = validationErrors.length > 0;
 
+  const getVisibleBrand = (brand?: string) => {
+    const normalized = (brand || "").trim();
+    if (!normalized) return "";
+    return normalized.toLowerCase() === "n/a" ? "" : normalized;
+  };
+  const formatModelHeadline = (spec: Especificacion) => {
+    const brand = getVisibleBrand(spec.marca);
+    return brand ? `${brand} | ${spec.modelo}` : spec.modelo;
+  };
+
   const formatModelOption = (spec: Especificacion) => {
     const detalles: string[] = [];
     if (spec.ram?.trim()) {
@@ -89,8 +99,8 @@ export function ActivoFormModal({
     }
 
     return detalles.length > 0
-      ? `${spec.modelo} | ${detalles.join(" | ")}`
-      : spec.modelo;
+      ? `${formatModelHeadline(spec)} | ${detalles.join(" | ")}`
+      : formatModelHeadline(spec);
   };
   const formatModelDetail = (spec: Especificacion) => {
     const detalles: string[] = [];
@@ -280,6 +290,7 @@ export function ActivoFormModal({
                       {specs.map((spec, index) => {
                         const specKey = getSpecKey(spec, index);
                         const isSelected = activeSelectedSpecKey === specKey;
+                        const visibleBrand = getVisibleBrand(spec.marca);
                         return (
                           <button
                             key={specKey}
@@ -290,8 +301,16 @@ export function ActivoFormModal({
                             onClick={() => handleSelectModel(spec, index)}
                             title={formatModelOption(spec)}
                           >
-                            <div className="truncate text-sm font-medium">
-                              {spec.modelo}
+                            <div className="truncate text-sm">
+                              {visibleBrand ? (
+                                <>
+                                  <span className="font-bold">{visibleBrand}</span>
+                                  <span className="mx-1 text-neutral-400">|</span>
+                                  <span className="font-semibold">{spec.modelo}</span>
+                                </>
+                              ) : (
+                                <span className="font-semibold">{spec.modelo}</span>
+                              )}
                             </div>
                             <div className="truncate text-xs text-neutral-300">
                               {formatModelDetail(spec)}
