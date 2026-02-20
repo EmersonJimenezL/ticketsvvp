@@ -1092,9 +1092,8 @@ export default function Admin() {
     [responseImagesDraft]
   );
 
-  async function onResponseImagesSelected(ticket: Ticket, files: FileList | null) {
-    if (!files?.length) return;
-
+  async function onResponseImageFilesSelected(ticket: Ticket, files: File[]) {
+    if (!files.length) return;
     const currentImages = getResponseImagesDraft(ticket);
     const remainingSlots = MAX_RESPONSE_IMAGES - currentImages.length;
     if (remainingSlots <= 0) {
@@ -1104,7 +1103,7 @@ export default function Admin() {
       return;
     }
 
-    const selectedFiles = Array.from(files).slice(0, remainingSlots);
+    const selectedFiles = files.slice(0, remainingSlots);
     setCompressingResponseImages((state) => ({ ...state, [ticket.ticketId]: true }));
     setError(null);
 
@@ -1140,6 +1139,11 @@ export default function Admin() {
         [ticket.ticketId]: false,
       }));
     }
+  }
+
+  async function onResponseImagesSelected(ticket: Ticket, files: FileList | null) {
+    if (!files?.length) return;
+    await onResponseImageFilesSelected(ticket, Array.from(files));
   }
 
   function onRemoveResponseImage(ticket: Ticket, imageIndex: number) {
@@ -1337,7 +1341,15 @@ export default function Admin() {
           isFocusMode
             ? undefined
             : (event) => {
-                if (event.key === "Enter" || event.key === " ") {
+                const target = event.target as HTMLElement;
+                if (target.closest("button, a, input, select, textarea, label")) {
+                  return;
+                }
+                if (
+                  event.key === "Enter" ||
+                  event.key === " " ||
+                  event.key === "Spacebar"
+                ) {
                   event.preventDefault();
                   setFocusedTicketId(ticket.ticketId);
                 }
@@ -1641,6 +1653,25 @@ export default function Admin() {
                   [ticket.ticketId]: event.target.value,
                 }))
               }
+              onPaste={(event) => {
+                if (!canEditTicket) return;
+                const clipboardItems = Array.from(event.clipboardData?.items ?? []);
+                const clipboardImageFiles = clipboardItems
+                  .filter(
+                    (item) => item.kind === "file" && item.type.startsWith("image/")
+                  )
+                  .map((item) => item.getAsFile())
+                  .filter((file): file is File => Boolean(file));
+                const imageFiles =
+                  clipboardImageFiles.length > 0
+                    ? clipboardImageFiles
+                    : Array.from(event.clipboardData?.files ?? []).filter((file) =>
+                        file.type.startsWith("image/")
+                      );
+                if (!imageFiles.length) return;
+                event.preventDefault();
+                void onResponseImageFilesSelected(ticket, imageFiles);
+              }}
               placeholder={
                 !canEditTicket
                   ? ticket.asignadoA
@@ -1676,7 +1707,8 @@ export default function Admin() {
               />
             </label>
             <p className="mt-1 text-xs text-neutral-400">
-              Maximo {MAX_RESPONSE_IMAGES} imagenes en la respuesta TI.
+              Maximo {MAX_RESPONSE_IMAGES} imagenes en la respuesta TI. Tambien
+              puedes pegarlas con Ctrl+V.
             </p>
             {compressingResponseImages[ticket.ticketId] && (
               <p className="mt-2 text-xs text-orange-300">

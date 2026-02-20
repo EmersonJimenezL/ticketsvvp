@@ -782,7 +782,11 @@ export function useGestionActivos() {
 
           let updatedActivo: Activo | null =
             (assignJson?.data as Activo | undefined) || null;
-          let numeroGenerado = resolveNumeroActa(assignJson, updatedActivo, activo);
+          let numeroGenerado = resolveNumeroActa(
+            assignJson,
+            updatedActivo,
+            activo,
+          );
 
           if (!numeroGenerado && id) {
             const refreshed = await fetchActivoFromList(id);
