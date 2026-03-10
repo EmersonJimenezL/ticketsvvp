@@ -1,12 +1,24 @@
 import { useCallback, useState } from "react";
 import { API_BASE } from "../constants";
 import type { Licencia } from "../types";
+import {
+  getCuentaAssignedSearchValue,
+  getCuentaSearchValue,
+  isCuentaDisponible,
+} from "../utils/licenciaCuenta";
 
 export function useLicencias() {
   const [licencias, setLicencias] = useState<Licencia[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const normalizeProveedor = (value: unknown): Licencia["proveedor"] => {
+    const normalized = String(value || "").trim().toUpperCase();
+    if (normalized === "SAP") return "SAP";
+    if (normalized === "OFFICE") return "OFFICE";
+    return value as Licencia["proveedor"];
+  };
 
   const fetchLicencias = useCallback(async (filters: any = {}, page: number = 1, pageSize: number = 10) => {
     try {
@@ -22,7 +34,6 @@ export function useLicencias() {
 
       if (filters.proveedor) params.set("proveedor", filters.proveedor);
       if (filters.tipoLicencia) params.set("tipoLicencia", filters.tipoLicencia);
-      if (filters.asignadoPara) params.set("asignadoPara", filters.asignadoPara);
       if (filters.desdeCompra) params.set("desdeCompra", filters.desdeCompra);
       if (filters.hastaCompra) params.set("hastaCompra", filters.hastaCompra);
       if (filters.sucursal) params.set("sucursal", filters.sucursal);
@@ -50,7 +61,12 @@ export function useLicencias() {
       if (licResponse) {
         const json = await licResponse.json();
         if (json?.ok && Array.isArray(json.data)) {
-          allLicencias.push(...json.data);
+          allLicencias.push(
+            ...json.data.map((item: Licencia) => ({
+              ...item,
+              proveedor: normalizeProveedor(item?.proveedor),
+            }))
+          );
         }
       }
 
@@ -61,7 +77,7 @@ export function useLicencias() {
           allLicencias.push(
             ...json.data.map((item: any) => ({
               _id: item?._id,
-              proveedor: item?.licencia?.proveedor,
+              proveedor: normalizeProveedor(item?.licencia?.proveedor),
               cuenta: item?.licencia?.cuenta,
               tipoLicencia: item?.licencia?.tipoLicencia,
               fechaCompra: item?.fechaCompra,
@@ -84,15 +100,22 @@ export function useLicencias() {
       if (filters.busqueda) {
         const searchLower = filters.busqueda.toLowerCase();
         filteredLicencias = filteredLicencias.filter((lic) => {
-          const cuenta = (lic.cuenta || "").toLowerCase();
-          const asignado = (lic.asignadoPara || "").toLowerCase();
+          const cuenta = getCuentaSearchValue(lic.cuenta);
+          const asignado =
+            (lic.asignadoPara || "").toLowerCase() ||
+            getCuentaAssignedSearchValue(lic.cuenta);
           return cuenta.includes(searchLower) || asignado.includes(searchLower);
         });
       }
 
       // Filtro de solo disponibles (sin asignadoPara)
       if (filters.soloDisponibles) {
-        filteredLicencias = filteredLicencias.filter((lic) => !lic.asignadoPara);
+        filteredLicencias = filteredLicencias.filter((lic) => {
+          const asignado =
+            (lic.asignadoPara || "").trim() ||
+            getCuentaAssignedSearchValue(lic.cuenta).trim();
+          return !asignado || isCuentaDisponible(lic.cuenta);
+        });
       }
 
       // APLICAR PAGINACIÓN EN EL FRONTEND sobre el array filtrado

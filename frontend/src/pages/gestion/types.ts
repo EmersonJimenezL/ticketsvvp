@@ -18,8 +18,8 @@ export type Activo = {
 
 export type Licencia = {
   _id?: string;
-  proveedor?: "SAP" | "Office";
-  cuenta?: string;
+  proveedor?: "SAP" | "OFFICE" | "Office";
+  cuenta?: string | Record<string, unknown>;
   tipoLicencia?: string;
   fechaCompra?: string; // ISO
   asignadoPara?: string;
@@ -64,11 +64,11 @@ export const OPCIONES_TIPO_LIC_MAP = {
     "Acceso indirecto",
     "Financiera limitada",
   ],
-  Office: [
+  OFFICE: [
     "Microsoft 365 E3",
     "Microsoft 365 Empresa Basico",
     "Microsoft 365 Empresa Estandar",
   ],
 } as const;
 
-export const OPCIONES_PROVEEDOR = ["SAP", "Office"] as const;
+export const OPCIONES_PROVEEDOR = ["SAP", "OFFICE"] as const;

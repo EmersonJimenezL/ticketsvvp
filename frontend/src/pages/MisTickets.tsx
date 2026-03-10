@@ -56,6 +56,10 @@ function mapSortOptionToBackend(sortBy: SortOption) {
 export default function MisTickets() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const currentUserId = useMemo(
+    () => (user?.nombreUsuario || user?.usuario || "").trim(),
+    [user?.nombreUsuario, user?.usuario]
+  );
 
   const [items, setItems] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,7 +96,7 @@ export default function MisTickets() {
 
   const handleRateTicket = useCallback(
     async (ticketId: string, score: number, comment: string) => {
-      if (!user?.nombreUsuario) {
+      if (!currentUserId) {
         throw new Error("Sesion no valida.");
       }
 
@@ -100,7 +104,7 @@ export default function MisTickets() {
       const payload = {
         ratingScore: score,
         ratingComment: normalizedComment || undefined,
-        userId: user.nombreUsuario,
+        userId: currentUserId,
       };
 
       const resp = await rateTicket(ticketId, payload);
@@ -120,7 +124,7 @@ export default function MisTickets() {
         )
       );
     },
-    [user?.nombreUsuario]
+    [currentUserId]
   );
 
   const totalPages = useMemo(
@@ -129,14 +133,14 @@ export default function MisTickets() {
   );
 
   const refreshCounts = useCallback(async () => {
-    if (!user?.nombreUsuario) {
+    if (!currentUserId) {
       setPendingCount(0);
       setResolvedCount(0);
       return;
     }
 
     const baseParams = {
-      userId: user.nombreUsuario,
+      userId: currentUserId,
       title: titulo || undefined,
       limit: 1,
       skip: 0,
@@ -191,13 +195,13 @@ export default function MisTickets() {
     } catch (e: any) {
       setError(e?.message || "No se pudieron obtener conteos.");
     }
-  }, [user?.nombreUsuario, titulo, estado]);
+  }, [currentUserId, titulo, estado]);
 
   const cargar = useCallback(
     async (options: { silent?: boolean } = {}) => {
       const { silent = false } = options;
 
-      if (!user?.nombreUsuario) {
+      if (!currentUserId) {
         setError("Sesion no valida.");
         setItems([]);
         setTotalCount(0);
@@ -212,7 +216,7 @@ export default function MisTickets() {
           setLoading(true);
         }
         const params: Parameters<typeof listTicketsPaginated>[0] = {
-          userId: user.nombreUsuario,
+          userId: currentUserId,
           title: titulo || undefined,
           sortBy: mapSortOptionToBackend(sortBy),
           limit: PAGE_SIZE,
@@ -243,7 +247,7 @@ export default function MisTickets() {
       }
     },
     [
-      user?.nombreUsuario,
+      currentUserId,
       titulo,
       sortBy,
       currentPage,

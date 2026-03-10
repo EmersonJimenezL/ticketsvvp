@@ -1,5 +1,6 @@
-import jsPDF from "jspdf";
+import type jsPDF from "jspdf";
 import logoImg from "../../../assets/vivipra.png";
+import { loadJsPdf } from "../../../utils/loadJsPdf";
 import { OPCIONES_TIPO_LIC_MAP } from "../constants";
 import type { Activo, Especificacion } from "../types";
 
@@ -261,7 +262,8 @@ export async function generateActaEntregaPdf(input: ActaPdfInput) {
   if (!input.numeroActa || input.numeroActa.trim() === "") {
     throw new Error("Numero de acta requerido para generar el PDF.");
   }
-  const pdf = new jsPDF("p", "mm", "a4");
+  const JsPDF = await loadJsPdf();
+  const pdf = new JsPDF("p", "mm", "a4");
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 14;
@@ -445,7 +447,7 @@ export async function generateActaEntregaPdf(input: ActaPdfInput) {
     }
   }
 
-  const officeTipos = [...OPCIONES_TIPO_LIC_MAP.Office];
+  const officeTipos = [...OPCIONES_TIPO_LIC_MAP.OFFICE];
   const officeLabel = "Licencias Office:";
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8.5);

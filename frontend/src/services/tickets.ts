@@ -99,7 +99,7 @@ export function listTickets(params: {
   return httpJSON<ListResponse>("tickets", `/api/ticketvvp${search}`);
 }
 
-export function listTicketsPaginated(params: {
+export async function listTicketsPaginated(params: {
   userId?: string;
   state?: Ticket["state"];
   title?: Ticket["title"];
@@ -123,7 +123,18 @@ export function listTicketsPaginated(params: {
   if (params.limit != null) qs.set("limit", String(params.limit));
   if (params.skip != null) qs.set("skip", String(params.skip));
   const search = qs.toString() ? `?${qs.toString()}` : "";
-  return httpJSON<ListResponse>("tickets", `/api/ticketvvp/paginado${search}`);
+  try {
+    return await httpJSON<ListResponse>(
+      "tickets",
+      `/api/ticketvvp/paginado${search}`
+    );
+  } catch (err: any) {
+    const message = String(err?.message || "");
+    if (message.toLowerCase().includes("no existe") || message.includes("404")) {
+      return httpJSON<ListResponse>("tickets", `/api/ticketvvp${search}`);
+    }
+    throw err;
+  }
 }
 
 export function listPendingTicketsAdmin() {

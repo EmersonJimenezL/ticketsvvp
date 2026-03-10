@@ -1,4 +1,5 @@
 import type { Licencia } from "../types";
+import { hasCuentaValue } from "../utils/licenciaCuenta";
 
 export type ValidationError = {
   field: string;
@@ -18,12 +19,20 @@ export function validateLicencia(licencia: Partial<Licencia>, isEdit: boolean): 
       errors.push({ field: "tipoLicencia", message: "El tipo de licencia es obligatorio" });
     }
 
-    if (!licencia.cuenta || licencia.cuenta.trim() === "") {
+    if (!hasCuentaValue(licencia.cuenta)) {
       errors.push({ field: "cuenta", message: "La cuenta es obligatoria" });
+    }
+
+    if (!licencia.asignadoPara || licencia.asignadoPara.trim() === "") {
+      errors.push({ field: "asignadoPara", message: "Debe seleccionar un usuario" });
     }
 
     if (!licencia.fechaCompra || licencia.fechaCompra.trim() === "") {
       errors.push({ field: "fechaCompra", message: "La fecha de compra es obligatoria" });
+    }
+
+    if (!licencia.fechaAsignacion || licencia.fechaAsignacion.trim() === "") {
+      errors.push({ field: "fechaAsignacion", message: "La fecha de asignación es obligatoria" });
     }
   }
 
@@ -45,13 +54,6 @@ export function validateLicencia(licencia: Partial<Licencia>, isEdit: boolean): 
         message: "La fecha de asignación no puede ser anterior a la fecha de compra",
       });
     }
-  }
-
-  if (licencia.asignadoPara && licencia.asignadoPara.trim() !== "" && !licencia.fechaAsignacion) {
-    errors.push({
-      field: "fechaAsignacion",
-      message: "Debe especificar la fecha de asignación si asigna la licencia",
-    });
   }
 
   return errors;

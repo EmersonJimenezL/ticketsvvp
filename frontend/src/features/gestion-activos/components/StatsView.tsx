@@ -9,9 +9,17 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import jsPDF from "jspdf";
 import type { LicenciaStats } from "../types";
 import logoImg from "../../../assets/vivipra.png";
+import { loadJsPdf } from "../../../utils/loadJsPdf";
+import {
+  getCuentaArea,
+  getCuentaAssignedDisplay,
+  getCuentaCentroCosto,
+  getCuentaDisplay,
+  getCuentaSucursal,
+  isCuentaDisponible,
+} from "../utils/licenciaCuenta";
 
 const BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 const API_BASE = `${BASE_URL}/api`;
@@ -76,11 +84,12 @@ export function StatsView({ stats }: StatsViewProps) {
         );
       } else if (reportType === "office") {
         licenciasFiltradas = todasLicencias.filter(
-          (lic: any) => lic.proveedor === "Office"
+          (lic: any) => String(lic.proveedor || "").toUpperCase() === "OFFICE"
         );
       }
 
-      const pdf = new jsPDF("p", "mm", "a4");
+      const JsPDF = await loadJsPdf();
+      const pdf = new JsPDF("p", "mm", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 15;
@@ -168,23 +177,30 @@ export function StatsView({ stats }: StatsViewProps) {
       pdf.text(tituloInforme, pageWidth / 2, y, { align: "center" });
       y += 8;
 
-      // RESUMEN GENERAL - TABLA PROFESIONAL
-      const totalGeneral = todasLicencias.length;
-      const sapTotal = todasLicencias.filter(
+      // RESUMEN DEL REPORTE (según selección)
+      const totalSeleccionado = licenciasFiltradas.length;
+      const sapTotalSeleccionado = licenciasFiltradas.filter(
         (lic: any) => lic.proveedor === "SAP"
       ).length;
-      const officeTotal = todasLicencias.filter(
-        (lic: any) => lic.proveedor === "Office"
+      const officeTotalSeleccionado = licenciasFiltradas.filter(
+        (lic: any) => String(lic.proveedor || "").toUpperCase() === "OFFICE"
       ).length;
-      const disponiblesGeneral = todasLicencias.filter(
-        (lic: any) =>
-          !lic.asignadoPara || lic.cuenta?.toLowerCase() === "disponible"
+      const disponiblesSeleccionadas = licenciasFiltradas.filter(
+        (lic: any) => {
+          const asignado =
+            lic.asignadoPara || getCuentaAssignedDisplay(lic.cuenta);
+          return !asignado || isCuentaDisponible(lic.cuenta);
+        }
       ).length;
-      const enUsoGeneral = totalGeneral - disponiblesGeneral;
+      const enUsoSeleccionadas = totalSeleccionado - disponiblesSeleccionadas;
 
       pdf.setFontSize(8);
       pdf.setFont("helvetica", "normal");
-      pdf.text("RESUMEN GENERAL", margin, y);
+      pdf.text(
+        reportType === "general" ? "RESUMEN GENERAL" : "RESUMEN DEL REPORTE",
+        margin,
+        y
+      );
       y += 6;
 
       // Tabla de resumen
@@ -207,13 +223,22 @@ export function StatsView({ stats }: StatsViewProps) {
       y += resumenRowHeight;
 
       // Filas de resumen
-      const resumenData = [
-        ["Total de licencias", totalGeneral.toString()],
-        ["Licencias SAP", sapTotal.toString()],
-        ["Licencias Microsoft Office", officeTotal.toString()],
-        ["Licencias disponibles", disponiblesGeneral.toString()],
-        ["Licencias en uso", enUsoGeneral.toString()],
+      const resumenData: [string, string][] = [
+        ["Total de licencias", totalSeleccionado.toString()],
       ];
+      if (reportType === "general" || reportType === "sap") {
+        resumenData.push(["Licencias SAP", sapTotalSeleccionado.toString()]);
+      }
+      if (reportType === "general" || reportType === "office") {
+        resumenData.push([
+          "Licencias Microsoft Office",
+          officeTotalSeleccionado.toString(),
+        ]);
+      }
+      resumenData.push(
+        ["Licencias disponibles", disponiblesSeleccionadas.toString()],
+        ["Licencias en uso", enUsoSeleccionadas.toString()]
+      );
 
       pdf.setFont("helvetica", "normal");
       resumenData.forEach((row) => {
@@ -255,24 +280,50 @@ export function StatsView({ stats }: StatsViewProps) {
 
         // Configuración tabla
         const rowHeight = 6;
-        const col1Width = 50;
-        const col2Width = 70;
-        const col3Width = contentWidth - col1Width - col2Width;
+        const tableFontSize = 7;
+        const columns = [
+          { label: "Cuenta", width: 32 },
+          { label: "Asignado a", width: 34 },
+          { label: "Sucursal", width: 30 },
+          { label: "Gerencia", width: 30 },
+          { label: "Centro Costo", width: 30 },
+          { label: "Fecha", width: contentWidth - 156 },
+        ] as const;
+
+        const fitText = (value: string, maxWidth: number) => {
+          const input = (value || "-").toString();
+          if (pdf.getTextWidth(input) <= maxWidth) return input;
+
+          let current = input;
+          while (
+            current.length > 0 &&
+            pdf.getTextWidth(`${current}...`) > maxWidth
+          ) {
+            current = current.slice(0, -1);
+          }
+          return current ? `${current}...` : "-";
+        };
 
         // Encabezado de tabla con fondo gris
         pdf.setDrawColor(0, 0, 0);
         pdf.setLineWidth(0.4);
         pdf.setFillColor(240, 240, 240);
-        pdf.rect(margin, y, col1Width, rowHeight, "FD");
-        pdf.rect(margin + col1Width, y, col2Width, rowHeight, "FD");
-        pdf.rect(margin + col1Width + col2Width, y, col3Width, rowHeight, "FD");
 
-        pdf.setFontSize(8);
+        let headerX = margin;
+        columns.forEach((column) => {
+          pdf.rect(headerX, y, column.width, rowHeight, "FD");
+          headerX += column.width;
+        });
+
+        pdf.setFontSize(tableFontSize);
         pdf.setFont("helvetica", "normal");
         pdf.setTextColor(0, 0, 0);
-        pdf.text("Cuenta", margin + 2, y + 4);
-        pdf.text("Asignado a", margin + col1Width + 2, y + 4);
-        pdf.text("Fecha", margin + col1Width + col2Width + 2, y + 4);
+
+        headerX = margin;
+        columns.forEach((column) => {
+          pdf.text(column.label, headerX + 1.5, y + 4);
+          headerX += column.width;
+        });
 
         y += rowHeight;
 
@@ -281,8 +332,16 @@ export function StatsView({ stats }: StatsViewProps) {
         licencias.forEach((lic: any) => {
           checkSpace(rowHeight + 3);
 
-          const cuenta = lic.cuenta || "N/A";
-          const asignado = lic.asignadoPara || "Sin asignar";
+          const cuenta = getCuentaDisplay(lic.cuenta) || "N/A";
+          const asignado =
+            lic.asignadoPara ||
+            getCuentaAssignedDisplay(lic.cuenta) ||
+            "Sin asignar";
+          const sucursal =
+            lic.sucursal || getCuentaSucursal(lic.cuenta) || "-";
+          const gerencia = lic.area || getCuentaArea(lic.cuenta) || "-";
+          const centroCosto =
+            lic.centroCosto || getCuentaCentroCosto(lic.cuenta) || "-";
           const fechaAsig = lic.fechaAsignacion
             ? new Date(lic.fechaAsignacion).toLocaleDateString("es-ES", {
                 day: "2-digit",
@@ -290,17 +349,24 @@ export function StatsView({ stats }: StatsViewProps) {
                 year: "numeric",
               })
             : "-";
+          const rowValues = [
+            cuenta,
+            asignado,
+            sucursal,
+            gerencia,
+            centroCosto,
+            fechaAsig,
+          ];
 
           // Bordes de celda
           pdf.setLineWidth(0.3);
-          pdf.rect(margin, y, col1Width, rowHeight);
-          pdf.rect(margin + col1Width, y, col2Width, rowHeight);
-          pdf.rect(margin + col1Width + col2Width, y, col3Width, rowHeight);
 
-          // Contenido
-          pdf.text(cuenta.substring(0, 32), margin + 2, y + 4);
-          pdf.text(asignado.substring(0, 42), margin + col1Width + 2, y + 4);
-          pdf.text(fechaAsig, margin + col1Width + col2Width + 2, y + 4);
+          let rowX = margin;
+          columns.forEach((column, index) => {
+            pdf.rect(rowX, y, column.width, rowHeight);
+            pdf.text(fitText(rowValues[index] || "-", column.width - 3), rowX + 1.5, y + 4);
+            rowX += column.width;
+          });
 
           y += rowHeight;
         });

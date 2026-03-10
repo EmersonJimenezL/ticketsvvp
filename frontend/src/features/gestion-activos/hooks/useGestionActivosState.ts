@@ -13,6 +13,7 @@ import type {
 } from "../types";
 import { API_BASE, OPCIONES_TIPO_LIC_MAP, PAGE_SIZE } from "../constants";
 import { useDebouncedValue } from "./useDebouncedValue";
+import { getCuentaSearchValue } from "../utils/licenciaCuenta";
 
 const ACTIVO_FILTERS_DEFAULT: ActivoFilters = {
   categoria: "",
@@ -70,10 +71,10 @@ export function useGestionActivosState() {
     if (licenciaFilters.proveedor === "SAP") {
       return [...OPCIONES_TIPO_LIC_MAP.SAP];
     }
-    if (licenciaFilters.proveedor === "Office") {
-      return [...OPCIONES_TIPO_LIC_MAP.Office];
+    if (licenciaFilters.proveedor === "OFFICE") {
+      return [...OPCIONES_TIPO_LIC_MAP.OFFICE];
     }
-    return [...OPCIONES_TIPO_LIC_MAP.SAP, ...OPCIONES_TIPO_LIC_MAP.Office];
+    return [...OPCIONES_TIPO_LIC_MAP.SAP, ...OPCIONES_TIPO_LIC_MAP.OFFICE];
   }, [licenciaFilters.proveedor]);
 
   const fetchActivos = useCallback(async () => {
@@ -217,7 +218,7 @@ export function useGestionActivosState() {
     if (debouncedCuenta) {
       const needle = debouncedCuenta.toLowerCase();
       list = list.filter((lic) =>
-        (lic.cuenta || "").toLowerCase().includes(needle)
+        getCuentaSearchValue(lic.cuenta).includes(needle)
       );
     }
     if (licenciaFilters.desdeCompra) {

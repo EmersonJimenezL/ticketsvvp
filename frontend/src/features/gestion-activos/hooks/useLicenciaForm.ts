@@ -1,5 +1,10 @@
 import { useCallback, useState } from "react";
 import type { Licencia } from "../types";
+import {
+  getCuentaAssignedDisplay,
+  getCuentaDisplay,
+  normalizeProveedorLicencia,
+} from "../utils/licenciaCuenta";
 
 const EMPTY_FORM: Licencia = {
   proveedor: undefined,
@@ -8,6 +13,7 @@ const EMPTY_FORM: Licencia = {
   fechaCompra: "",
   sucursal: "",
   centroCosto: "",
+  area: "",
   asignadoPara: "",
   fechaAsignacion: "",
 };
@@ -29,13 +35,15 @@ export function useLicenciaForm() {
 
     setEditId(licencia._id || null);
     setForm({
-      proveedor: licencia.proveedor || undefined,
-      cuenta: licencia.cuenta || "",
+      proveedor: normalizeProveedorLicencia(licencia.proveedor) || undefined,
+      cuenta: getCuentaDisplay(licencia.cuenta),
       tipoLicencia: licencia.tipoLicencia || "",
       fechaCompra: (licencia.fechaCompra || "").slice(0, 10),
       sucursal: licencia.sucursal || "",
       centroCosto: licencia.centroCosto || "",
-      asignadoPara: licencia.asignadoPara || "",
+      area: licencia.area || "",
+      asignadoPara:
+        licencia.asignadoPara || getCuentaAssignedDisplay(licencia.cuenta),
       fechaAsignacion: (licencia.fechaAsignacion || "").slice(0, 10),
       _id: licencia._id,
     });

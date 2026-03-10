@@ -34,6 +34,49 @@ type Usuario = {
   primerApellido?: string; // alias de papellido
 };
 
+function normalizeUserAliases(u: Usuario): Usuario {
+  const usuarioBase =
+    typeof u.usuario === "string" && u.usuario.trim()
+      ? u.usuario.trim()
+      : typeof u.nombreUsuario === "string"
+        ? u.nombreUsuario.trim()
+        : "";
+  const nombreUsuario =
+    typeof u.nombreUsuario === "string" && u.nombreUsuario.trim()
+      ? u.nombreUsuario.trim()
+      : usuarioBase;
+  const pnombre =
+    typeof u.pnombre === "string" && u.pnombre.trim()
+      ? u.pnombre.trim()
+      : typeof u.primerNombre === "string"
+        ? u.primerNombre.trim()
+        : "";
+  const papellido =
+    typeof u.papellido === "string" && u.papellido.trim()
+      ? u.papellido.trim()
+      : typeof u.primerApellido === "string"
+        ? u.primerApellido.trim()
+        : "";
+  const primerNombre =
+    typeof u.primerNombre === "string" && u.primerNombre.trim()
+      ? u.primerNombre.trim()
+      : pnombre;
+  const primerApellido =
+    typeof u.primerApellido === "string" && u.primerApellido.trim()
+      ? u.primerApellido.trim()
+      : papellido;
+
+  return {
+    ...u,
+    usuario: usuarioBase,
+    pnombre,
+    papellido,
+    nombreUsuario,
+    primerNombre,
+    primerApellido,
+  };
+}
+
 type AuthContextType = {
   user: Usuario | null;
   isAuth: boolean;
@@ -84,10 +127,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = (u: Usuario) => {
-    setUser(u);
+    const normalized = normalizeUserAliases(u);
+    setUser(normalized);
     const now = Date.now();
     issuedAtRef.current = now;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
     localStorage.setItem(STORAGE_ISSUED_AT, String(now));
     armInactivityTimer();
   };
@@ -114,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const issued = localStorage.getItem(STORAGE_ISSUED_AT);
 
       if (raw && issued) {
-        const parsed = JSON.parse(raw) as Usuario;
+        const parsed = normalizeUserAliases(JSON.parse(raw) as Usuario);
         const issuedAt = Number(issued);
         issuedAtRef.current = issuedAt;
 
@@ -123,6 +167,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           Date.now() - issuedAt <= ABS_MAX_SESSION_MS
         ) {
           setUser(parsed);
+          // Migra sesiones antiguas sin aliases de usuario.
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
           armInactivityTimer();
         } else {
           // vencida por tiempo absoluto

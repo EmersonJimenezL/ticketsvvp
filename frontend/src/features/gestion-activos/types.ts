@@ -24,12 +24,13 @@ export type Activo = {
 
 export type Licencia = {
   _id?: string;
-  proveedor?: "SAP" | "Office";
-  cuenta?: string;
+  proveedor?: "SAP" | "OFFICE" | "Office";
+  cuenta?: string | Record<string, unknown>;
   tipoLicencia?: string;
   fechaCompra?: string;
   sucursal?: "" | Sucursal;
   centroCosto?: "" | CentroCosto;
+  area?: string;
   asignadoPara?: string;
   fechaAsignacion?: string;
   activoId?: string;
@@ -54,6 +55,11 @@ export type CentroUsuario = {
   papellido?: string;
   sapellido?: string;
   email?: string;
+  sucursal?: string;
+  centroCosto?: string;
+  ccosto?: string;
+  gerencia?: string;
+  area?: string;
   rol?: string[];
   activo?: boolean;
 };

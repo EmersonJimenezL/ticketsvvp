@@ -1,5 +1,5 @@
-import jsPDF from "jspdf";
 import logoImg from "../assets/vivipra.png";
+import { loadJsPdf } from "../utils/loadJsPdf";
 
 const EMAIL_BASE =
   import.meta.env.VITE_EMAIL_BASE || "http://192.168.200.80:3005/api";
@@ -59,7 +59,8 @@ async function getLogoData() {
 }
 
 async function buildTicketPdf(nota?: Record<string, any>) {
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const JsPDF = await loadJsPdf();
+  const doc = new JsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 

@@ -53,7 +53,11 @@ const ASSIGN_OPTIONS = [
 ] as const;
 
 type SortOption = "risk" | "createdAsc" | "createdDesc" | "resolvedDesc";
-type TicketEmailEvent = "asignado" | "estado" | "resuelto";
+type TicketEmailEvent = "asignado" | "estado" | "resuelto" | "respuesta";
+type CreatorFilterOption = {
+  userId: string;
+  displayName: string;
+};
 const SORT_LABEL: Record<SortOption, string> = {
   risk: "Riesgo (alto -> bajo)",
   createdAsc: "Creacion (antiguo -> reciente)",
@@ -62,6 +66,7 @@ const SORT_LABEL: Record<SortOption, string> = {
 };
 const MAX_RESPONSE_IMAGES = 5;
 const PAGE_SIZE = 12;
+const CREATOR_DATALIST_ID = "ticket-creator-options";
 
 function mapSortOptionToBackend(sortBy: SortOption) {
   switch (sortBy) {
@@ -153,6 +158,88 @@ function resolveOwnerDisplay(ticket: Ticket) {
     ticket.userId ||
     "Sin usuario"
   );
+}
+
+function buildCurrentUserAssigneeCandidates(user: {
+  pnombre?: string;
+  papellido?: string;
+  primerNombre?: string;
+  primerApellido?: string;
+  nombreUsuario?: string;
+  usuario?: string;
+} | null | undefined) {
+  if (!user) return [] as string[];
+
+  const canonicalFull = [(user.pnombre || "").trim(), (user.papellido || "").trim()]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const aliasFull = [
+    (user.primerNombre || "").trim(),
+    (user.primerApellido || "").trim(),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const candidates = [
+    canonicalFull,
+    aliasFull,
+    (user.nombreUsuario || "").trim(),
+    (user.usuario || "").trim(),
+  ].filter(Boolean);
+
+  const seen = new Set<string>();
+  return candidates.filter((value) => {
+    const key = normalizeString(value);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function isAssigneeMatch(assigneeRaw: string | undefined, candidateRaw: string) {
+  const assignee = normalizeString(assigneeRaw || "");
+  const candidate = normalizeString(candidateRaw || "");
+  if (!assignee || !candidate) return false;
+  if (assignee === candidate) return true;
+  const tokens = candidate.split(/\s+/).filter(Boolean);
+  return tokens.length > 0 && tokens.every((token) => assignee.includes(token));
+}
+
+function isTicketAssignedToCandidates(ticket: Ticket, candidates: string[]) {
+  if (!ticket.asignadoA || candidates.length === 0) return false;
+  return candidates.some((candidate) => isAssigneeMatch(ticket.asignadoA, candidate));
+}
+
+function toSortableDate(value?: string) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function sortTicketsLocal(tickets: Ticket[], sortBy: SortOption) {
+  const riskWeight: Record<Ticket["risk"], number> = {
+    alto: 3,
+    medio: 2,
+    bajo: 1,
+  };
+
+  return [...tickets].sort((a, b) => {
+    const createdA = toSortableDate(a.ticketTime || a.createdAt);
+    const createdB = toSortableDate(b.ticketTime || b.createdAt);
+    if (sortBy === "createdAsc") return createdA - createdB;
+    if (sortBy === "createdDesc") return createdB - createdA;
+    if (sortBy === "resolvedDesc") {
+      const resolvedA = toSortableDate(a.resolucionTime || a.updatedAt);
+      const resolvedB = toSortableDate(b.resolucionTime || b.updatedAt);
+      return resolvedB - resolvedA;
+    }
+
+    const riskDiff =
+      (riskWeight[b.risk] || 0) - (riskWeight[a.risk] || 0);
+    if (riskDiff !== 0) return riskDiff;
+    return createdB - createdA;
+  });
 }
 
 function formatResolutionTime(hours: number | null) {
@@ -536,6 +623,7 @@ export default function Admin() {
   >({});
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("todos");
   const [sortBy, setSortBy] = useState<SortOption>("createdAsc");
+  const [creatorFilter, setCreatorFilter] = useState("");
   const [unassignedView, setUnassignedView] = useState<
     "pendientes" | "resueltos"
   >("pendientes");
@@ -581,10 +669,43 @@ export default function Admin() {
 
   const { user } = useAuth();
   const navigate = useNavigate();
-  const assignedUserFullName = useMemo(
-    () => `${user?.pnombre || ""} ${user?.papellido || ""}`.trim(),
-    [user?.pnombre, user?.papellido]
+  const assignedUserCandidates = useMemo(
+    () => buildCurrentUserAssigneeCandidates(user),
+    [
+      user?.pnombre,
+      user?.papellido,
+      user?.primerNombre,
+      user?.primerApellido,
+      user?.nombreUsuario,
+      user?.usuario,
+    ]
   );
+  const creatorFilterOptions = useMemo<CreatorFilterOption[]>(() => {
+    const byUserId = new Map<string, string>();
+    for (const ticket of items) {
+      const userId = (ticket.userId || "").trim();
+      if (!userId || byUserId.has(userId)) continue;
+      byUserId.set(userId, resolveOwnerDisplay(ticket));
+    }
+    return Array.from(byUserId.entries())
+      .map(([userId, displayName]) => ({ userId, displayName }))
+      .sort((a, b) =>
+        a.displayName.localeCompare(b.displayName, "es", {
+          sensitivity: "base",
+        })
+      );
+  }, [items]);
+  const creatorFilterUserId = useMemo(() => {
+    const value = creatorFilter.trim();
+    if (!value) return "";
+    const normalizedValue = normalizeString(value);
+    const exactMatch = creatorFilterOptions.find(
+      (option) =>
+        normalizeString(option.userId) === normalizedValue ||
+        normalizeString(option.displayName) === normalizedValue
+    );
+    return exactMatch?.userId || value;
+  }, [creatorFilter, creatorFilterOptions]);
 
   const scrollToTicketsStart = useCallback(() => {
     const target = ticketsStartRef.current;
@@ -648,6 +769,8 @@ export default function Admin() {
         newState?: Ticket["state"];
         assignedTo?: string;
         prevState?: Ticket["state"];
+        responseComment?: string;
+        responseImagesCount?: number;
       }
     ) => {
       const destinatario = resolveCorreo(ticket.userId);
@@ -663,6 +786,8 @@ export default function Admin() {
       const state = extras?.newState || ticket.state;
       const fecha = new Date().toLocaleString("es-CL");
       const prevState = extras?.prevState;
+      const responseComment = extras?.responseComment?.trim() || "";
+      const responseImagesCount = extras?.responseImagesCount ?? 0;
 
       let asunto = "";
       let mensaje = "";
@@ -703,6 +828,22 @@ export default function Admin() {
           "",
           "Sistema de Tickets VVP.",
         ].filter(Boolean).join("\n");
+      } else if (evento === "respuesta") {
+        asunto = `Ticket ${ticket.ticketId} con nueva respuesta TI`;
+        mensaje = [
+          `Hola ${ownerDisplay},`,
+          "",
+          "Tu ticket recibió una nueva respuesta de TI.",
+          responseComment ? `Comentario: ${responseComment}` : "",
+          responseImagesCount > 0
+            ? `Imagenes adjuntas en respuesta: ${responseImagesCount}`
+            : "",
+          "",
+          ...detailLines,
+          description,
+          "",
+          "Sistema de Tickets VVP.",
+        ].filter(Boolean).join("\n");
       } else {
         asunto = `Ticket ${ticket.ticketId} actualizado`;
         mensaje = [
@@ -728,6 +869,9 @@ export default function Admin() {
         userName: ownerDisplay,
         description: ticket.description,
         fecha,
+        evento,
+        responseComment: responseComment || undefined,
+        responseImagesCount: responseImagesCount || undefined,
       };
 
       try {
@@ -793,29 +937,28 @@ export default function Admin() {
       setAllPendingCountServer(allPending);
       setAllResolvedCountServer(allResolved);
 
-      if (!assignedUserFullName) {
+      if (assignedUserCandidates.length === 0) {
         setMyAssignedPendingCountServer(0);
         setMyAssignedResolvedCountServer(0);
         return;
       }
 
-      const [myPending, myResolved] = await Promise.all([
-        fetchPagedCount({
-          asignadoA: assignedUserFullName,
-          excludeState: "resuelto",
-        }),
-        fetchPagedCount({
-          asignadoA: assignedUserFullName,
-          state: "resuelto",
-        }),
-      ]);
+      const assignedTickets = items.filter((ticket) =>
+        isTicketAssignedToCandidates(ticket, assignedUserCandidates)
+      );
+      const myPending = assignedTickets.filter(
+        (ticket) => ticket.state !== "resuelto"
+      ).length;
+      const myResolved = assignedTickets.filter(
+        (ticket) => ticket.state === "resuelto"
+      ).length;
 
       setMyAssignedPendingCountServer(myPending);
       setMyAssignedResolvedCountServer(myResolved);
     } catch (err: any) {
       setError(err?.message || "No se pudieron obtener conteos de tickets.");
     }
-  }, [assignedUserFullName, fetchPagedCount]);
+  }, [assignedUserCandidates, fetchPagedCount, items]);
 
   const fetchUnassignedPage = useCallback(async () => {
     try {
@@ -827,6 +970,9 @@ export default function Admin() {
         skip: (unassignedPage - 1) * PAGE_SIZE,
       };
 
+      if (creatorFilterUserId) {
+        params.userId = creatorFilterUserId;
+      }
       if (riskFilter !== "todos") {
         params.risk = riskFilter;
       }
@@ -847,10 +993,10 @@ export default function Admin() {
     } finally {
       setUnassignedListLoading(false);
     }
-  }, [riskFilter, sortBy, unassignedPage, unassignedView]);
+  }, [creatorFilterUserId, riskFilter, sortBy, unassignedPage, unassignedView]);
 
   const fetchMyAssignedPage = useCallback(async () => {
-    if (!assignedUserFullName) {
+    if (assignedUserCandidates.length === 0) {
       setMyAssignedPageItems([]);
       setMyAssignedTotalCount(0);
       return;
@@ -858,31 +1004,42 @@ export default function Admin() {
 
     try {
       setMyAssignedListLoading(true);
-      const params: Parameters<typeof listTicketsPaginated>[0] = {
-        asignadoA: assignedUserFullName,
-        sortBy: mapSortOptionToBackend(sortBy),
-        limit: PAGE_SIZE,
-        skip: (myAssignedPage - 1) * PAGE_SIZE,
-      };
+      let filtered = items.filter((ticket) =>
+        isTicketAssignedToCandidates(ticket, assignedUserCandidates)
+      );
+
+      if (creatorFilterUserId) {
+        const normalizedCreator = normalizeString(creatorFilterUserId);
+        filtered = filtered.filter(
+          (ticket) => normalizeString(ticket.userId || "") === normalizedCreator
+        );
+      }
 
       if (myAssignedView === "resueltos") {
-        params.state = "resuelto";
+        filtered = filtered.filter((ticket) => ticket.state === "resuelto");
       } else {
-        params.excludeState = "resuelto";
+        filtered = filtered.filter((ticket) => ticket.state !== "resuelto");
       }
 
-      const response = await listTicketsPaginated(params);
-      if (!response.ok) {
-        throw new Error(response.error || "No se pudieron cargar tickets.");
-      }
-      setMyAssignedPageItems(Array.isArray(response.data) ? response.data : []);
-      setMyAssignedTotalCount(response.count ?? 0);
+      const sorted = sortTicketsLocal(filtered, sortBy);
+      const start = (myAssignedPage - 1) * PAGE_SIZE;
+      const pageItems = sorted.slice(start, start + PAGE_SIZE);
+
+      setMyAssignedPageItems(pageItems);
+      setMyAssignedTotalCount(sorted.length);
     } catch (err: any) {
       setError(err?.message || "Error al paginar mis tickets asignados.");
     } finally {
       setMyAssignedListLoading(false);
     }
-  }, [assignedUserFullName, myAssignedPage, myAssignedView, sortBy]);
+  }, [
+    assignedUserCandidates,
+    creatorFilterUserId,
+    items,
+    myAssignedPage,
+    myAssignedView,
+    sortBy,
+  ]);
 
   const fetchAllPage = useCallback(async () => {
     try {
@@ -893,6 +1050,9 @@ export default function Admin() {
         skip: (allPage - 1) * PAGE_SIZE,
       };
 
+      if (creatorFilterUserId) {
+        params.userId = creatorFilterUserId;
+      }
       if (riskFilter !== "todos") {
         params.risk = riskFilter;
       }
@@ -913,7 +1073,7 @@ export default function Admin() {
     } finally {
       setAllListLoading(false);
     }
-  }, [allPage, allView, riskFilter, sortBy]);
+  }, [allPage, allView, creatorFilterUserId, riskFilter, sortBy]);
 
   const refreshActiveTabPage = useCallback(async () => {
     if (activeTab === "tickets") {
@@ -1016,15 +1176,15 @@ export default function Admin() {
 
   useEffect(() => {
     setUnassignedPage(1);
-  }, [unassignedView, riskFilter, sortBy]);
+  }, [unassignedView, creatorFilterUserId, riskFilter, sortBy]);
 
   useEffect(() => {
     setMyAssignedPage(1);
-  }, [myAssignedView, sortBy]);
+  }, [myAssignedView, creatorFilterUserId, sortBy]);
 
   useEffect(() => {
     setAllPage(1);
-  }, [allView, riskFilter, sortBy]);
+  }, [allView, creatorFilterUserId, riskFilter, sortBy]);
 
   useEffect(() => {
     setUnassignedPage((page) => Math.min(page, unassignedTotalPages));
@@ -1212,6 +1372,15 @@ export default function Admin() {
     const previousResponseImages = Array.isArray(ticket.imagesRespuesta)
       ? ticket.imagesRespuesta
       : [];
+    const normalizedDraftComment = draft.trim();
+    const normalizedPreviousComment = previousComment.trim();
+    const hasNewComment =
+      normalizedDraftComment.length > 0 &&
+      normalizedDraftComment !== normalizedPreviousComment;
+    const previousResponseImagesSet = new Set(previousResponseImages);
+    const hasNewResponseImages = draftImages.some(
+      (image) => !previousResponseImagesSet.has(image)
+    );
 
     try {
       setItems((list) =>
@@ -1227,6 +1396,13 @@ export default function Admin() {
       });
       if (!response.ok) {
         throw new Error(response.error || "No se pudo guardar la respuesta TI.");
+      }
+      if (hasNewComment || hasNewResponseImages) {
+        const updatedTicket = { ...ticket, comment: draft, imagesRespuesta: draftImages };
+        void notifyTicketByEmail(updatedTicket, "respuesta", {
+          responseComment: normalizedDraftComment,
+          responseImagesCount: draftImages.length,
+        });
       }
       await refreshActiveTabPage();
     } catch (err: any) {
@@ -1306,15 +1482,13 @@ export default function Admin() {
     const ownerDisplay = resolveOwnerDisplay(ticket);
 
     // Verificar si el usuario actual es el asignado al ticket
-    const userFullName = `${user?.pnombre || ""} ${
-      user?.papellido || ""
-    }`.trim();
-    const isAssignedToCurrentUser = ticket.asignadoA
-      ? normalizeString(ticket.asignadoA) === normalizeString(userFullName)
-      : false;
+    const isAssignedToCurrentUser = isTicketAssignedToCandidates(
+      ticket,
+      assignedUserCandidates
+    );
 
     // Un ticket puede editarse solo si está asignado al usuario actual
-    const canEditTicket = ticket.asignadoA && isAssignedToCurrentUser;
+    const canEditTicket = Boolean(ticket.asignadoA && isAssignedToCurrentUser);
     const requestImages = Array.isArray(ticket.images) ? ticket.images : [];
     const responseImages = getResponseImagesDraft(ticket);
     const responseComment = commentDraft[ticket.ticketId] ?? ticket.comment ?? "";
@@ -1875,6 +2049,16 @@ export default function Admin() {
           </div>
         )}
 
+        <datalist id={CREATOR_DATALIST_ID}>
+          {creatorFilterOptions.map((option) => (
+            <option
+              key={option.userId}
+              value={option.userId}
+              label={option.displayName}
+            />
+          ))}
+        </datalist>
+
         {/* Tabs */}
         <div className="mb-6 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
           {isAuthorizedUser && (
@@ -1982,6 +2166,25 @@ export default function Admin() {
                     ))}
                   </select>
                 </label>
+                <label className="w-full text-sm text-neutral-300 sm:w-auto">
+                  Usuario creador
+                  <input
+                    list={CREATOR_DATALIST_ID}
+                    value={creatorFilter}
+                    onChange={(event) => setCreatorFilter(event.target.value)}
+                    placeholder="usuario o nombre exacto"
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 sm:ml-2 sm:mt-0 sm:w-auto"
+                  />
+                </label>
+                {creatorFilter.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => setCreatorFilter("")}
+                    className="rounded-xl border border-white/10 px-3 py-2 text-xs text-neutral-200 transition hover:bg-white/10"
+                  >
+                    Limpiar usuario
+                  </button>
+                )}
               </div>
             </div>
 
@@ -2082,6 +2285,28 @@ export default function Admin() {
                   )}
                 </div>
               </div>
+            </div>
+
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <label className="w-full text-sm text-neutral-300 sm:w-auto">
+                Usuario creador
+                <input
+                  list={CREATOR_DATALIST_ID}
+                  value={creatorFilter}
+                  onChange={(event) => setCreatorFilter(event.target.value)}
+                  placeholder="usuario o nombre exacto"
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 sm:ml-2 sm:mt-0 sm:w-auto"
+                />
+              </label>
+              {creatorFilter.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setCreatorFilter("")}
+                  className="rounded-xl border border-white/10 px-3 py-2 text-xs text-neutral-200 transition hover:bg-white/10"
+                >
+                  Limpiar usuario
+                </button>
+              )}
             </div>
 
             <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
@@ -2188,6 +2413,25 @@ export default function Admin() {
                     ))}
                   </select>
                 </label>
+                <label className="w-full text-sm text-neutral-300 sm:w-auto">
+                  Usuario creador
+                  <input
+                    list={CREATOR_DATALIST_ID}
+                    value={creatorFilter}
+                    onChange={(event) => setCreatorFilter(event.target.value)}
+                    placeholder="usuario o nombre exacto"
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-orange-500 sm:ml-2 sm:mt-0 sm:w-auto"
+                  />
+                </label>
+                {creatorFilter.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => setCreatorFilter("")}
+                    className="rounded-xl border border-white/10 px-3 py-2 text-xs text-neutral-200 transition hover:bg-white/10"
+                  >
+                    Limpiar usuario
+                  </button>
+                )}
               </div>
             </div>
 

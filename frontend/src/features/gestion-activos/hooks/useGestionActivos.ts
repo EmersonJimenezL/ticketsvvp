@@ -20,9 +20,21 @@ import type {
   HistMovimiento,
   TabKey,
 } from "../types";
-import { API_BASE, OPCIONES_TIPO_LIC_MAP } from "../constants";
+import {
+  API_BASE,
+  OPCIONES_CENTRO_COSTO,
+  OPCIONES_SUCURSAL,
+  OPCIONES_TIPO_LIC_MAP,
+} from "../constants";
 import { generateActaEntregaPdf } from "../utils/actaPdf";
 import { getUsuarioLabel } from "../utils/usuarios";
+import {
+  buildCuentaPayload,
+  getCuentaAssignedDisplay,
+  getUsuarioLicenciaAutofill,
+  isOfficeProveedor,
+  normalizeProveedorLicencia,
+} from "../utils/licenciaCuenta";
 
 function buildUserName(user: any) {
   if (!user) return "";
@@ -159,6 +171,27 @@ function parseDateOrNow(value?: string) {
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
+function normalizeComparable(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeAndMatchOption<T extends string>(
+  value: string,
+  options: readonly T[]
+): T | "" {
+  const normalized = normalizeComparable(value);
+  if (!normalized) return "";
+  const match = options.find(
+    (option) => normalizeComparable(option) === normalized,
+  );
+  return match || "";
+}
+
 const ACTIVO_FILTERS_DEFAULT: ActivoFilters = {
   categoria: "",
   marca: "",
@@ -275,43 +308,91 @@ export function useGestionActivos() {
 
   // Tipos disponibles de licencias según proveedor (para filtros)
   const tiposLicenciasFiltro = useMemo(() => {
-    if (licenciaFilters.proveedor === "SAP") {
+    const proveedorNormalizado = normalizeProveedorLicencia(
+      licenciaFilters.proveedor as Licencia["proveedor"],
+    );
+    if (proveedorNormalizado === "SAP") {
       return [...OPCIONES_TIPO_LIC_MAP.SAP];
     }
-    if (licenciaFilters.proveedor === "Office") {
-      return [...OPCIONES_TIPO_LIC_MAP.Office];
+    if (proveedorNormalizado === "OFFICE") {
+      return [...OPCIONES_TIPO_LIC_MAP.OFFICE];
     }
-    return [...OPCIONES_TIPO_LIC_MAP.SAP, ...OPCIONES_TIPO_LIC_MAP.Office];
+    return [...OPCIONES_TIPO_LIC_MAP.SAP, ...OPCIONES_TIPO_LIC_MAP.OFFICE];
   }, [licenciaFilters.proveedor]);
 
   // Estado para almacenar todas las licencias (sin paginación)
   const [todasLasLicencias, setTodasLasLicencias] = useState<Licencia[]>([]);
 
-  // Cargar todas las licencias al inicio
+  const obtenerTodasLasLicenciasSnapshot = useCallback(
+    async (): Promise<Licencia[]> => {
+    const response = await fetch(`${API_BASE}/licencias?limit=1000`);
+    const json = await response.json();
+    if (!json?.ok || !Array.isArray(json.data)) return [] as Licencia[];
+
+    return json.data.map((item: Licencia) => ({
+      ...item,
+      proveedor:
+        normalizeProveedorLicencia(item?.proveedor) || item?.proveedor,
+    }));
+    },
+    [],
+  );
+
   const cargarTodasLasLicencias = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/licencias?limit=1000`);
-      const json = await response.json();
-      if (json?.ok && Array.isArray(json.data)) {
-        setTodasLasLicencias(json.data);
-      }
+      const snapshot = await obtenerTodasLasLicenciasSnapshot();
+      setTodasLasLicencias(snapshot);
     } catch (err) {
       console.error("Error cargando todas las licencias:", err);
     }
-  }, []);
+  }, [obtenerTodasLasLicenciasSnapshot]);
+
+  const tieneLicenciaDuplicadaParaUsuario = useCallback(
+    (input: {
+      licencias: Licencia[];
+      usuario: string;
+      proveedor?: Licencia["proveedor"];
+      tipoLicencia?: string;
+      excludeId?: string | null;
+    }) => {
+      const usuarioObjetivo = normalizeComparable(input.usuario);
+      const proveedorObjetivo = normalizeProveedorLicencia(input.proveedor);
+      const tipoObjetivo = normalizeComparable(input.tipoLicencia || "");
+      if (!usuarioObjetivo || !proveedorObjetivo || !tipoObjetivo) return false;
+
+      return input.licencias.some((lic) => {
+        if (input.excludeId && String(lic._id) === String(input.excludeId)) {
+          return false;
+        }
+
+        const usuarioLicencia = normalizeComparable(
+          lic.asignadoPara || getCuentaAssignedDisplay(lic.cuenta),
+        );
+        const proveedorLicencia = normalizeProveedorLicencia(lic.proveedor);
+        const tipoLicencia = normalizeComparable(lic.tipoLicencia || "");
+
+        return (
+          usuarioLicencia === usuarioObjetivo &&
+          proveedorLicencia === proveedorObjetivo &&
+          tipoLicencia === tipoObjetivo
+        );
+      });
+    },
+    [],
+  );
 
   // Tipos disponibles para el formulario con cantidades
   const tiposDisponiblesConCantidad = useMemo(() => {
     // Obtener proveedor del formulario actual
-    const proveedor = licenciaForm.form.proveedor;
+    const proveedor = normalizeProveedorLicencia(licenciaForm.form.proveedor);
     if (!proveedor) return [];
 
     // Obtener tipos según proveedor
     const tiposPorProveedor =
       proveedor === "SAP"
         ? [...OPCIONES_TIPO_LIC_MAP.SAP]
-        : proveedor === "Office"
-          ? [...OPCIONES_TIPO_LIC_MAP.Office]
+        : proveedor === "OFFICE"
+          ? [...OPCIONES_TIPO_LIC_MAP.OFFICE]
           : [];
 
     // Obtener todas las licencias del mismo proveedor
@@ -322,7 +403,9 @@ export function useGestionActivos() {
     // Contar disponibles por tipo
     const tiposConCantidad = tiposPorProveedor.map((tipo) => {
       const cantidad = licenciasDelProveedor.filter(
-        (lic) => lic.tipoLicencia === tipo && !lic.asignadoPara,
+        (lic) =>
+          lic.tipoLicencia === tipo &&
+          !(lic.asignadoPara || getCuentaAssignedDisplay(lic.cuenta)),
       ).length;
       return { tipo, cantidad };
     });
@@ -594,10 +677,101 @@ export function useGestionActivos() {
     [licenciaForm, cargarTodasLasLicencias],
   );
 
+  const actualizarFormLicencia = useCallback(
+    (changes: Partial<Licencia>) => {
+      const nextForm: Licencia = { ...licenciaForm.form, ...changes };
+      const shouldAutofill =
+        Object.prototype.hasOwnProperty.call(changes, "asignadoPara") ||
+        Object.prototype.hasOwnProperty.call(changes, "proveedor");
+
+      if (!shouldAutofill) {
+        licenciaForm.updateForm(changes);
+        return;
+      }
+
+      const usuarioAutofill = getUsuarioLicenciaAutofill({
+        asignadoPara: nextForm.asignadoPara,
+        usuarios: centroUsuarios,
+      });
+
+      const sucursalAuto = normalizeAndMatchOption(
+        usuarioAutofill.sucursal,
+        OPCIONES_SUCURSAL,
+      );
+      const centroCostoAuto = normalizeAndMatchOption(
+        usuarioAutofill.centroCosto,
+        OPCIONES_CENTRO_COSTO,
+      );
+
+      const updates: Partial<Licencia> = { ...changes };
+      const hasAsignado = Boolean(nextForm.asignadoPara?.trim());
+
+      if (hasAsignado) {
+        updates.sucursal = sucursalAuto;
+        updates.centroCosto = centroCostoAuto;
+        updates.area = usuarioAutofill.area || "";
+
+        if (isOfficeProveedor(nextForm.proveedor)) {
+          updates.cuenta = usuarioAutofill.email || "";
+        } else {
+          updates.cuenta =
+            usuarioAutofill.usuarioLogin ||
+            usuarioAutofill.displayName ||
+            usuarioAutofill.email ||
+            "";
+        }
+      } else if (Object.prototype.hasOwnProperty.call(changes, "asignadoPara")) {
+        updates.sucursal = "";
+        updates.centroCosto = "";
+        updates.area = "";
+        updates.cuenta = "";
+      }
+
+      licenciaForm.updateForm(updates);
+    },
+    [licenciaForm, centroUsuarios],
+  );
+
   const enviarLicencia = useCallback(async () => {
     setGlobalError(null);
+    const licenciasSnapshot =
+      todasLasLicencias.length > 0
+        ? todasLasLicencias
+        : await obtenerTodasLasLicenciasSnapshot();
+    const cuentaPayload = buildCuentaPayload({
+      cuenta: licenciaForm.form.cuenta,
+      proveedor: licenciaForm.form.proveedor,
+      asignadoPara: licenciaForm.form.asignadoPara,
+      usuarios: centroUsuarios,
+    });
+    const payloadLicencia: Partial<Licencia> = {
+      proveedor: normalizeProveedorLicencia(licenciaForm.form.proveedor) || undefined,
+      tipoLicencia: licenciaForm.form.tipoLicencia,
+      fechaCompra: licenciaForm.form.fechaCompra,
+      fechaAsignacion: licenciaForm.form.fechaAsignacion,
+      cuenta: cuentaPayload,
+    };
+    const payloadValidacion: Partial<Licencia> = {
+      ...payloadLicencia,
+      asignadoPara: licenciaForm.form.asignadoPara,
+    };
+
+    const yaExisteParaUsuario = tieneLicenciaDuplicadaParaUsuario({
+      licencias: licenciasSnapshot,
+      usuario: licenciaForm.form.asignadoPara || "",
+      proveedor: payloadLicencia.proveedor,
+      tipoLicencia: payloadLicencia.tipoLicencia,
+      excludeId: licenciaForm.editId,
+    });
+    if (yaExisteParaUsuario) {
+      setGlobalError(
+        "Ese usuario ya tiene asignada esta licencia (mismo proveedor y tipo).",
+      );
+      return;
+    }
+
     const errors = validateLicencia(
-      licenciaForm.form,
+      payloadValidacion,
       Boolean(licenciaForm.editId),
     );
     if (errors.length > 0) {
@@ -609,10 +783,10 @@ export function useGestionActivos() {
       if (licenciaForm.editId) {
         await licenciasHook.updateLicencia(
           licenciaForm.editId,
-          licenciaForm.form,
+          payloadLicencia,
         );
       } else {
-        await licenciasHook.createLicencia(licenciaForm.form);
+        await licenciasHook.createLicencia(payloadLicencia);
       }
       licenciaForm.closeForm();
       await cargarLicencias();
@@ -620,7 +794,16 @@ export function useGestionActivos() {
     } catch (err: any) {
       setGlobalError(err.message || "Error al guardar licencia");
     }
-  }, [licenciaForm, licenciasHook, cargarLicencias, cargarTodasLasLicencias]);
+  }, [
+    licenciaForm,
+    licenciasHook,
+    todasLasLicencias,
+    obtenerTodasLasLicenciasSnapshot,
+    tieneLicenciaDuplicadaParaUsuario,
+    cargarLicencias,
+    cargarTodasLasLicencias,
+    centroUsuarios,
+  ]);
 
   // Modal de asignación
   const abrirAsignarModal = useCallback(
@@ -665,11 +848,48 @@ export function useGestionActivos() {
           asignadoPor,
         });
       } else {
+        const licenciasSnapshot =
+          todasLasLicencias.length > 0
+            ? todasLasLicencias
+            : await obtenerTodasLasLicenciasSnapshot();
+        const licenciaActual =
+          licenciasSnapshot.find(
+            (item) => String(item._id) === String(id),
+          ) ||
+          licenciasHook.licencias.find(
+            (item) => String(item._id) === String(id),
+          ) ||
+          null;
+
+        const yaExisteParaUsuario = tieneLicenciaDuplicadaParaUsuario({
+          licencias: licenciasSnapshot,
+          usuario: asignadoPara || "",
+          proveedor: licenciaActual?.proveedor,
+          tipoLicencia: licenciaActual?.tipoLicencia,
+          excludeId: id,
+        });
+        if (yaExisteParaUsuario) {
+          setGlobalError(
+            "Ese usuario ya tiene asignada esta licencia (mismo proveedor y tipo).",
+          );
+          return;
+        }
+
+        const cuentaPayload = buildCuentaPayload({
+          cuenta: licenciaActual?.cuenta,
+          proveedor: licenciaActual?.proveedor,
+          asignadoPara,
+          usuarios: centroUsuarios,
+        });
+        const payloadAsignacion = {
+          fechaAsignacion,
+          cuenta: cuentaPayload,
+        };
         const endpoint = `${API_BASE}/licencias/${id}`;
         const response = await fetch(endpoint, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ asignadoPara, fechaAsignacion }),
+          body: JSON.stringify(payloadAsignacion),
         });
         json = await response.json();
         if (!json.ok) throw new Error(json.error || "Error al asignar");
@@ -745,6 +965,11 @@ export function useGestionActivos() {
     refrescar,
     cargarTodasLasLicencias,
     activosHook.activos,
+    todasLasLicencias,
+    obtenerTodasLasLicenciasSnapshot,
+    tieneLicenciaDuplicadaParaUsuario,
+    licenciasHook.licencias,
+    centroUsuarios,
     specs,
     asignadoPor,
     resolveCorreo,
@@ -975,6 +1200,10 @@ export function useGestionActivos() {
     [statsPorProveedor],
   );
 
+  useEffect(() => {
+    cargarTodasLasLicencias();
+  }, [cargarTodasLasLicencias]);
+
   // Cargar datos al cambiar tab o página
   useEffect(() => {
     if (tab === "activos") {
@@ -1000,8 +1229,8 @@ export function useGestionActivos() {
     error: globalError || activosHook.error || licenciasHook.error,
     total:
       tab === "activos"
-        ? activosHook.activos.length
-        : licenciasHook.licencias.length,
+        ? activosHook.totalCount
+        : licenciasHook.totalCount,
 
     // Specs
     specs,
@@ -1095,7 +1324,7 @@ export function useGestionActivos() {
       abrirCrear: abrirCrearLicencia,
       abrirEditar: abrirEditarLicencia,
       cerrarFormulario: licenciaForm.closeForm,
-      actualizarForm: licenciaForm.updateForm,
+      actualizarForm: actualizarFormLicencia,
       enviar: enviarLicencia,
     },
 

@@ -34,6 +34,10 @@ export default function NuevoTicket() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { usuarios: centroUsuarios } = useCentroUsuarios();
+  const currentUserId = useMemo(
+    () => (user?.nombreUsuario || user?.usuario || "").trim(),
+    [user?.nombreUsuario, user?.usuario]
+  );
 
   // Bloquear acceso a administradores
   useEffect(() => {
@@ -129,15 +133,15 @@ export default function NuevoTicket() {
     });
   }
 
-  async function onFilesSelected(files: FileList | null) {
-    if (!files) return;
+  async function onImageFilesSelected(files: File[]) {
+    if (!files.length) return;
     const remainingSlots = 5 - images.length;
     if (remainingSlots <= 0) {
       setError("No se pudieron agregar más imágenes.");
       return;
     }
 
-    const arr = Array.from(files).slice(0, remainingSlots);
+    const arr = files.slice(0, remainingSlots);
     setCompressing(true);
     setError(null);
 
@@ -155,7 +159,7 @@ export default function NuevoTicket() {
 
       const validImages = compressed.filter(Boolean);
       if (validImages.length > 0) {
-        setImages([...images, ...validImages]);
+        setImages((current) => [...current, ...validImages]);
       }
       if (validImages.length < arr.length) {
         setError(
@@ -167,6 +171,11 @@ export default function NuevoTicket() {
     } finally {
       setCompressing(false);
     }
+  }
+
+  async function onFilesSelected(files: FileList | null) {
+    if (!files) return;
+    await onImageFilesSelected(Array.from(files));
   }
 
   function removeImage(index: number) {
@@ -184,24 +193,32 @@ export default function NuevoTicket() {
       setError("Selecciona un área (title) y escribe una descripción.");
       return;
     }
-    if (!user?.nombreUsuario) {
+    if (!currentUserId) {
       setError("Sesión no válida. Vuelve a iniciar sesión.");
       return;
     }
 
     const ticketId = genTicketId();
     const firstName =
-      typeof user.primerNombre === "string" ? user.primerNombre.trim() : "";
+      typeof user?.primerNombre === "string" && user.primerNombre.trim()
+        ? user.primerNombre.trim()
+        : typeof user?.pnombre === "string"
+          ? user.pnombre.trim()
+          : "";
     const lastName =
-      typeof user.primerApellido === "string" ? user.primerApellido.trim() : "";
+      typeof user?.primerApellido === "string" && user.primerApellido.trim()
+        ? user.primerApellido.trim()
+        : typeof user?.papellido === "string"
+          ? user.papellido.trim()
+          : "";
     const fullName = [firstName, lastName].filter(Boolean).join(" ");
 
     const payload: TicketPayload = {
       ticketId,
       title,
       description: description.trim(),
-      userId: user.nombreUsuario,
-      userName: fullName || firstName || user.nombreUsuario,
+      userId: currentUserId,
+      userName: fullName || firstName || currentUserId,
       userLastName: lastName || undefined,
       userFullName: fullName || undefined,
       risk,
@@ -313,8 +330,30 @@ export default function NuevoTicket() {
               className="w-full rounded-xl mt-2 bg-neutral-900/70 px-4 py-2.5 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              onPaste={(event) => {
+                if (compressing) return;
+                const clipboardItems = Array.from(event.clipboardData?.items ?? []);
+                const clipboardImageFiles = clipboardItems
+                  .map((item) => (item.kind === "file" ? item.getAsFile() : null))
+                  .filter((file): file is File => Boolean(file))
+                  .filter((file) => file.type.startsWith("image/"));
+
+                const imageFiles =
+                  clipboardImageFiles.length > 0
+                    ? clipboardImageFiles
+                    : Array.from(event.clipboardData?.files ?? []).filter((file) =>
+                        file.type.startsWith("image/")
+                      );
+
+                if (!imageFiles.length) return;
+                event.preventDefault();
+                void onImageFilesSelected(imageFiles);
+              }}
               placeholder="Describe el problema o solicitud con el mayor detalle posible."
             />
+            <p className="text-xs text-neutral-400">
+              Tip: puedes pegar capturas con <kbd>Ctrl</kbd> + <kbd>V</kbd>.
+            </p>
           </div>
 
           {/* Imágenes (opcional) */}

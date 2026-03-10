@@ -1,13 +1,7 @@
 import { useMemo } from "react";
-import type { Licencia, CentroUsuario } from "../types";
-import {
-  OPCIONES_PROVEEDOR,
-  OPCIONES_SUCURSAL,
-  OPCIONES_TIPO_LIC_MAP,
-  OPCIONES_CENTRO_COSTO,
-} from "../constants";
-import type { Sucursal } from "../constants";
-import type { CentroCosto } from "../types";
+import type { CentroUsuario, Licencia } from "../types";
+import { OPCIONES_PROVEEDOR, OPCIONES_TIPO_LIC_MAP } from "../constants";
+import { getCuentaDisplay } from "../utils/licenciaCuenta";
 import { getUsuarioLabel } from "../utils/usuarios";
 
 type LicenciaFormModalProps = {
@@ -33,16 +27,14 @@ export function LicenciaFormModal({
   onSubmit,
   onChange,
 }: LicenciaFormModalProps) {
-  if (!open) {
-    return null;
-  }
+  if (!open) return null;
 
   const opciones = useMemo(() => {
     const items = (usuarios || [])
-      .map((user) => ({
-        value: getUsuarioLabel(user),
-        label: getUsuarioLabel(user),
-      }))
+      .map((user) => {
+        const label = getUsuarioLabel(user);
+        return { value: label, label };
+      })
       .filter((item) => item.value);
     items.sort((a, b) => a.label.localeCompare(b.label, "es"));
     return items;
@@ -50,6 +42,8 @@ export function LicenciaFormModal({
 
   const valorActual = form.asignadoPara || "";
   const tieneActual = opciones.some((item) => item.value === valorActual);
+  const autocompletadoPorUsuario = Boolean(valorActual.trim());
+  const proveedorSeleccionado = (form.proveedor || "").toString().toUpperCase();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -66,6 +60,7 @@ export function LicenciaFormModal({
             Cerrar
           </button>
         </div>
+
         {loading && (
           <div className="mb-3 rounded-xl border border-orange-400/40 bg-orange-500/10 px-3 py-2 text-sm text-orange-200">
             Procesando solicitud...
@@ -74,29 +69,18 @@ export function LicenciaFormModal({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm text-neutral-300">Cuenta *</label>
-            <input
-              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              value={form.cuenta || ""}
-              onChange={(event) => onChange({ cuenta: event.target.value })}
-              disabled={isEdit && form.proveedor === "SAP"}
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-neutral-300">
-              Proveedor *
-            </label>
+            <label className="block text-sm text-neutral-300">Proveedor *</label>
             <select
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              value={form.proveedor || ""}
+              value={proveedorSeleccionado}
               onChange={(event) => {
                 const value = event.target.value as Licencia["proveedor"];
                 const tiposValidos: readonly string[] =
                   value === "SAP"
                     ? OPCIONES_TIPO_LIC_MAP.SAP
-                    : value === "Office"
-                    ? OPCIONES_TIPO_LIC_MAP.Office
-                    : [];
+                    : value === "OFFICE"
+                      ? OPCIONES_TIPO_LIC_MAP.OFFICE
+                      : [];
                 onChange({
                   proveedor: value,
                   tipoLicencia: tiposValidos.includes(form.tipoLicencia || "")
@@ -114,6 +98,7 @@ export function LicenciaFormModal({
               ))}
             </select>
           </div>
+
           <div>
             <label className="block text-sm text-neutral-300">
               Tipo licencia *
@@ -126,7 +111,7 @@ export function LicenciaFormModal({
               }
             >
               <option value="">Seleccione</option>
-              {!form.proveedor ? (
+              {!proveedorSeleccionado ? (
                 <option value="" disabled>
                   Seleccione un proveedor primero
                 </option>
@@ -137,62 +122,16 @@ export function LicenciaFormModal({
               ) : (
                 tiposDisponibles.map((item) => (
                   <option key={item.tipo} value={item.tipo}>
-                    {item.tipo} ({item.cantidad} disponible{item.cantidad !== 1 ? 's' : ''})
+                    {item.tipo} ({item.cantidad} disponible
+                    {item.cantidad !== 1 ? "s" : ""})
                   </option>
                 ))
               )}
             </select>
           </div>
+
           <div>
-            <label className="block text-sm text-neutral-300">
-              Fecha de compra
-            </label>
-            <input
-              type="date"
-              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              value={form.fechaCompra || ""}
-              onChange={(event) =>
-                onChange({ fechaCompra: event.target.value })
-              }
-              disabled={isEdit}
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-neutral-300">Sucursal</label>
-            <select
-              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-              value={form.sucursal || ""}
-              onChange={(event) =>
-                onChange({ sucursal: event.target.value as "" | Sucursal })
-              }
-            >
-              <option value="">Seleccione</option>
-              {OPCIONES_SUCURSAL.map((sucursal) => (
-                <option key={sucursal} value={sucursal}>
-                  {sucursal}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-neutral-300">Centro de Costo</label>
-            <select
-              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
-              value={form.centroCosto || ""}
-              onChange={(event) =>
-                onChange({ centroCosto: event.target.value as "" | CentroCosto })
-              }
-            >
-              <option value="">Seleccione</option>
-              {OPCIONES_CENTRO_COSTO.map((centro) => (
-                <option key={centro} value={centro}>
-                  {centro}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-neutral-300">Asignado a</label>
+            <label className="block text-sm text-neutral-300">Asignado a *</label>
             <select
               className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
               value={valorActual}
@@ -211,9 +150,24 @@ export function LicenciaFormModal({
               ))}
             </select>
           </div>
+
           <div>
             <label className="block text-sm text-neutral-300">
-              Asignado el
+              Fecha de compra *
+            </label>
+            <input
+              type="date"
+              className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              value={form.fechaCompra || ""}
+              onChange={(event) =>
+                onChange({ fechaCompra: event.target.value })
+              }
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-neutral-300">
+              Fecha de asignacion *
             </label>
             <input
               type="date"
@@ -224,6 +178,63 @@ export function LicenciaFormModal({
               }
             />
           </div>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-white/10 p-3">
+          <p className="text-sm text-neutral-300">
+            Campos autocompletados desde el usuario
+          </p>
+          <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm text-neutral-300">Cuenta</label>
+              <input
+                className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 disabled:opacity-60"
+                value={getCuentaDisplay(form.cuenta)}
+                readOnly
+                disabled
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-neutral-300">Sucursal</label>
+              <input
+                className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 disabled:opacity-60"
+                value={form.sucursal || ""}
+                readOnly
+                disabled
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-neutral-300">
+                Centro de Costo
+              </label>
+              <input
+                className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 disabled:opacity-60"
+                value={form.centroCosto || ""}
+                readOnly
+                disabled
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-neutral-300">
+                Area (Gerencia)
+              </label>
+              <input
+                className="w-full rounded-xl bg-neutral-900/70 px-3 py-2 outline-none ring-1 ring-white/10 disabled:opacity-60"
+                value={form.area || ""}
+                readOnly
+                disabled
+              />
+            </div>
+          </div>
+
+          {!autocompletadoPorUsuario && (
+            <p className="mt-2 text-xs text-neutral-400">
+              Selecciona un usuario para completar estos campos.
+            </p>
+          )}
         </div>
 
         <div className="mt-4 flex justify-end gap-2">

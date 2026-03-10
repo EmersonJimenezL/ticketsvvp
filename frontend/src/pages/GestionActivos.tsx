@@ -12,6 +12,7 @@ import { DeleteModal } from "../features/gestion-activos/components/DeleteModal"
 import { HistorialModal } from "../features/gestion-activos/components/HistorialModal";
 import type { Activo, Licencia } from "../features/gestion-activos/types";
 import { API_BASE } from "../features/gestion-activos/constants";
+import { getCuentaAssignedDisplay } from "../features/gestion-activos/utils/licenciaCuenta";
 
 export default function GestionInventario() {
   const state = useGestionActivos();
@@ -51,7 +52,7 @@ export default function GestionInventario() {
       "licencia",
       String(item._id || ""),
       item.tipoLicencia || "Licencia",
-      item.asignadoPara || "",
+      item.asignadoPara || getCuentaAssignedDisplay(item.cuenta) || "",
       item.fechaAsignacion || ""
     );
   };
@@ -97,7 +98,10 @@ export default function GestionInventario() {
       const response = await fetch(`${API_BASE}/licencias/${item._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ asignadoPara: "", fechaAsignacion: "" }),
+        body: JSON.stringify({
+          cuenta: { cuenta: "Disponible", displayName: "Disponible" },
+          fechaAsignacion: "",
+        }),
       });
       const json = await response.json();
       if (!json.ok) throw new Error(json.error || "Error al disponibilizar");

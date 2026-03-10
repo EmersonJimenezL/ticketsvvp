@@ -1,6 +1,12 @@
 import { DataTable, type Column, type Action } from "./DataTable";
 import { Pagination } from "./Pagination";
 import type { Licencia } from "../types";
+import {
+  getCuentaAssignedDisplay,
+  getCuentaCentroCosto,
+  getCuentaDisplay,
+  getCuentaSucursal,
+} from "../utils/licenciaCuenta";
 
 type LicenciasTableProps = {
   items: Licencia[];
@@ -33,7 +39,7 @@ export function LicenciasTable({
     {
       key: "cuenta",
       label: "Cuenta",
-      render: (licencia) => licencia.cuenta || "-",
+      render: (licencia) => getCuentaDisplay(licencia.cuenta) || "-",
       className: "max-w-[200px] truncate",
     },
     {
@@ -58,19 +64,21 @@ export function LicenciasTable({
     {
       key: "sucursal",
       label: "Sucursal",
-      render: (licencia) => licencia.sucursal || "-",
+      render: (licencia) => licencia.sucursal || getCuentaSucursal(licencia.cuenta) || "-",
       className: "max-w-[200px] truncate",
     },
     {
       key: "centroCosto",
       label: "Centro Costo",
-      render: (licencia) => licencia.centroCosto || "-",
+      render: (licencia) =>
+        licencia.centroCosto || getCuentaCentroCosto(licencia.cuenta) || "-",
       className: "max-w-[150px] truncate",
     },
     {
       key: "asignadoPara",
       label: "Asignado a",
-      render: (licencia) => licencia.asignadoPara || "-",
+      render: (licencia) =>
+        licencia.asignadoPara || getCuentaAssignedDisplay(licencia.cuenta) || "-",
       className: "max-w-[200px] truncate",
     },
     {
@@ -119,7 +127,9 @@ export function LicenciasTable({
       onClick: onMakeAvailable,
       className:
         "flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 transition",
-      disabled: (licencia) => Boolean(licencia.activoId) || !licencia.asignadoPara,
+      disabled: (licencia) =>
+        Boolean(licencia.activoId) ||
+        !(licencia.asignadoPara || getCuentaAssignedDisplay(licencia.cuenta)),
     },
     {
       label: "Eliminar",

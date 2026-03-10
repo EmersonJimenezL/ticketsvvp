@@ -1,5 +1,9 @@
 import type { ReactElement } from "react";
 import type { Licencia } from "./types";
+import {
+  getCuentaAssignedDisplay,
+  getCuentaDisplay,
+} from "../../features/gestion-activos/utils/licenciaCuenta";
 
 type Props = {
   items: Licencia[];
@@ -12,7 +16,8 @@ type Props = {
 
 export default function LicenciasList({ items, loading, onEdit, onAssign, onDelete, onHistorial }: Props) {
   const makeActionButtons = (l: Licencia) => {
-    const assignLabel = l.asignadoPara ? "Reasignar" : "Asignar";
+    const asignado = l.asignadoPara || getCuentaAssignedDisplay(l.cuenta);
+    const assignLabel = asignado ? "Reasignar" : "Asignar";
     const buttons: ReactElement[] = [];
 
     if (!l.activoId) {
@@ -84,7 +89,9 @@ export default function LicenciasList({ items, loading, onEdit, onAssign, onDele
       <div className="block lg:hidden divide-y divide-white/10">
         {items.map((l) => (
           <div key={l._id} className="p-4">
-            <div className="font-semibold truncate">{l.cuenta || "-"}</div>
+            <div className="font-semibold truncate">
+              {getCuentaDisplay(l.cuenta) || "-"}
+            </div>
             <ul className="mt-1 text-sm text-neutral-300 space-y-1">
               <li>
                 <span className="text-neutral-400">Proveedor:</span> {l.proveedor || "-"}
@@ -97,7 +104,8 @@ export default function LicenciasList({ items, loading, onEdit, onAssign, onDele
                 {l.fechaCompra ? new Date(l.fechaCompra).toLocaleDateString() : "-"}
               </li>
               <li className="truncate">
-                <span className="text-neutral-400">Asignado a:</span> {l.asignadoPara || "-"}
+                <span className="text-neutral-400">Asignado a:</span>{" "}
+                {l.asignadoPara || getCuentaAssignedDisplay(l.cuenta) || "-"}
               </li>
               <li>
                 <span className="text-neutral-400">Asignación:</span>{" "}
@@ -128,16 +136,24 @@ export default function LicenciasList({ items, loading, onEdit, onAssign, onDele
           <tbody>
             {items.map((l) => (
               <tr key={l._id} className="border-t border-white/10 odd:bg-white/[0.03] hover:bg-white/10 transition-colors">
-                <td className="px-4 py-2 max-w-[200px] truncate" title={l.cuenta || undefined}>
-                  {l.cuenta || "-"}
+                <td
+                  className="px-4 py-2 max-w-[200px] truncate"
+                  title={getCuentaDisplay(l.cuenta) || undefined}
+                >
+                  {getCuentaDisplay(l.cuenta) || "-"}
                 </td>
                 <td className="px-4 py-2">{l.proveedor || "-"}</td>
                 <td className="px-4 py-2 max-w-[240px] truncate" title={l.tipoLicencia || undefined}>
                   {l.tipoLicencia || "-"}
                 </td>
                 <td className="px-4 py-2">{l.fechaCompra ? new Date(l.fechaCompra).toLocaleDateString() : "-"}</td>
-                <td className="px-4 py-2 max-w-[200px] truncate" title={l.asignadoPara || undefined}>
-                  {l.asignadoPara || "-"}
+                <td
+                  className="px-4 py-2 max-w-[200px] truncate"
+                  title={
+                    l.asignadoPara || getCuentaAssignedDisplay(l.cuenta) || undefined
+                  }
+                >
+                  {l.asignadoPara || getCuentaAssignedDisplay(l.cuenta) || "-"}
                 </td>
                 <td className="px-4 py-2">{l.fechaAsignacion ? new Date(l.fechaAsignacion).toLocaleDateString() : "-"}</td>
                 <td className="px-4 py-2">
