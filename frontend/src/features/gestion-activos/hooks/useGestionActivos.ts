@@ -5,6 +5,7 @@ import { useActivoForm } from "./useActivoForm";
 import { useLicenciaForm } from "./useLicenciaForm";
 import { useEspecificaciones } from "./useEspecificaciones";
 import { useCentroUsuarios } from "./useCentroUsuarios";
+import { useDebouncedValue } from "./useDebouncedValue";
 import { validateActivo } from "../validation/activoValidation";
 import type { ValidationError } from "../validation/activoValidation";
 import { validateLicencia } from "../validation/licenciaValidation";
@@ -194,6 +195,7 @@ function normalizeAndMatchOption<T extends string>(
 
 const ACTIVO_FILTERS_DEFAULT: ActivoFilters = {
   categoria: "",
+  busqueda: "",
   marca: "",
   modelo: "",
   sucursal: "",
@@ -263,6 +265,28 @@ export function useGestionActivos() {
   );
   const [licenciaFilters, setLicenciaFilters] = useState<LicenciaFilters>(
     LICENCIA_FILTERS_DEFAULT,
+  );
+  const debouncedActivoBusqueda = useDebouncedValue(
+    activoFilters.busqueda || "",
+    300,
+  );
+  const debouncedLicenciaBusqueda = useDebouncedValue(
+    licenciaFilters.busqueda || "",
+    300,
+  );
+  const effectiveActivoFilters = useMemo(
+    () => ({
+      ...activoFilters,
+      busqueda: debouncedActivoBusqueda,
+    }),
+    [activoFilters, debouncedActivoBusqueda],
+  );
+  const effectiveLicenciaFilters = useMemo(
+    () => ({
+      ...licenciaFilters,
+      busqueda: debouncedLicenciaBusqueda,
+    }),
+    [licenciaFilters, debouncedLicenciaBusqueda],
   );
 
   // Paginación
@@ -428,24 +452,24 @@ export function useGestionActivos() {
   const cargarActivos = useCallback(async () => {
     setGlobalError(null);
     try {
-      await activosHook.fetchActivos(activoFilters, activoPage, pageSize);
+      await activosHook.fetchActivos(effectiveActivoFilters, activoPage, pageSize);
     } catch (err: any) {
       setGlobalError(err.message || "Error al cargar activos");
     }
-  }, [activosHook, activoFilters, activoPage, pageSize]);
+  }, [activosHook, effectiveActivoFilters, activoPage, pageSize]);
 
   const cargarLicencias = useCallback(async () => {
     setGlobalError(null);
     try {
       await licenciasHook.fetchLicencias(
-        licenciaFilters,
+        effectiveLicenciaFilters,
         licenciaPage,
         pageSize,
       );
     } catch (err: any) {
       setGlobalError(err.message || "Error al cargar licencias");
     }
-  }, [licenciasHook, licenciaFilters, licenciaPage, pageSize]);
+  }, [licenciasHook, effectiveLicenciaFilters, licenciaPage, pageSize]);
 
   const cargarStats = useCallback(async () => {
     setGlobalError(null);
@@ -1214,7 +1238,7 @@ export function useGestionActivos() {
       cargarStats();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, activoPage, licenciaPage, activoFilters, licenciaFilters]);
+  }, [tab, activoPage, licenciaPage, effectiveActivoFilters, effectiveLicenciaFilters]);
 
   // Loading global
   const loading = activosHook.loading || licenciasHook.loading;
@@ -1250,15 +1274,19 @@ export function useGestionActivos() {
     filtros: {
       activos: {
         valores: activoFilters,
-        actualizar: (changes: Partial<ActivoFilters>) =>
-          setActivoFilters((prev) => ({ ...prev, ...changes })),
+        actualizar: (changes: Partial<ActivoFilters>) => {
+          setActivoPage(1);
+          setActivoFilters((prev) => ({ ...prev, ...changes }));
+        },
         aplicar: aplicarFiltrosActivos,
       },
       licencias: {
         valores: licenciaFilters,
         tiposDisponibles: tiposLicenciasFiltro,
-        actualizar: (changes: Partial<LicenciaFilters>) =>
-          setLicenciaFilters((prev) => ({ ...prev, ...changes })),
+        actualizar: (changes: Partial<LicenciaFilters>) => {
+          setLicenciaPage(1);
+          setLicenciaFilters((prev) => ({ ...prev, ...changes }));
+        },
         aplicar: aplicarFiltrosLicencias,
       },
       limpiar: limpiarFiltros,

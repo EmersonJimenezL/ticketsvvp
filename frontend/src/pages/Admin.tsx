@@ -15,6 +15,7 @@ import {
   listTicketsPaginated,
   patchTicket,
   assignTicket,
+  requestTicketClosure,
   type Ticket,
   type TicketsMetrics,
 } from "../services/tickets";
@@ -24,6 +25,13 @@ import { canAssignTicketsByRole, isTicketAdmin } from "../auth/isTicketAdmin";
 import AppHeader from "../components/AppHeader";
 import { useCentroUsuarios } from "../features/gestion-activos/hooks/useCentroUsuarios";
 import { Pagination } from "../features/gestion-activos/components/Pagination";
+import {
+  buildOptimisticPendingClosureTicket,
+  DEFAULT_TICKET_CLOSURE_WINDOW_HOURS,
+  formatTicketClosureRemaining,
+  getTicketClosureRemainingMs,
+  isTicketClosurePending,
+} from "../utils/ticketClosure";
 
 const RISK_BADGE: Record<Ticket["risk"], string> = {
   alto: "bg-red-500/15 text-red-300 ring-1 ring-red-500/30",
@@ -53,7 +61,12 @@ const ASSIGN_OPTIONS = [
 ] as const;
 
 type SortOption = "risk" | "createdAsc" | "createdDesc" | "resolvedDesc";
-type TicketEmailEvent = "asignado" | "estado" | "resuelto" | "respuesta";
+type TicketEmailEvent =
+  | "asignado"
+  | "estado"
+  | "resuelto"
+  | "respuesta"
+  | "cierreSolicitado";
 type CreatorFilterOption = {
   userId: string;
   displayName: string;
@@ -67,6 +80,39 @@ const SORT_LABEL: Record<SortOption, string> = {
 const MAX_RESPONSE_IMAGES = 5;
 const PAGE_SIZE = 12;
 const CREATOR_DATALIST_ID = "ticket-creator-options";
+const CLOSURE_WINDOW_HOURS = DEFAULT_TICKET_CLOSURE_WINDOW_HOURS;
+
+function getClosureBadgeClasses(ticket: Ticket) {
+  if (ticket.closureStatus === "pending") {
+    return "border-cyan-500/30 bg-cyan-500/15 text-cyan-200";
+  }
+  if (ticket.closureStatus === "accepted") {
+    return "border-emerald-500/30 bg-emerald-500/15 text-emerald-200";
+  }
+  if (ticket.closureStatus === "expired") {
+    return "border-neutral-500/30 bg-neutral-500/15 text-neutral-200";
+  }
+  if (ticket.closureStatus === "rejected") {
+    return "border-amber-500/30 bg-amber-500/15 text-amber-200";
+  }
+  return "border-white/10 bg-white/5 text-neutral-200";
+}
+
+function getClosureBadgeLabel(ticket: Ticket, nowMs: number) {
+  if (ticket.closureStatus === "pending") {
+    const remainingMs = getTicketClosureRemainingMs(ticket, nowMs);
+    if (remainingMs != null && remainingMs > 0) {
+      return `Pendiente de confirmacion (${formatTicketClosureRemaining(
+        remainingMs
+      )})`;
+    }
+    return "Pendiente de confirmacion";
+  }
+  if (ticket.closureStatus === "accepted") return "Cierre aceptado";
+  if (ticket.closureStatus === "expired") return "Cierre automatico";
+  if (ticket.closureStatus === "rejected") return "Cierre rechazado";
+  return "";
+}
 
 function mapSortOptionToBackend(sortBy: SortOption) {
   switch (sortBy) {
@@ -263,6 +309,17 @@ function formatResolutionTime(hours: number | null) {
 function formatRating(value: number | null | undefined) {
   if (value == null || Number.isNaN(value)) return "Sin datos";
   return value.toFixed(2);
+}
+
+function formatMetricCommentDate(value?: string | null) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toLocaleDateString("es-CL", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 type TrendChartProps = {
@@ -575,6 +632,55 @@ function MetricsPanel({
           </ul>
         </div>
       </div>
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h4 className="text-sm text-neutral-400">
+              Comentarios anonimos de usuarios
+            </h4>
+            <p className="mt-1 text-xs text-neutral-500">
+              Retroalimentacion de tickets cerrados, sin datos personales
+            </p>
+          </div>
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-neutral-400">
+            {(metrics?.ratingComments ?? []).length} comentarios
+          </span>
+        </div>
+        <div className="space-y-3">
+          {(metrics?.ratingComments ?? []).slice(0, 6).map((item, index) => {
+            const formattedDate = formatMetricCommentDate(item.date);
+            return (
+              <article
+                key={`${item.category}-${item.date || "sin-fecha"}-${index}`}
+                className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-400">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-neutral-300">
+                      Anonimo
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1 font-medium text-neutral-100">
+                      {item.score != null ? `${item.score}/5` : "Sin nota"}
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-neutral-300">
+                      {item.category || "Sin categoria"}
+                    </span>
+                  </div>
+                  {formattedDate && <span>{formattedDate}</span>}
+                </div>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-neutral-200">
+                  {item.comment}
+                </p>
+              </article>
+            );
+          })}
+          {metrics && (metrics.ratingComments?.length ?? 0) === 0 && (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-6 text-center text-sm text-neutral-500">
+              Aun no hay comentarios de calificacion para mostrar.
+            </div>
+          )}
+        </div>
+      </div>
       <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <span className="text-sm text-neutral-300">
@@ -664,6 +770,7 @@ export default function Admin() {
     index: number;
     total: number;
   } | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const ticketsStartRef = useRef<HTMLDivElement | null>(null);
   const { usuarios: centroUsuarios } = useCentroUsuarios();
 
@@ -738,6 +845,14 @@ export default function Admin() {
     [scrollToTicketsStart]
   );
 
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 30000);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
   const isAuthorizedUser = isTicketAdmin(user || undefined);
   const canAssignTickets = canAssignTicketsByRole(user || undefined);
 
@@ -810,6 +925,20 @@ export default function Admin() {
           `Hola ${ownerDisplay},`,
           "",
           "Tu ticket fue asignado a un trabajador.",
+          "",
+          ...detailLines,
+          description,
+          "",
+          "Sistema de Tickets VVP.",
+        ].filter(Boolean).join("\n");
+      } else if (evento === "cierreSolicitado") {
+        asunto = `Ticket ${ticket.ticketId} pendiente de tu confirmacion`;
+        mensaje = [
+          `Hola ${ownerDisplay},`,
+          "",
+          "Tu ticket fue marcado como resuelto por TI y entro en etapa de cierre.",
+          `Tienes ${CLOSURE_WINDOW_HOURS} horas para confirmar si la solucion fue correcta.`,
+          "Si no respondes dentro del plazo, el ticket se cerrara automaticamente.",
           "",
           ...detailLines,
           description,
@@ -1108,12 +1237,11 @@ export default function Admin() {
   useEffect(() => {
     void refreshTickets();
     void refreshMetrics();
+  }, [refreshTickets, refreshMetrics]);
+
+  useEffect(() => {
     void refreshServerCounts();
-  }, [
-    refreshTickets,
-    refreshMetrics,
-    refreshServerCounts,
-  ]);
+  }, [refreshServerCounts]);
 
   // Auto-refresh cada 30 segundos para mantener datos actualizados
   useEffect(() => {
@@ -1321,21 +1449,40 @@ export default function Admin() {
     setSaving((state) => ({ ...state, [ticket.ticketId]: true }));
     setError(null);
     const previous = { ...ticket };
+    const requestingClosure =
+      patch.state === "resuelto" &&
+      previous.state !== "resuelto" &&
+      !isTicketClosurePending(previous);
+    const optimisticTicket = requestingClosure
+      ? buildOptimisticPendingClosureTicket(previous, CLOSURE_WINDOW_HOURS)
+      : { ...previous, ...patch };
 
     try {
       setItems((list) =>
         list.map((item) =>
-          item.ticketId === ticket.ticketId ? { ...item, ...patch } : item
+          item.ticketId === ticket.ticketId ? optimisticTicket : item
         )
       );
-      const response = await patchTicket(ticket.ticketId, patch);
+      const response = requestingClosure
+        ? await requestTicketClosure(ticket.ticketId, {
+            windowHours: CLOSURE_WINDOW_HOURS,
+          })
+        : await patchTicket(ticket.ticketId, patch);
       if (!response.ok) {
         throw new Error(response.error || "No se pudo actualizar el ticket.");
       }
+      const updatedTicket = { ...optimisticTicket, ...(response.data || {}) };
+      setItems((list) =>
+        list.map((item) =>
+          item.ticketId === ticket.ticketId ? updatedTicket : item
+        )
+      );
       if (patch.state && patch.state !== previous.state) {
-        const updatedTicket = { ...ticket, ...patch };
-        const evento: TicketEmailEvent =
-          patch.state === "resuelto" ? "resuelto" : "estado";
+        const evento: TicketEmailEvent = requestingClosure
+          ? "cierreSolicitado"
+          : patch.state === "resuelto"
+            ? "resuelto"
+            : "estado";
         void notifyTicketByEmail(updatedTicket, evento, {
           newState: patch.state,
           prevState: previous.state,
@@ -1494,6 +1641,9 @@ export default function Admin() {
     const responseComment = commentDraft[ticket.ticketId] ?? ticket.comment ?? "";
     const hasResponseContent =
       Boolean(responseComment.trim()) || responseImages.length > 0;
+    const closurePending = isTicketClosurePending(ticket);
+    const closureRemainingMs = getTicketClosureRemainingMs(ticket, nowMs);
+    const closureBadgeLabel = getClosureBadgeLabel(ticket, nowMs);
 
     return (
       <article
@@ -1554,6 +1704,15 @@ export default function Admin() {
               >
                 {ticket.risk}
               </span>
+              {closureBadgeLabel && (
+                <span
+                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${getClosureBadgeClasses(
+                    ticket
+                  )}`}
+                >
+                  {closureBadgeLabel}
+                </span>
+              )}
             </div>
             <p
               className={`mt-1 text-sm text-neutral-300 ${
@@ -1572,6 +1731,20 @@ export default function Admin() {
                 ? new Date(ticket.ticketTime).toLocaleString()
                 : "sin fecha"}
             </p>
+            {closurePending && (
+              <div className="mt-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-100">
+                <p>
+                  El ticket esta esperando confirmacion del usuario para cerrar.
+                </p>
+                <p className="mt-1 text-xs text-cyan-100/80">
+                  {closureRemainingMs != null && closureRemainingMs > 0
+                    ? `Cierre automatico en ${formatTicketClosureRemaining(
+                        closureRemainingMs
+                      )}.`
+                    : "El plazo de confirmacion ya vencio; el backend debe cerrarlo automaticamente."}
+                </p>
+              </div>
+            )}
 
             <div
               className={`mt-4 grid grid-cols-1 gap-3 ${
@@ -1770,7 +1943,9 @@ export default function Admin() {
             >
               {stateOpts.map((option) => (
                 <option key={option} value={option}>
-                  {option}
+                  {option === "resuelto"
+                    ? "resuelto (solicita confirmacion)"
+                    : option}
                 </option>
               ))}
             </select>

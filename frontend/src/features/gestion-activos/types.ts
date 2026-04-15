@@ -80,6 +80,7 @@ export type Especificacion = {
 
 export type ActivoFilters = {
   categoria: string;
+  busqueda?: string;
   marca?: string;
   modelo?: string;
   sucursal: "" | Sucursal;

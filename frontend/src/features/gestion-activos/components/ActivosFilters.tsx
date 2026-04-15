@@ -38,18 +38,10 @@ export function ActivosFilters({
 
       <input
         type="text"
-        className="w-full rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:w-[220px]"
-        value={values.marca || ""}
-        onChange={(event) => handleChange({ marca: event.target.value })}
-        placeholder="Filtrar por marca"
-      />
-
-      <input
-        type="text"
-        className="w-full rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:w-[240px]"
-        value={values.modelo || ""}
-        onChange={(event) => handleChange({ modelo: event.target.value })}
-        placeholder="Filtrar por modelo"
+        className="w-full rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:w-[320px]"
+        value={values.busqueda || ""}
+        onChange={(event) => handleChange({ busqueda: event.target.value })}
+        placeholder="Buscar por marca, modelo, serie, sucursal, asignado..."
       />
 
       <select

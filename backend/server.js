@@ -708,6 +708,121 @@ app.delete("/api/especificaciones/:id", async (req, res) => {
  * TICKETS
  * ========================= */
 
+function normalizeTicketQueryValue(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildAccentInsensitivePattern(value) {
+  const accentMap = {
+    a: "[aáàäâã]",
+    e: "[eéèëê]",
+    i: "[iíìïî]",
+    o: "[oóòöôõ]",
+    u: "[uúùüû]",
+    n: "[nñ]",
+    c: "[cç]",
+  };
+
+  return value
+    .split("")
+    .map((char) => {
+      if (/\s/.test(char)) return "\\s+";
+      const mapped = accentMap[char.toLowerCase()];
+      if (mapped) return mapped;
+      return escapeRegExp(char);
+    })
+    .join("");
+}
+
+function buildTicketQuery(rawQuery) {
+  const q = {};
+
+  const userId = normalizeTicketQueryValue(rawQuery.userId);
+  if (userId) {
+    q.userId = new RegExp(`^${escapeRegExp(userId)}$`, "i");
+  }
+
+  const state = normalizeTicketQueryValue(rawQuery.state);
+  if (state) {
+    q.state = state;
+  }
+
+  const title = normalizeTicketQueryValue(rawQuery.title);
+  if (title) {
+    q.title = title;
+  }
+
+  const risk = normalizeTicketQueryValue(rawQuery.risk);
+  if (risk) {
+    q.risk = risk;
+  }
+
+  const asignadoA = normalizeTicketQueryValue(rawQuery.asignadoA);
+  if (asignadoA) {
+    const tokens = asignadoA.split(/\s+/).filter(Boolean);
+    if (tokens.length <= 1) {
+      q.asignadoA = new RegExp(buildAccentInsensitivePattern(asignadoA), "i");
+    } else {
+      const andConditions = tokens.map((token) => ({
+        asignadoA: new RegExp(buildAccentInsensitivePattern(token), "i"),
+      }));
+      q.$and = Array.isArray(q.$and)
+        ? [...q.$and, ...andConditions]
+        : andConditions;
+    }
+  }
+
+  const unassigned = String(rawQuery.unassigned || "").toLowerCase();
+  if (unassigned === "true" || unassigned === "1") {
+    q.$or = [
+      { asignadoA: { $exists: false } },
+      { asignadoA: null },
+      { asignadoA: "" },
+    ];
+  }
+
+  const excludeState = normalizeTicketQueryValue(rawQuery.excludeState);
+  if (!state && excludeState) {
+    q.state = { $ne: excludeState };
+  }
+
+  return q;
+}
+
+function getTicketSort(sortByRaw) {
+  const sortBy = normalizeTicketQueryValue(sortByRaw);
+  switch (sortBy) {
+    case "createdDesc":
+      return { ticketTime: -1, createdAt: -1 };
+    case "stateAsc":
+      return { state: 1, ticketTime: 1, createdAt: 1 };
+    case "titleAsc":
+      return { title: 1, ticketTime: 1, createdAt: 1 };
+    // Orden aproximado por riesgo (texto); si no aplica, mantiene orden reciente.
+    case "risk":
+      return { risk: 1, ticketTime: -1, createdAt: -1 };
+    case "createdAsc":
+    default:
+      return { ticketTime: 1, createdAt: 1 };
+  }
+}
+
+function parseLimit(rawLimit, fallback = 50, max = 500) {
+  const parsed = Number(rawLimit);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(Math.floor(parsed), max);
+}
+
+function parseSkip(rawSkip) {
+  const parsed = Number(rawSkip);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return Math.floor(parsed);
+}
+
 // Crear ticket
 app.post("/api/ticketvvp", async (req, res) => {
   try {
@@ -768,19 +883,49 @@ app.post("/api/ticketvvp", async (req, res) => {
 // Listar tickets
 app.get("/api/ticketvvp", async (req, res) => {
   try {
-    const q = {};
-    if (req.query.userId) q.userId = req.query.userId;
-    if (req.query.state) q.state = req.query.state;
-    if (req.query.title) q.title = req.query.title;
+    const q = buildTicketQuery(req.query || {});
+    const sort = getTicketSort(req.query.sortBy);
+    const limit = parseLimit(req.query.limit, 50, 500);
+    const skip = parseSkip(req.query.skip);
 
-    const limit = Math.min(Number(req.query.limit) || 50, 500);
-    const skip = Math.max(Number(req.query.skip) || 0, 0);
+    const [docs, total] = await Promise.all([
+      Ticket.find(q).sort(sort).skip(skip).limit(limit),
+      Ticket.countDocuments(q),
+    ]);
+    res.json({
+      ok: true,
+      count: total,
+      total,
+      limit,
+      skip,
+      data: docs,
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
 
-    const docs = await Ticket.find(q)
-      .sort({ ticketTime: 1, createdAt: 1 })
-      .skip(skip)
-      .limit(limit);
-    res.json({ ok: true, count: docs.length, data: docs });
+// Listar tickets paginado con filtros avanzados (compat frontend)
+app.get("/api/ticketvvp/paginado", async (req, res) => {
+  try {
+    const q = buildTicketQuery(req.query || {});
+    const sort = getTicketSort(req.query.sortBy);
+    const limit = parseLimit(req.query.limit, 12, 500);
+    const skip = parseSkip(req.query.skip);
+
+    const [docs, total] = await Promise.all([
+      Ticket.find(q).sort(sort).skip(skip).limit(limit),
+      Ticket.countDocuments(q),
+    ]);
+
+    res.json({
+      ok: true,
+      count: total,
+      total,
+      limit,
+      skip,
+      data: docs,
+    });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }

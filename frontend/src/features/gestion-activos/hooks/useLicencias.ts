@@ -2,10 +2,55 @@ import { useCallback, useState } from "react";
 import { API_BASE } from "../constants";
 import type { Licencia } from "../types";
 import {
+  getCuentaArea,
+  getCuentaCentroCosto,
+  getCuentaDisplay,
   getCuentaAssignedSearchValue,
   getCuentaSearchValue,
+  getCuentaSucursal,
   isCuentaDisponible,
 } from "../utils/licenciaCuenta";
+
+function normalizeSearchValue(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function buildLicenciaSearchIndex(licencia: Licencia) {
+  const rawValues = [
+    licencia.proveedor,
+    licencia.tipoLicencia,
+    licencia.sucursal,
+    licencia.centroCosto,
+    licencia.area,
+    licencia.asignadoPara,
+    licencia.notas,
+    getCuentaDisplay(licencia.cuenta),
+    getCuentaSearchValue(licencia.cuenta),
+    getCuentaAssignedSearchValue(licencia.cuenta),
+    getCuentaSucursal(licencia.cuenta),
+    getCuentaCentroCosto(licencia.cuenta),
+    getCuentaArea(licencia.cuenta),
+  ];
+
+  return normalizeSearchValue(rawValues.filter(Boolean).join(" "));
+}
+
+function matchesLicenciaSearch(licencia: Licencia, search: string) {
+  const normalizedSearch = normalizeSearchValue(search);
+  if (!normalizedSearch) return true;
+
+  const haystack = buildLicenciaSearchIndex(licencia);
+  if (!haystack) return false;
+
+  return normalizedSearch
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((token) => haystack.includes(token));
+}
 
 export function useLicencias() {
   const [licencias, setLicencias] = useState<Licencia[]>([]);
@@ -96,16 +141,11 @@ export function useLicencias() {
       // APLICAR FILTROS EN EL FRONTEND
       let filteredLicencias = allLicencias;
 
-      // Filtro de búsqueda unificada (busca en cuenta Y asignadoPara)
+      // Filtro de búsqueda unificada por aproximación en todos los campos relevantes
       if (filters.busqueda) {
-        const searchLower = filters.busqueda.toLowerCase();
-        filteredLicencias = filteredLicencias.filter((lic) => {
-          const cuenta = getCuentaSearchValue(lic.cuenta);
-          const asignado =
-            (lic.asignadoPara || "").toLowerCase() ||
-            getCuentaAssignedSearchValue(lic.cuenta);
-          return cuenta.includes(searchLower) || asignado.includes(searchLower);
-        });
+        filteredLicencias = filteredLicencias.filter((lic) =>
+          matchesLicenciaSearch(lic, filters.busqueda)
+        );
       }
 
       // Filtro de solo disponibles (sin asignadoPara)

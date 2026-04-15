@@ -28,6 +28,12 @@ export type Ticket = {
   fechaAsignacion?: string;
   ratingScore?: number;
   ratingComment?: string;
+  closureStatus?: "pending" | "accepted" | "rejected" | "expired";
+  closureRequestedAt?: string;
+  closureDeadlineAt?: string;
+  closureRespondedAt?: string;
+  closureResponseComment?: string;
+  closedAt?: string;
 };
 
 // Para crear un ticket no pedimos campos automáticos como ticketTime/resolucionTime
@@ -57,6 +63,12 @@ export type TicketsMetrics = {
   trend: { date: string; created: number; resolved: number }[];
   ratingAvg?: number | null;
   ratingByCategory?: { category: string; avg: number | null; count: number }[];
+  ratingComments?: {
+    comment: string;
+    score: number | null;
+    category: string;
+    date?: string | null;
+  }[];
 };
 
 export type TicketsMetricsResponse = {
@@ -179,6 +191,34 @@ export function rateTicket(ticketId: string, payload: RatingPayload) {
   return httpJSON<TicketResponse>(
     "tickets",
     `/api/ticketvvp/${ticketId}/rating`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export function requestTicketClosure(
+  ticketId: string,
+  payload?: { windowHours?: number }
+) {
+  return httpJSON<TicketResponse>(
+    "tickets",
+    `/api/ticketvvp/${ticketId}/cierre/solicitar`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload || {}),
+    }
+  );
+}
+
+export function respondTicketClosure(
+  ticketId: string,
+  payload: { decision: "accept" | "reject"; comment?: string }
+) {
+  return httpJSON<TicketResponse>(
+    "tickets",
+    `/api/ticketvvp/${ticketId}/cierre/responder`,
     {
       method: "PATCH",
       body: JSON.stringify(payload),

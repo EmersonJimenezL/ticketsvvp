@@ -26,10 +26,10 @@ export function LicenciasFilters({
   return (
     <div className="flex flex-wrap items-start gap-3">
       <input
-        className="w-full rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:min-w-[200px] sm:w-auto"
+        className="w-full rounded-lg bg-neutral-900/70 px-3 py-1.5 text-sm outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 sm:min-w-[320px] sm:w-auto"
         value={values.busqueda}
         onChange={(event) => handleChange({ busqueda: event.target.value })}
-        placeholder="Buscar cuenta o asignado a..."
+        placeholder="Buscar por cuenta, proveedor, tipo, sucursal, asignado..."
       />
 
       <select

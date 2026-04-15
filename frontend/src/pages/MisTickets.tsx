@@ -5,11 +5,18 @@ import { useAuth } from "../auth/AuthContext";
 import {
   listTicketsPaginated,
   rateTicket,
+  respondTicketClosure,
   type Ticket,
 } from "../services/tickets";
 import AppHeader from "../components/AppHeader";
 import TicketRatingCard from "../components/TicketRatingCard";
 import { Pagination } from "../features/gestion-activos/components/Pagination";
+import {
+  formatTicketClosureRemaining,
+  getTicketClosureRemainingMs,
+  isTicketClosureFinal,
+  isTicketClosurePending,
+} from "../utils/ticketClosure";
 
 const ESTADOS: Ticket["state"][] = [
   "recibido",
@@ -77,6 +84,9 @@ export default function MisTickets() {
   const [resolvedCount, setResolvedCount] = useState(0);
   const [focusedTicketId, setFocusedTicketId] = useState<string | null>(null);
   const [imageModal, setImageModal] = useState<{ src: string; index: number; total: number } | null>(null);
+  const [closureCommentDraft, setClosureCommentDraft] = useState<Record<string, string>>({});
+  const [closureSubmitting, setClosureSubmitting] = useState<Record<string, boolean>>({});
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const ticketsStartRef = useRef<HTMLDivElement | null>(null);
 
   const scrollToTicketsStart = useCallback(() => {
@@ -256,6 +266,58 @@ export default function MisTickets() {
     ]
   );
 
+  const handleClosureDecision = useCallback(
+    async (ticket: Ticket, decision: "accept" | "reject") => {
+      const comment = (closureCommentDraft[ticket.ticketId] || "").trim();
+      if (decision === "reject" && !comment) {
+        throw new Error("Debes indicar por que el ticket sigue abierto.");
+      }
+
+      setClosureSubmitting((current) => ({
+        ...current,
+        [ticket.ticketId]: true,
+      }));
+      setError(null);
+
+      try {
+        const response = await respondTicketClosure(ticket.ticketId, {
+          decision,
+          comment: decision === "reject" ? comment : undefined,
+        });
+        if (!response.ok) {
+          throw new Error(
+            response.error || "No se pudo registrar la decision del cierre."
+          );
+        }
+
+        if (response.data) {
+          setItems((current) =>
+            current.map((item) =>
+              item.ticketId === ticket.ticketId
+                ? { ...item, ...(response.data as Ticket) }
+                : item
+            )
+          );
+        }
+
+        setClosureCommentDraft((current) => {
+          if (!(ticket.ticketId in current)) return current;
+          const next = { ...current };
+          delete next[ticket.ticketId];
+          return next;
+        });
+
+        await Promise.all([cargar({ silent: true }), refreshCounts()]);
+      } finally {
+        setClosureSubmitting((current) => ({
+          ...current,
+          [ticket.ticketId]: false,
+        }));
+      }
+    },
+    [closureCommentDraft, cargar, refreshCounts]
+  );
+
   useEffect(() => {
     setCurrentPage(1);
   }, [statusTab, titulo, estado, sortBy]);
@@ -302,12 +364,25 @@ export default function MisTickets() {
     };
   }, [cargar, refreshCounts]);
 
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 30000);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
   const focusedTicket = useMemo(
     () =>
       focusedTicketId
         ? items.find((ticket) => ticket.ticketId === focusedTicketId) || null
         : null,
     [focusedTicketId, items]
+  );
+
+  const pendingClosureItems = useMemo(
+    () => items.filter((ticket) => isTicketClosurePending(ticket)),
+    [items]
   );
 
   useEffect(() => {
@@ -358,6 +433,13 @@ export default function MisTickets() {
       : [];
     const hasResponseContent =
       Boolean((ticket.comment || "").trim()) || responseImages.length > 0;
+    const closurePending = isTicketClosurePending(ticket);
+    const closureFinal = isTicketClosureFinal(ticket);
+    const closureRemainingMs = getTicketClosureRemainingMs(ticket, nowMs);
+    const closureWindowExpired =
+      closureRemainingMs != null && closureRemainingMs <= 0;
+    const closureDraftComment = closureCommentDraft[ticket.ticketId] || "";
+    const closureActionBusy = Boolean(closureSubmitting[ticket.ticketId]);
 
     return (
       <article
@@ -426,9 +508,104 @@ export default function MisTickets() {
         >
           {ticket.risk}
         </span>
+        {closurePending && (
+          <span className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-xs text-cyan-200">
+            Pendiente de tu confirmacion
+          </span>
+        )}
+        {ticket.closureStatus === "accepted" && (
+          <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-200">
+            Cierre aceptado
+          </span>
+        )}
+        {ticket.closureStatus === "expired" && (
+          <span className="rounded-lg border border-neutral-500/30 bg-neutral-500/10 px-2 py-1 text-xs text-neutral-200">
+            Cerrado automatico
+          </span>
+        )}
       </div>
 
       <div className="mt-3 text-neutral-200">
+        {closurePending && (
+          <div
+            className={`mt-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-3 ${
+              isFocusMode ? "mx-auto max-w-4xl" : ""
+            }`}
+          >
+            <p className="text-sm font-semibold text-cyan-100">
+              El ticket entro en etapa de cierre
+            </p>
+            <p className="mt-1 text-sm text-cyan-100/90">
+              Confirma si la solucion fue correcta. Si no respondes, el ticket
+              se cerrara automaticamente.
+            </p>
+            <p className="mt-1 text-xs text-cyan-100/80">
+              {closureWindowExpired
+                ? "El plazo de confirmacion ya vencio."
+                : closureRemainingMs != null
+                  ? `Tiempo restante: ${formatTicketClosureRemaining(
+                      closureRemainingMs
+                    )}.`
+                  : "Esperando confirmacion."}
+            </p>
+
+            <div className="mt-3 space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-xs text-cyan-100/80">
+                  Si no se resolvio, indica que falta
+                </span>
+                <textarea
+                  rows={isFocusMode ? 4 : 3}
+                  value={closureDraftComment}
+                  disabled={closureActionBusy || closureWindowExpired}
+                  onChange={(event) =>
+                    setClosureCommentDraft((current) => ({
+                      ...current,
+                      [ticket.ticketId]: event.target.value,
+                    }))
+                  }
+                  placeholder="Explica por que el ticket debe seguir abierto."
+                  className="w-full rounded-xl border border-cyan-500/20 bg-neutral-900/60 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-cyan-400 disabled:opacity-60"
+                />
+              </label>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={closureActionBusy || closureWindowExpired}
+                  onClick={() => {
+                    void handleClosureDecision(ticket, "accept").catch((err) => {
+                      setError(
+                        err instanceof Error
+                          ? err.message
+                          : "No se pudo aceptar el cierre."
+                      );
+                    });
+                  }}
+                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-60"
+                >
+                  {closureActionBusy ? "Guardando..." : "Aceptar cierre"}
+                </button>
+                <button
+                  type="button"
+                  disabled={closureActionBusy || closureWindowExpired}
+                  onClick={() => {
+                    void handleClosureDecision(ticket, "reject").catch((err) => {
+                      setError(
+                        err instanceof Error
+                          ? err.message
+                          : "No se pudo rechazar el cierre."
+                      );
+                    });
+                  }}
+                  className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-60"
+                >
+                  Sigue abierto
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Mostrar quien est  atendiendo el ticket */}
         <div
           className={`mt-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 ${
@@ -557,7 +734,7 @@ export default function MisTickets() {
           </p>
         )}
 
-        {ticket.state === "resuelto" && (
+        {closureFinal && (
           <TicketRatingCard
             ticketId={ticket.ticketId}
             ratingScore={ticket.ratingScore}
@@ -660,6 +837,13 @@ export default function MisTickets() {
         {!loading && !error && (
           <div className="space-y-6">
             <div ref={ticketsStartRef} className="h-0" />
+            {statusTab === "resueltos" && pendingClosureItems.length > 0 && (
+              <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+                {pendingClosureItems.length === 1
+                  ? `Tienes 1 ticket esperando confirmacion de cierre en esta pagina.`
+                  : `Tienes ${pendingClosureItems.length} tickets esperando confirmacion de cierre en esta pagina.`}
+              </div>
+            )}
             <div className="flex flex-wrap gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
               <button
                 type="button"

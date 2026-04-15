@@ -2,6 +2,44 @@ import { useCallback, useState } from "react";
 import { API_BASE } from "../constants";
 import type { Activo } from "../types";
 
+function normalizeSearchValue(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function buildActivoSearchIndex(activo: Activo) {
+  const rawValues = [
+    activo.categoria,
+    activo.marca,
+    activo.modelo,
+    activo.numeroSerie,
+    activo.numeroFactura,
+    activo.detalles,
+    activo.sucursal,
+    activo.centroCosto,
+    activo.asignadoPara,
+    ...(Array.isArray(activo.numeroacta) ? activo.numeroacta : []),
+  ];
+
+  return normalizeSearchValue(rawValues.filter(Boolean).join(" "));
+}
+
+function matchesActivoSearch(activo: Activo, search: string) {
+  const normalizedSearch = normalizeSearchValue(search);
+  if (!normalizedSearch) return true;
+
+  const haystack = buildActivoSearchIndex(activo);
+  if (!haystack) return false;
+
+  return normalizedSearch
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((token) => haystack.includes(token));
+}
+
 export function useActivos() {
   const [activos, setActivos] = useState<Activo[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -14,6 +52,8 @@ export function useActivos() {
       setError(null);
 
       const skip = (page - 1) * pageSize;
+      const busquedaFiltro =
+        typeof filters.busqueda === "string" ? filters.busqueda.trim() : "";
       const marcaFiltro =
         typeof filters.marca === "string" ? filters.marca.trim() : "";
       const modeloFiltro =
@@ -32,7 +72,7 @@ export function useActivos() {
 
       // Fallback frontend para filtros de marca/modelo (coincidencia parcial),
       // por si el backend no soporta estos filtros o los evalua exacto.
-      if (marcaFiltro || modeloFiltro) {
+      if (busquedaFiltro || marcaFiltro || modeloFiltro) {
         params.set("skip", "0");
         params.set("limit", "5000");
 
@@ -55,6 +95,11 @@ export function useActivos() {
           const needleModelo = modeloFiltro.toLowerCase();
           filtrados = filtrados.filter((item) =>
             (item.modelo || "").toLowerCase().includes(needleModelo)
+          );
+        }
+        if (busquedaFiltro) {
+          filtrados = filtrados.filter((item) =>
+            matchesActivoSearch(item, busquedaFiltro)
           );
         }
 
