@@ -2,8 +2,8 @@
 import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { isContaAdmin } from "../auth/isContaAdmin";
 import { isTicketAdmin } from "../auth/isTicketAdmin";
+import { puedeRevisarAprobaciones } from "../utils/ticketApproval";
 import logo from "../assets/vivipra.png";
 import AppHeader from "../components/AppHeader";
 
@@ -13,7 +13,7 @@ export default function Menu() {
   const nombre =
     [user?.primerNombre, user?.primerApellido].filter((part) => part && part.trim())
       .join(" ") || user?.nombreUsuario || "Usuario";
-  const showContaPanel = isContaAdmin(user || undefined);
+  const showApprovalPanel = puedeRevisarAprobaciones(user || undefined);
 
   // Bloquear acceso completo a /menu para administradores
   useEffect(() => {
@@ -61,20 +61,20 @@ export default function Menu() {
           {/* Reportar incidencia */}
           <Link
             to="/tickets/nuevo"
-            className="group rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+            className="group rounded-2xl border border-neutral-200 bg-white/90 p-6 transition shadow-[0_10px_28px_rgba(15,23,42,0.08)] hover:border-orange-200 hover:bg-white"
           >
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">Reportar incidencia</h2>
-              <span className="rounded-full px-3 py-1 text-xs bg-orange-600/20 text-orange-300 border border-orange-600/30">
+              <span className="rounded-full border border-orange-200 bg-orange-100 px-3 py-1 text-xs text-orange-700">
                 Nuevo
               </span>
             </div>
-            <p className="mt-3 text-neutral-300 text-sm">
+            <p className="mt-3 text-sm text-neutral-600">
               Crea un ticket describiendo el problema para dar seguimiento.
             </p>
             <div className="mt-5">
               <button
-                className="w-full rounded-xl bg-orange-600 px-4 py-3 font-semibold transition group-hover:bg-orange-500"
+                className="w-full rounded-xl bg-orange-600 px-4 py-3 font-semibold text-white shadow-sm transition group-hover:bg-orange-500"
                 type="button"
               >
                 Comenzar
@@ -85,20 +85,20 @@ export default function Menu() {
           {/* Revisar tickets */}
           <Link
             to="/tickets"
-            className="group rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+            className="group rounded-2xl border border-neutral-200 bg-white/90 p-6 transition shadow-[0_10px_28px_rgba(15,23,42,0.08)] hover:border-orange-200 hover:bg-white"
           >
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">Revisar tickets</h2>
-              <span className="rounded-full px-3 py-1 text-xs bg-orange-600/20 text-orange-300 border border-orange-600/30">
+              <span className="rounded-full border border-orange-200 bg-orange-100 px-3 py-1 text-xs text-orange-700">
                 Lista
               </span>
             </div>
-            <p className="mt-3 text-neutral-300 text-sm">
+            <p className="mt-3 text-sm text-neutral-600">
               Consulta el estado de tus tickets y filtra por prioridad.
             </p>
             <div className="mt-5">
               <button
-                className="w-full rounded-xl bg-orange-600 px-4 py-3 font-semibold transition group-hover:bg-orange-500"
+                className="w-full rounded-xl bg-orange-600 px-4 py-3 font-semibold text-white shadow-sm transition group-hover:bg-orange-500"
                 type="button"
               >
                 Ver tickets
@@ -106,23 +106,48 @@ export default function Menu() {
             </div>
           </Link>
 
-          {showContaPanel && (
+          {showApprovalPanel && (
             <Link
-              to="/admin/conta"
-              className="group rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+              to="/tickets/aprobaciones"
+              className="group rounded-2xl border border-neutral-200 bg-white/90 p-6 transition shadow-[0_10px_28px_rgba(15,23,42,0.08)] hover:border-fuchsia-200 hover:bg-white"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">Panel Contabilidad</h2>
-                <span className="rounded-full px-3 py-1 text-xs bg-orange-600/20 text-orange-300 border border-orange-600/30">
-                  Admin
+                <h2 className="text-xl font-semibold">Revisar solicitudes</h2>
+                <span className="rounded-full border border-fuchsia-200 bg-fuchsia-100 px-3 py-1 text-xs text-fuchsia-700">
+                  Jefatura
                 </span>
               </div>
-              <p className="mt-3 text-neutral-300 text-sm">
-                Revisa tickets de usuarios con rol usrconta.
+              <p className="mt-3 text-sm text-neutral-600">
+                Aprueba o rechaza tickets que requieren visto bueno antes de pasar a TI.
               </p>
               <div className="mt-5">
                 <button
-                  className="w-full rounded-xl bg-orange-600 px-4 py-3 font-semibold transition group-hover:bg-orange-500"
+                  className="w-full rounded-xl bg-orange-600 px-4 py-3 font-semibold text-white shadow-sm transition group-hover:bg-orange-500"
+                  type="button"
+                >
+                  Revisar
+                </button>
+              </div>
+            </Link>
+          )}
+
+          {showApprovalPanel && (
+            <Link
+              to="/tickets/equipo"
+              className="group rounded-2xl border border-neutral-200 bg-white/90 p-6 transition shadow-[0_10px_28px_rgba(15,23,42,0.08)] hover:border-orange-200 hover:bg-white"
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Tickets de mi equipo</h2>
+                <span className="rounded-full border border-orange-200 bg-orange-100 px-3 py-1 text-xs text-orange-700">
+                  Jefatura
+                </span>
+              </div>
+              <p className="mt-3 text-sm text-neutral-600">
+                Revisa los tickets creados por trabajadores de tus áreas.
+              </p>
+              <div className="mt-5">
+                <button
+                  className="w-full rounded-xl bg-orange-600 px-4 py-3 font-semibold text-white shadow-sm transition group-hover:bg-orange-500"
                   type="button"
                 >
                   Ver tickets

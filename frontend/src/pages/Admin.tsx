@@ -32,6 +32,11 @@ import {
   getTicketClosureRemainingMs,
   isTicketClosurePending,
 } from "../utils/ticketClosure";
+import {
+  filtrarTicketsListosParaTi,
+  obtenerClasesEstadoAprobacion,
+  obtenerEtiquetaEstadoAprobacion,
+} from "../utils/ticketApproval";
 
 const RISK_BADGE: Record<Ticket["risk"], string> = {
   alto: "bg-red-500/15 text-red-300 ring-1 ring-red-500/30",
@@ -1024,11 +1029,12 @@ export default function Admin() {
     try {
       setError(null);
       setLoading(true);
-      const response = await listTickets({ limit: 500 });
+      const response = await listTickets({ limit: 500, soloListosTi: true });
       if (!response.ok) {
         throw new Error(response.error || "No se pudieron cargar los tickets");
       }
-      setItems(Array.isArray(response.data) ? response.data : []);
+      const data = Array.isArray(response.data) ? response.data : [];
+      setItems(filtrarTicketsListosParaTi(data));
     } catch (err: any) {
       setError(err?.message || "Error al obtener tickets.");
     } finally {
@@ -1040,6 +1046,7 @@ export default function Admin() {
     async (params: Parameters<typeof listTicketsPaginated>[0]) => {
       const response = await listTicketsPaginated({
         ...params,
+        soloListosTi: true,
         limit: 1,
         skip: 0,
       });
@@ -1094,6 +1101,7 @@ export default function Admin() {
       setUnassignedListLoading(true);
       const params: Parameters<typeof listTicketsPaginated>[0] = {
         unassigned: true,
+        soloListosTi: true,
         sortBy: mapSortOptionToBackend(sortBy),
         limit: PAGE_SIZE,
         skip: (unassignedPage - 1) * PAGE_SIZE,
@@ -1115,7 +1123,8 @@ export default function Admin() {
       if (!response.ok) {
         throw new Error(response.error || "No se pudieron cargar tickets.");
       }
-      setUnassignedPageItems(Array.isArray(response.data) ? response.data : []);
+      const data = Array.isArray(response.data) ? response.data : [];
+      setUnassignedPageItems(filtrarTicketsListosParaTi(data));
       setUnassignedTotalCount(response.count ?? 0);
     } catch (err: any) {
       setError(err?.message || "Error al paginar tickets sin asignar.");
@@ -1136,6 +1145,7 @@ export default function Admin() {
       let filtered = items.filter((ticket) =>
         isTicketAssignedToCandidates(ticket, assignedUserCandidates)
       );
+      filtered = filtrarTicketsListosParaTi(filtered);
 
       if (creatorFilterUserId) {
         const normalizedCreator = normalizeString(creatorFilterUserId);
@@ -1174,6 +1184,7 @@ export default function Admin() {
     try {
       setAllListLoading(true);
       const params: Parameters<typeof listTicketsPaginated>[0] = {
+        soloListosTi: true,
         sortBy: mapSortOptionToBackend(sortBy),
         limit: PAGE_SIZE,
         skip: (allPage - 1) * PAGE_SIZE,
@@ -1195,7 +1206,8 @@ export default function Admin() {
       if (!response.ok) {
         throw new Error(response.error || "No se pudieron cargar tickets.");
       }
-      setAllPageItems(Array.isArray(response.data) ? response.data : []);
+      const data = Array.isArray(response.data) ? response.data : [];
+      setAllPageItems(filtrarTicketsListosParaTi(data));
       setAllTotalCount(response.count ?? 0);
     } catch (err: any) {
       setError(err?.message || "Error al paginar todos los tickets.");
@@ -1644,6 +1656,12 @@ export default function Admin() {
     const closurePending = isTicketClosurePending(ticket);
     const closureRemainingMs = getTicketClosureRemainingMs(ticket, nowMs);
     const closureBadgeLabel = getClosureBadgeLabel(ticket, nowMs);
+    const approvalBadgeLabel = obtenerEtiquetaEstadoAprobacion(
+      ticket.estadoAprobacion
+    );
+    const approvalBadgeClasses = obtenerClasesEstadoAprobacion(
+      ticket.estadoAprobacion
+    );
 
     return (
       <article
@@ -1713,6 +1731,13 @@ export default function Admin() {
                   {closureBadgeLabel}
                 </span>
               )}
+              {approvalBadgeLabel && (
+                <span
+                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${approvalBadgeClasses}`}
+                >
+                  {approvalBadgeLabel}
+                </span>
+              )}
             </div>
             <p
               className={`mt-1 text-sm text-neutral-300 ${
@@ -1741,8 +1766,13 @@ export default function Admin() {
                     ? `Cierre automatico en ${formatTicketClosureRemaining(
                         closureRemainingMs
                       )}.`
-                    : "El plazo de confirmacion ya vencio; el backend debe cerrarlo automaticamente."}
+                  : "El plazo de confirmacion ya vencio; el backend debe cerrarlo automaticamente."}
                 </p>
+              </div>
+            )}
+            {ticket.estadoAprobacion === "aprobado" && (
+              <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
+                <p>El ticket fue aprobado por jefatura y ya esta habilitado para TI.</p>
               </div>
             )}
 

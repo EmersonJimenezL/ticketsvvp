@@ -1,5 +1,6 @@
 // src/services/tickets.ts
 import { httpJSON } from "../lib/http";
+import type { EstadoAprobacionTicket } from "../utils/ticketApproval";
 
 export type Ticket = {
   ticketId: string;
@@ -34,6 +35,16 @@ export type Ticket = {
   closureRespondedAt?: string;
   closureResponseComment?: string;
   closedAt?: string;
+  aprobacionRequerida?: boolean;
+  estadoAprobacion?: EstadoAprobacionTicket;
+  areaAprobacion?: string;
+  rolSolicitanteAprobacion?: string;
+  rolAprobador?: string;
+  fechaSolicitudAprobacion?: string;
+  fechaResolucionAprobacion?: string;
+  usuarioResolvioAprobacion?: string;
+  nombreResolvioAprobacion?: string;
+  comentarioAprobacion?: string;
 };
 
 // Para crear un ticket no pedimos campos automáticos como ticketTime/resolucionTime
@@ -95,6 +106,10 @@ export function listTickets(params: {
   sortBy?: string;
   limit?: number;
   skip?: number;
+  estadoAprobacion?: EstadoAprobacionTicket;
+  aprobacionRequerida?: boolean;
+  rolAprobador?: string;
+  soloListosTi?: boolean;
 }) {
   const qs = new URLSearchParams();
   if (params.userId) qs.set("userId", params.userId);
@@ -107,6 +122,14 @@ export function listTickets(params: {
   if (params.sortBy) qs.set("sortBy", params.sortBy);
   if (params.limit != null) qs.set("limit", String(params.limit));
   if (params.skip != null) qs.set("skip", String(params.skip));
+  if (params.estadoAprobacion) qs.set("estadoAprobacion", params.estadoAprobacion);
+  if (params.aprobacionRequerida != null) {
+    qs.set("aprobacionRequerida", String(params.aprobacionRequerida));
+  }
+  if (params.rolAprobador) qs.set("rolAprobador", params.rolAprobador);
+  if (params.soloListosTi != null) {
+    qs.set("soloListosTi", String(params.soloListosTi));
+  }
   const search = qs.toString() ? `?${qs.toString()}` : "";
   return httpJSON<ListResponse>("tickets", `/api/ticketvvp${search}`);
 }
@@ -122,6 +145,10 @@ export async function listTicketsPaginated(params: {
   sortBy?: string;
   limit?: number;
   skip?: number;
+  estadoAprobacion?: EstadoAprobacionTicket;
+  aprobacionRequerida?: boolean;
+  rolAprobador?: string;
+  soloListosTi?: boolean;
 }) {
   const qs = new URLSearchParams();
   if (params.userId) qs.set("userId", params.userId);
@@ -134,6 +161,14 @@ export async function listTicketsPaginated(params: {
   if (params.sortBy) qs.set("sortBy", params.sortBy);
   if (params.limit != null) qs.set("limit", String(params.limit));
   if (params.skip != null) qs.set("skip", String(params.skip));
+  if (params.estadoAprobacion) qs.set("estadoAprobacion", params.estadoAprobacion);
+  if (params.aprobacionRequerida != null) {
+    qs.set("aprobacionRequerida", String(params.aprobacionRequerida));
+  }
+  if (params.rolAprobador) qs.set("rolAprobador", params.rolAprobador);
+  if (params.soloListosTi != null) {
+    qs.set("soloListosTi", String(params.soloListosTi));
+  }
   const search = qs.toString() ? `?${qs.toString()}` : "";
   try {
     return await httpJSON<ListResponse>(
@@ -219,6 +254,25 @@ export function respondTicketClosure(
   return httpJSON<TicketResponse>(
     "tickets",
     `/api/ticketvvp/${ticketId}/cierre/responder`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export function resolverAprobacionTicket(
+  ticketId: string,
+  payload: {
+    decision: "approve" | "reject";
+    comentario?: string;
+    usuarioResolvioAprobacion?: string;
+    nombreResolvioAprobacion?: string;
+  }
+) {
+  return httpJSON<TicketResponse>(
+    "tickets",
+    `/api/ticketvvp/${ticketId}/aprobacion`,
     {
       method: "PATCH",
       body: JSON.stringify(payload),

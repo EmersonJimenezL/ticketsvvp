@@ -1,8 +1,12 @@
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import AppHeader from "../components/AppHeader";
+import { puedeRevisarAprobaciones } from "../utils/ticketApproval";
 
 export default function AdminHome() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const showApprovalPanel = puedeRevisarAprobaciones(user || undefined);
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 relative overflow-hidden px-4 py-10">
@@ -33,21 +37,21 @@ export default function AdminHome() {
           <button
             type="button"
             onClick={() => navigate("/admin/tickets")}
-            className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/10 to-white/[0.04] p-8 text-left backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition hover:border-white/20 hover:from-white/15 hover:to-white/[0.08] w-full sm:w-[22rem]"
+            className="group relative w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white/90 p-8 text-left shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition hover:border-orange-200 hover:bg-white sm:w-[22rem]"
           >
-            <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-500/10 blur-2xl group-hover:bg-orange-500/20 transition" />
+            <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-100 blur-2xl transition group-hover:bg-orange-200" />
             <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-xl bg-orange-600/20 border border-orange-600/30 text-orange-300 text-xl">
+              <div className="grid h-12 w-12 place-items-center rounded-xl border border-orange-200 bg-orange-100 text-xl text-orange-700">
                 🎫
               </div>
               <div>
                 <div className="text-xl font-bold">Gestionar Tickets</div>
-                <div className="text-neutral-300 text-sm">
+                <div className="text-sm text-neutral-600">
                   Ver y actualizar pendientes
                 </div>
               </div>
             </div>
-            <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-300">
+            <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-700">
               <span>Ir al módulo</span>
               <span className="transition group-hover:translate-x-0.5">→</span>
             </div>
@@ -57,21 +61,21 @@ export default function AdminHome() {
           <button
             type="button"
             onClick={() => navigate("/admin/gestion-activos")}
-            className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/10 to-white/[0.04] p-8 text-left backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition hover:border-white/20 hover:from-white/15 hover:to-white/[0.08] w-full sm:w-[22rem]"
+            className="group relative w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white/90 p-8 text-left shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition hover:border-orange-200 hover:bg-white sm:w-[22rem]"
           >
-            <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-500/10 blur-2xl group-hover:bg-orange-500/20 transition" />
+            <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-100 blur-2xl transition group-hover:bg-orange-200" />
             <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-xl bg-orange-600/20 border border-orange-600/30 text-orange-300 text-xl">
+              <div className="grid h-12 w-12 place-items-center rounded-xl border border-orange-200 bg-orange-100 text-xl text-orange-700">
                 🧰
               </div>
               <div>
                 <div className="text-xl font-bold">Gestionar Activos</div>
-                <div className="text-neutral-300 text-sm">
+                <div className="text-sm text-neutral-600">
                   Activos y licencias
                 </div>
               </div>
             </div>
-            <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-300">
+            <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-700">
               <span>Ir al módulo</span>
               <span className="transition group-hover:translate-x-0.5">→</span>
             </div>
@@ -81,25 +85,75 @@ export default function AdminHome() {
           <button
             type="button"
             onClick={() => navigate("/admin/modelos")}
-            className="group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/10 to-white/[0.04] p-8 text-left backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition hover:border-white/20 hover:from-white/15 hover:to-white/[0.08] w-full sm:w-[22rem]"
+            className="group relative w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white/90 p-8 text-left shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition hover:border-orange-200 hover:bg-white sm:w-[22rem]"
           >
-            <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-500/10 blur-2xl group-hover:bg-orange-500/20 transition" />
+            <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-100 blur-2xl transition group-hover:bg-orange-200" />
             <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-xl bg-orange-600/20 border border-orange-600/30 text-orange-300 text-xl">
+              <div className="grid h-12 w-12 place-items-center rounded-xl border border-orange-200 bg-orange-100 text-xl text-orange-700">
                 🧩
               </div>
               <div>
                 <div className="text-xl font-bold">Gestionar Modelos</div>
-                <div className="text-neutral-300 text-sm">
+                <div className="text-sm text-neutral-600">
                   Especificaciones técnicas
                 </div>
               </div>
             </div>
-            <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-300">
+            <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-700">
               <span>Ir al módulo</span>
               <span className="transition group-hover:translate-x-0.5">→</span>
             </div>
           </button>
+
+          {showApprovalPanel && (
+            <button
+              type="button"
+              onClick={() => navigate("/tickets/equipo")}
+              className="group relative w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white/90 p-8 text-left shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition hover:border-orange-200 hover:bg-white sm:w-[22rem]"
+            >
+              <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-100 blur-2xl transition group-hover:bg-orange-200" />
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-xl border border-orange-200 bg-orange-100 text-xl text-orange-700">
+                  👥
+                </div>
+                <div>
+                  <div className="text-xl font-bold">Tickets de mi equipo</div>
+                  <div className="text-sm text-neutral-600">
+                    Seguimiento de trabajadores por área
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-700">
+                <span>Ir al modulo</span>
+                <span className="transition group-hover:translate-x-0.5">→</span>
+              </div>
+            </button>
+          )}
+
+          {showApprovalPanel && (
+            <button
+              type="button"
+              onClick={() => navigate("/tickets/aprobaciones")}
+              className="group relative w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white/90 p-8 text-left shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition hover:border-fuchsia-200 hover:bg-white sm:w-[22rem]"
+            >
+              <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-fuchsia-100 blur-2xl transition group-hover:bg-fuchsia-200" />
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-xl border border-fuchsia-200 bg-fuchsia-100 text-xl text-fuchsia-700">
+                  ✓
+                </div>
+                <div>
+                  <div className="text-xl font-bold">Solicitudes por Aprobar</div>
+                  <div className="text-sm text-neutral-600">
+                    Revision previa de jefatura
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 inline-flex items-center gap-2 text-sm text-fuchsia-700">
+                <span>Ir al modulo</span>
+                <span className="transition group-hover:translate-x-0.5">→</span>
+              </div>
+            </button>
+          )}
         </div>
       </div>
     </div>

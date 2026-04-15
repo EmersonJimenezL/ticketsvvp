@@ -8,13 +8,17 @@ import { sendTicketEmail } from "../services/email";
 import { useCentroUsuarios } from "../features/gestion-activos/hooks/useCentroUsuarios";
 import type { TicketPayload } from "../services/tickets";
 import AppHeader from "../components/AppHeader";
+import {
+  obtenerConfiguracionAprobacionPorClave,
+  obtenerOpcionesAprobacionUsuario,
+} from "../utils/ticketApproval";
 
 // Generador simple de ticketId
 function genTicketId() {
   const d = new Date();
   const pad = (n: number) => n.toString().padStart(2, "0");
   const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(
-    d.getDate()
+    d.getDate(),
   )}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
   const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
   return `TCK-${stamp}-${rand}`;
@@ -30,13 +34,36 @@ const TITLES: TicketPayload["title"][] = [
 ];
 const RISKS: TicketPayload["risk"][] = ["alto", "medio", "bajo"];
 
+function nombreVisibleCentroUsuario(usuario: {
+  pnombre?: string;
+  snombre?: string;
+  papellido?: string;
+  sapellido?: string;
+  usuario?: string;
+}) {
+  return (
+    [
+      usuario.pnombre || "",
+      usuario.snombre || "",
+      usuario.papellido || "",
+      usuario.sapellido || "",
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .trim() ||
+    usuario.usuario ||
+    "Sin usuario"
+  );
+}
+
 export default function NuevoTicket() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { usuarios: centroUsuarios } = useCentroUsuarios();
+  const { usuarios: centroUsuarios, loading: centroUsuariosLoading } =
+    useCentroUsuarios();
   const currentUserId = useMemo(
     () => (user?.nombreUsuario || user?.usuario || "").trim(),
-    [user?.nombreUsuario, user?.usuario]
+    [user?.nombreUsuario, user?.usuario],
   );
 
   // Bloquear acceso a administradores
@@ -54,6 +81,9 @@ export default function NuevoTicket() {
   const [error, setError] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [compressing, setCompressing] = useState(false);
+  const [requiereAprobacion, setRequiereAprobacion] = useState(false);
+  const [areaAprobacionSeleccionada, setAreaAprobacionSeleccionada] =
+    useState("");
   const submittingRef = useRef(false);
 
   const adminEmails = useMemo(() => {
@@ -66,6 +96,85 @@ export default function NuevoTicket() {
     });
     return Array.from(emails);
   }, [centroUsuarios]);
+
+  const opcionesAprobacion = useMemo(
+    () => obtenerOpcionesAprobacionUsuario(user || undefined),
+    [user],
+  );
+
+  const aprobacionDisponible = opcionesAprobacion.length > 0;
+
+  useEffect(() => {
+    if (!aprobacionDisponible) {
+      setRequiereAprobacion(false);
+      setAreaAprobacionSeleccionada("");
+      return;
+    }
+
+    if (opcionesAprobacion.length === 1) {
+      setAreaAprobacionSeleccionada(opcionesAprobacion[0].clave);
+      return;
+    }
+
+    setAreaAprobacionSeleccionada((actual) => {
+      if (actual && opcionesAprobacion.some((item) => item.clave === actual)) {
+        return actual;
+      }
+      return "";
+    });
+  }, [aprobacionDisponible, opcionesAprobacion]);
+
+  const configuracionAprobacion = useMemo(
+    () => obtenerConfiguracionAprobacionPorClave(areaAprobacionSeleccionada),
+    [areaAprobacionSeleccionada],
+  );
+
+  const aprobadoresActivos = useMemo(() => {
+    const rolBuscado = (configuracionAprobacion?.rolAprobador || "")
+      .trim()
+      .toLowerCase();
+    if (!rolBuscado) return [] as { nombre: string; email: string }[];
+
+    const vistos = new Set<string>();
+    const items: { nombre: string; email: string }[] = [];
+
+    (centroUsuarios || []).forEach((usuario) => {
+      const roles = Array.isArray(usuario.rol)
+        ? usuario.rol
+        : usuario.rol
+          ? [usuario.rol]
+          : [];
+
+      const coincide = roles
+        .map((rol) => rol.trim().toLowerCase())
+        .includes(rolBuscado);
+
+      if (!coincide) return;
+
+      const nombre = nombreVisibleCentroUsuario(usuario);
+      const email = (usuario.email || "").trim();
+      const clave = [
+        (usuario.usuario || "").trim().toLowerCase(),
+        email.toLowerCase(),
+        nombre,
+      ]
+        .filter(Boolean)
+        .join("|");
+
+      if (!clave || vistos.has(clave)) return;
+      vistos.add(clave);
+      items.push({ nombre, email });
+    });
+
+    return items.sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }),
+    );
+  }, [centroUsuarios, configuracionAprobacion?.rolAprobador]);
+
+  const correosAprobadores = useMemo(
+    () => aprobadoresActivos.map((item) => item.email).filter(Boolean),
+    [aprobadoresActivos],
+  );
 
   // Función para comprimir una imagen
   async function compressImage(file: File): Promise<string> {
@@ -154,7 +263,7 @@ export default function NuevoTicket() {
             console.error("Error comprimiendo imagen:", err);
             return "";
           }
-        })
+        }),
       );
 
       const validImages = compressed.filter(Boolean);
@@ -163,7 +272,7 @@ export default function NuevoTicket() {
       }
       if (validImages.length < arr.length) {
         setError(
-          `${arr.length - validImages.length} imagen(es) no pudieron procesarse`
+          `${arr.length - validImages.length} imagen(es) no pudieron procesarse`,
         );
       }
     } catch (err) {
@@ -197,6 +306,22 @@ export default function NuevoTicket() {
       setError("Sesión no válida. Vuelve a iniciar sesión.");
       return;
     }
+    if (requiereAprobacion && !configuracionAprobacion) {
+      setError("Selecciona el area de aprobacion correspondiente.");
+      return;
+    }
+    if (requiereAprobacion && centroUsuariosLoading) {
+      setError(
+        "Se estan cargando las jefaturas disponibles. Intenta nuevamente.",
+      );
+      return;
+    }
+    if (requiereAprobacion && correosAprobadores.length === 0) {
+      setError(
+        "No se encontro una jefatura activa para esta aprobacion. Revisa la configuracion de roles.",
+      );
+      return;
+    }
 
     const ticketId = genTicketId();
     const firstName =
@@ -224,6 +349,14 @@ export default function NuevoTicket() {
       risk,
       state: "recibido",
       images: images.length ? images : undefined,
+      aprobacionRequerida: requiereAprobacion,
+      estadoAprobacion: requiereAprobacion ? "pendiente" : "no_requiere",
+      areaAprobacion: configuracionAprobacion?.clave,
+      rolSolicitanteAprobacion: configuracionAprobacion?.rolSolicitante,
+      rolAprobador: configuracionAprobacion?.rolAprobador,
+      fechaSolicitudAprobacion: requiereAprobacion
+        ? new Date().toISOString()
+        : undefined,
     };
 
     try {
@@ -232,12 +365,19 @@ export default function NuevoTicket() {
       const resp = await createTicket(payload);
       if (!resp.ok) throw new Error(resp.error || "Error al crear el ticket");
       setCreatedId(ticketId);
-      const destinatarios = adminEmails.join(",");
+      const destinatarios = requiereAprobacion
+        ? correosAprobadores.join(",")
+        : adminEmails.join(",");
       if (destinatarios) {
+        const aprobadorPrincipal = correosAprobadores[0] || "";
         void sendTicketEmail({
           destinatario: destinatarios,
-          asunto: `Nuevo ticket ${ticketId}`,
-          mensaje: `Se creó un nuevo ticket en ${title} por ${payload.userName || payload.userId}.`,
+          asunto: requiereAprobacion
+            ? `Solicitud de aprobacion ${ticketId}`
+            : `Nuevo ticket ${ticketId}`,
+          mensaje: requiereAprobacion
+            ? `Se creo un ticket que requiere aprobacion de jefatura para ${configuracionAprobacion?.etiqueta || "el area seleccionada"} por ${payload.userName || payload.userId}.`
+            : `Se creó un nuevo ticket en ${title} por ${payload.userName || payload.userId}.`,
           nota: {
             origen: "ticket",
             ticketId,
@@ -248,6 +388,11 @@ export default function NuevoTicket() {
             userId: payload.userId,
             fecha: new Date().toLocaleString("es-CL"),
             description: payload.description,
+            aprobacionRequerida: payload.aprobacionRequerida,
+            estadoAprobacion: payload.estadoAprobacion,
+            areaAprobacion: configuracionAprobacion?.etiqueta,
+            rolAprobador: configuracionAprobacion?.rolAprobador,
+            correoAprobador: aprobadorPrincipal || undefined,
           },
         });
       }
@@ -255,9 +400,13 @@ export default function NuevoTicket() {
       navigate("/tickets");
     } catch (err: any) {
       // Si hay imágenes y falla la conexión, probablemente es por tamaño
-      if (images.length > 0 && (err?.message?.includes("conexión") || err?.message?.includes("conectar"))) {
+      if (
+        images.length > 0 &&
+        (err?.message?.includes("conexión") ||
+          err?.message?.includes("conectar"))
+      ) {
         setError(
-          `Las imágenes son demasiado pesadas. Intenta con ${images.length > 2 ? "menos imágenes" : "imágenes más pequeñas"}`
+          `Las imágenes son demasiado pesadas. Intenta con ${images.length > 2 ? "menos imágenes" : "imágenes más pequeñas"}`,
         );
       } else {
         setError(err?.message || "No se pudo crear el ticket");
@@ -295,15 +444,15 @@ export default function NuevoTicket() {
 
         <form
           onSubmit={onSubmit}
-          className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.5)] space-y-4"
+          className="space-y-4 rounded-2xl border border-neutral-200 bg-white/90 p-6 shadow-[0_14px_36px_rgba(15,23,42,0.10)]"
         >
           {/* Categoría */}
           <div className="space-y-2 text-center">
-            <label className="text-lg text-neutral-300">
+            <label className="text-lg text-neutral-700">
               <strong>Categoría</strong>
             </label>
             <select
-              className="w-full rounded-xl mt-2 bg-neutral-900/70 px-4 py-2.5 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-neutral-900 outline-none focus:ring-2 focus:ring-orange-500"
               value={title ?? ""}
               onChange={(e) =>
                 setTitle(e.target.value as TicketPayload["title"])
@@ -322,27 +471,31 @@ export default function NuevoTicket() {
 
           {/* Descripción */}
           <div className="space-y-2 text-center">
-            <label className="text-lg text-neutral-300">
+            <label className="text-lg text-neutral-700">
               <strong>Descripción</strong>
             </label>
             <textarea
               rows={4}
-              className="w-full rounded-xl mt-2 bg-neutral-900/70 px-4 py-2.5 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500"
+              className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-neutral-900 outline-none focus:ring-2 focus:ring-orange-500"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               onPaste={(event) => {
                 if (compressing) return;
-                const clipboardItems = Array.from(event.clipboardData?.items ?? []);
+                const clipboardItems = Array.from(
+                  event.clipboardData?.items ?? [],
+                );
                 const clipboardImageFiles = clipboardItems
-                  .map((item) => (item.kind === "file" ? item.getAsFile() : null))
+                  .map((item) =>
+                    item.kind === "file" ? item.getAsFile() : null,
+                  )
                   .filter((file): file is File => Boolean(file))
                   .filter((file) => file.type.startsWith("image/"));
 
                 const imageFiles =
                   clipboardImageFiles.length > 0
                     ? clipboardImageFiles
-                    : Array.from(event.clipboardData?.files ?? []).filter((file) =>
-                        file.type.startsWith("image/")
+                    : Array.from(event.clipboardData?.files ?? []).filter(
+                        (file) => file.type.startsWith("image/"),
                       );
 
                 if (!imageFiles.length) return;
@@ -351,17 +504,17 @@ export default function NuevoTicket() {
               }}
               placeholder="Describe el problema o solicitud con el mayor detalle posible."
             />
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-neutral-500">
               Tip: puedes pegar capturas con <kbd>Ctrl</kbd> + <kbd>V</kbd>.
             </p>
           </div>
 
           {/* Imágenes (opcional) */}
           <div className="space-y-2 text-center">
-            <label className="text-lg text-neutral-300">
+            <label className="text-lg text-neutral-700">
               <strong>Adjuntar imágenes</strong>
             </label>
-            <p className="text-xs text-neutral-400 mt-1">
+            <p className="mt-1 text-xs text-neutral-500">
               Las imágenes se comprimen automáticamente para optimizar el envío
             </p>
             <input
@@ -370,13 +523,28 @@ export default function NuevoTicket() {
               multiple
               disabled={compressing}
               onChange={(e) => onFilesSelected(e.target.files)}
-              className="w-full rounded-xl mt-2 bg-neutral-900/70 px-4 py-2.5 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-orange-500 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-neutral-900 outline-none focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60"
             />
             {compressing && (
-              <div className="mt-3 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-sm text-orange-300 flex items-center gap-2">
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              <div className="mt-3 flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-700">
+                <svg
+                  className="animate-spin h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
                 </svg>
                 Comprimiendo imágenes...
               </div>
@@ -388,7 +556,7 @@ export default function NuevoTicket() {
                     <img
                       src={src}
                       alt={`adjunto-${i}`}
-                      className="h-24 w-full object-cover rounded-lg border border-white/10"
+                      className="h-24 w-full rounded-lg border border-neutral-200 object-cover"
                     />
                     <button
                       type="button"
@@ -406,7 +574,7 @@ export default function NuevoTicket() {
 
           {/* Riesgo */}
           <div className="space-y-2">
-            <label className="text-sm text-neutral-300">Riesgo</label>
+            <label className="text-sm text-neutral-700">Riesgo</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {RISKS.map((r) => (
                 <button
@@ -414,8 +582,10 @@ export default function NuevoTicket() {
                   key={r}
                   onClick={() => setRisk(r)}
                   className={[
-                    "rounded-xl px-4 py-2 ring-1 ring-white/10 bg-neutral-900/70 hover:bg-white/10 transition",
-                    risk === r ? "outline-2 outline-orange-500" : "",
+                    "rounded-xl border border-neutral-200 bg-white px-4 py-2 text-neutral-700 transition hover:border-orange-200 hover:bg-orange-50",
+                    risk === r
+                      ? "border-orange-400 bg-orange-50 ring-2 ring-orange-200"
+                      : "",
                   ].join(" ")}
                 >
                   {r}
@@ -424,14 +594,106 @@ export default function NuevoTicket() {
             </div>
           </div>
 
+          {aprobacionDisponible && (
+            <div className="space-y-3 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-fuchsia-800">
+                    Aprobacion de jefatura
+                  </h3>
+                  <p className="mt-1 text-xs text-fuchsia-700">
+                    Usa esta opcion cuando el requerimiento necesite visto bueno
+                    de jefatura antes de pasar a TI.
+                  </p>
+                </div>
+                <label className="inline-flex cursor-pointer items-center gap-3 rounded-xl border border-fuchsia-200 bg-white px-3 py-2 text-sm text-neutral-800">
+                  <input
+                    type="checkbox"
+                    checked={requiereAprobacion}
+                    onChange={(event) =>
+                      setRequiereAprobacion(event.target.checked)
+                    }
+                    className="h-4 w-4 rounded border-white/20 bg-neutral-900 text-fuchsia-500 focus:ring-fuchsia-500"
+                  />
+                  Requiere aprobacion
+                </label>
+              </div>
+
+              {requiereAprobacion && (
+                <div className="space-y-3">
+                  {opcionesAprobacion.length > 1 ? (
+                    <label className="block text-sm text-neutral-700">
+                      Area solicitante
+                      <select
+                        value={areaAprobacionSeleccionada}
+                        onChange={(event) =>
+                          setAreaAprobacionSeleccionada(event.target.value)
+                        }
+                        className="mt-2 w-full rounded-xl border border-fuchsia-200 bg-white px-4 py-2.5 text-neutral-900 outline-none focus:ring-2 focus:ring-fuchsia-500"
+                      >
+                        <option value="">Selecciona un area</option>
+                        {opcionesAprobacion.map((opcion) => (
+                          <option key={opcion.clave} value={opcion.clave}>
+                            {opcion.etiqueta}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : configuracionAprobacion ? (
+                    <div className="rounded-xl border border-fuchsia-200 bg-white px-4 py-3 text-sm text-neutral-900">
+                      <div className="text-xs uppercase tracking-wide text-fuchsia-700">
+                        Area solicitante
+                      </div>
+                      <div className="mt-1 font-semibold">
+                        {configuracionAprobacion.etiqueta}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {configuracionAprobacion && (
+                    <div className="rounded-xl border border-fuchsia-200 bg-white px-4 py-3 text-sm text-neutral-900">
+                      <div className="text-xs uppercase tracking-wide text-fuchsia-700">
+                        Jefatura que revisara esta solicitud
+                      </div>
+                      {aprobadoresActivos.length > 0 ? (
+                        <div className="mt-2 space-y-1">
+                          {aprobadoresActivos.map((aprobador) => (
+                            <div
+                              key={`${aprobador.nombre}-${aprobador.email}`}
+                              className="font-semibold"
+                            >
+                              {aprobador.nombre}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      <p className="mt-2 text-xs text-neutral-500">
+                        {aprobadoresActivos.length > 0
+                          ? `${correosAprobadores.length} destinatario(s) activos encontrados.`
+                          : "Aun no se encontro una jefatura activa con ese rol."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!centroUsuariosLoading && !aprobacionDisponible && (
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs text-neutral-500">
+              Tu usuario no tiene un rol configurado para solicitudes con
+              aprobacion de jefatura.
+            </div>
+          )}
+
           {/* Mensajes */}
           {error && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
             </div>
           )}
           {createdId && (
-            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
               Ticket creado: <span className="font-semibold">{createdId}</span>
             </div>
           )}
@@ -440,10 +702,16 @@ export default function NuevoTicket() {
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={loading}
-              className="rounded-xl bg-orange-600 px-5 py-3 font-semibold transition hover:bg-orange-500 disabled:opacity-60"
+              disabled={
+                loading || (requiereAprobacion && centroUsuariosLoading)
+              }
+              className="rounded-xl bg-orange-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-orange-500 disabled:opacity-60"
             >
-              {loading ? "Guardando..." : "Guardar ticket"}
+              {loading
+                ? "Guardando..."
+                : requiereAprobacion && centroUsuariosLoading
+                  ? "Cargando jefaturas..."
+                  : "Guardar ticket"}
             </button>
           </div>
         </form>
@@ -451,4 +719,3 @@ export default function NuevoTicket() {
     </div>
   );
 }
-

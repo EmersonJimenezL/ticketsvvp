@@ -5,11 +5,11 @@ import RequireAuth from "./routes/RequireAuth";
 import RouteLoader from "./components/RouteLoader";
 
 import Login from "./pages/Login";
-import RequireContaAdmin from "./routes/RequireContaAdmin";
 
 const Menu = lazy(() => import("./pages/Menu"));
 const NuevoTicket = lazy(() => import("./pages/NuevoTicket"));
 const MisTickets = lazy(() => import("./pages/MisTickets"));
+const TicketAprobaciones = lazy(() => import("./pages/TicketAprobaciones"));
 const Admin = lazy(() => import("./pages/Admin"));
 const AdminHome = lazy(() => import("./pages/AdminHome"));
 const GestionActivos = lazy(() => import("./pages/GestionActivos"));
@@ -43,6 +43,19 @@ export default function App() {
               <Route path="/tickets" element={<MisTickets />} />
             </Route>
 
+            {/* tickets de mi equipo */}
+            <Route element={<RequireAuth />}>
+              <Route path="/tickets/equipo" element={<AdminConta />} />
+            </Route>
+
+            {/* aprobaciones de jefatura */}
+            <Route element={<RequireAuth />}>
+              <Route
+                path="/tickets/aprobaciones"
+                element={<TicketAprobaciones />}
+              />
+            </Route>
+
             {/* admin */}
             <Route element={<RequireAuth />}>
               <Route path="/admin" element={<AdminHome />} />
@@ -54,11 +67,9 @@ export default function App() {
               <Route path="/admin/modelos" element={<Modelos />} />
             </Route>
 
-            {/* admin contabilidad */}
+            {/* compatibilidad ruta anterior */}
             <Route element={<RequireAuth />}>
-              <Route element={<RequireContaAdmin />}>
-                <Route path="/admin/conta" element={<AdminConta />} />
-              </Route>
+              <Route path="/admin/conta" element={<AdminConta />} />
             </Route>
 
             {/* gestion de activos */}

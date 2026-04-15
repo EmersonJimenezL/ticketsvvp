@@ -17,6 +17,12 @@ import {
   isTicketClosureFinal,
   isTicketClosurePending,
 } from "../utils/ticketClosure";
+import {
+  obtenerClasesEstadoAprobacion,
+  obtenerEtiquetaEstadoAprobacion,
+  ticketPendienteAprobacion,
+  ticketRechazadoPorAprobacion,
+} from "../utils/ticketApproval";
 
 const ESTADOS: Ticket["state"][] = [
   "recibido",
@@ -440,6 +446,14 @@ export default function MisTickets() {
       closureRemainingMs != null && closureRemainingMs <= 0;
     const closureDraftComment = closureCommentDraft[ticket.ticketId] || "";
     const closureActionBusy = Boolean(closureSubmitting[ticket.ticketId]);
+    const approvalPending = ticketPendienteAprobacion(ticket);
+    const approvalRejected = ticketRechazadoPorAprobacion(ticket);
+    const approvalBadgeLabel = obtenerEtiquetaEstadoAprobacion(
+      ticket.estadoAprobacion
+    );
+    const approvalBadgeClasses = obtenerClasesEstadoAprobacion(
+      ticket.estadoAprobacion
+    );
 
     return (
       <article
@@ -508,6 +522,13 @@ export default function MisTickets() {
         >
           {ticket.risk}
         </span>
+        {approvalBadgeLabel && (
+          <span
+            className={`rounded-lg border px-2 py-1 text-xs ${approvalBadgeClasses}`}
+          >
+            {approvalBadgeLabel}
+          </span>
+        )}
         {closurePending && (
           <span className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-xs text-cyan-200">
             Pendiente de tu confirmacion
@@ -526,6 +547,51 @@ export default function MisTickets() {
       </div>
 
       <div className="mt-3 text-neutral-200">
+        {approvalPending && (
+          <div
+            className={`mt-3 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-3 ${
+              isFocusMode ? "mx-auto max-w-4xl" : ""
+            }`}
+          >
+            <p className="text-sm font-semibold text-fuchsia-100">
+              Este ticket esta pendiente de aprobacion de jefatura
+            </p>
+            <p className="mt-1 text-sm text-fuchsia-100/85">
+              Aun no ingresa a la cola de TI. La jefatura debe revisar y dar su
+              visto bueno antes de que el requerimiento sea gestionado.
+            </p>
+          </div>
+        )}
+        {ticket.estadoAprobacion === "aprobado" && (
+          <div
+            className={`mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-3 ${
+              isFocusMode ? "mx-auto max-w-4xl" : ""
+            }`}
+          >
+            <p className="text-sm font-semibold text-emerald-100">
+              La jefatura aprobo esta solicitud
+            </p>
+            <p className="mt-1 text-sm text-emerald-100/85">
+              El ticket ya puede ser gestionado por TI.
+            </p>
+          </div>
+        )}
+        {approvalRejected && (
+          <div
+            className={`mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-3 ${
+              isFocusMode ? "mx-auto max-w-4xl" : ""
+            }`}
+          >
+            <p className="text-sm font-semibold text-rose-100">
+              La jefatura rechazo esta solicitud
+            </p>
+            <p className="mt-1 text-sm text-rose-100/85">
+              {ticket.comentarioAprobacion?.trim()
+                ? ticket.comentarioAprobacion
+                : "No se registro un motivo de rechazo."}
+            </p>
+          </div>
+        )}
         {closurePending && (
           <div
             className={`mt-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-3 ${
