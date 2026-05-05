@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppHeader from "../components/AppHeader";
 import { useAuth } from "../auth/AuthContext";
@@ -7,7 +7,7 @@ import { useCentroUsuarios } from "../features/gestion-activos/hooks/useCentroUs
 import { Pagination } from "../features/gestion-activos/components/Pagination";
 import { sendTicketEmail } from "../services/email";
 import {
-  listTickets,
+  listTicketsPaginated,
   resolverAprobacionTicket,
   type Ticket,
 } from "../services/tickets";
@@ -43,6 +43,10 @@ export default function TicketAprobaciones() {
   const { usuarios: centroUsuarios, loading: centroUsuariosLoading } =
     useCentroUsuarios();
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [totalTickets, setTotalTickets] = useState(0);
+  const [conteoPendientes, setConteoPendientes] = useState(0);
+  const [conteoAprobadas, setConteoAprobadas] = useState(0);
+  const [conteoRechazadas, setConteoRechazadas] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [vista, setVista] = useState<"pendientes" | "gestionadas">("pendientes");
@@ -50,6 +54,7 @@ export default function TicketAprobaciones() {
   const [paginaActual, setPaginaActual] = useState(1);
   const [comentarios, setComentarios] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState<Record<string, boolean>>({});
+  const enProceso = useRef<Set<string>>(new Set());
 
   const opcionesRevision = useMemo(
     () => obtenerOpcionesRevisionUsuario(user || undefined),
@@ -100,6 +105,10 @@ export default function TicketAprobaciones() {
   const cargarTickets = useCallback(async () => {
     if (rolesAprobadores.length === 0) {
       setTickets([]);
+      setTotalTickets(0);
+      setConteoPendientes(0);
+      setConteoAprobadas(0);
+      setConteoRechazadas(0);
       setLoading(false);
       return;
     }
@@ -107,25 +116,81 @@ export default function TicketAprobaciones() {
     try {
       setLoading(true);
       setError(null);
-      const response = await listTickets({
-        limit: 500,
-        sortBy: "createdDesc",
-        aprobacionRequerida: true,
-      });
-      if (!response.ok) {
-        throw new Error(response.error || "No se pudieron cargar solicitudes.");
+      const skip = (paginaActual - 1) * PAGE_SIZE;
+      const estadosVista =
+        vista === "pendientes"
+          ? (["pendiente"] as const)
+          : (["aprobado", "rechazado"] as const);
+
+      const [paginaResponse, pendientesResponse, aprobadasResponse, rechazadasResponse] =
+        await Promise.all([
+          listTicketsPaginated({
+            limit: PAGE_SIZE,
+            skip,
+            sortBy: "createdDesc",
+            aprobacionRequerida: true,
+            rolAprobadores: rolesAprobadores,
+            areaAprobacion: filtroArea || undefined,
+            estadosAprobacion: [...estadosVista],
+          }),
+          listTicketsPaginated({
+            limit: 1,
+            skip: 0,
+            aprobacionRequerida: true,
+            rolAprobadores: rolesAprobadores,
+            areaAprobacion: filtroArea || undefined,
+            estadoAprobacion: "pendiente",
+          }),
+          listTicketsPaginated({
+            limit: 1,
+            skip: 0,
+            aprobacionRequerida: true,
+            rolAprobadores: rolesAprobadores,
+            areaAprobacion: filtroArea || undefined,
+            estadoAprobacion: "aprobado",
+          }),
+          listTicketsPaginated({
+            limit: 1,
+            skip: 0,
+            aprobacionRequerida: true,
+            rolAprobadores: rolesAprobadores,
+            areaAprobacion: filtroArea || undefined,
+            estadoAprobacion: "rechazado",
+          }),
+        ]);
+
+      if (!paginaResponse.ok) {
+        throw new Error(
+          paginaResponse.error || "No se pudieron cargar solicitudes."
+        );
       }
-      const data = Array.isArray(response.data) ? response.data : [];
-      const filtrados = data.filter((ticket) =>
-        ticketCoincideConAprobador(ticket, rolesAprobadores)
+
+      const respuestasConteo = [
+        pendientesResponse,
+        aprobadasResponse,
+        rechazadasResponse,
+      ];
+      const respuestaConteoConError = respuestasConteo.find(
+        (respuesta) => !respuesta.ok
       );
-      setTickets(filtrados);
+      if (respuestaConteoConError) {
+        throw new Error(
+          respuestaConteoConError.error ||
+            "No se pudieron cargar los conteos de aprobacion."
+        );
+      }
+
+      setTickets(Array.isArray(paginaResponse.data) ? paginaResponse.data : []);
+      setTotalTickets(paginaResponse.count || 0);
+      setConteoPendientes(pendientesResponse.count || 0);
+      setConteoAprobadas(aprobadasResponse.count || 0);
+      setConteoRechazadas(rechazadasResponse.count || 0);
     } catch (err: any) {
       setError(err?.message || "No se pudieron cargar las aprobaciones.");
     } finally {
       setLoading(false);
     }
-  }, [rolesAprobadores]);
+  }, [filtroArea, paginaActual, rolesAprobadores, vista]);
 
   useEffect(() => {
     void cargarTickets();
@@ -135,37 +200,15 @@ export default function TicketAprobaciones() {
     setPaginaActual(1);
   }, [vista, filtroArea]);
 
-  const ticketsFiltrados = useMemo(() => {
-    let lista = tickets.filter((ticket) => Boolean(ticket.aprobacionRequerida));
+  const ticketsPagina = useMemo(
+    () =>
+      tickets.filter((ticket) =>
+        ticketCoincideConAprobador(ticket, rolesAprobadores)
+      ),
+    [rolesAprobadores, tickets]
+  );
 
-    if (filtroArea) {
-      lista = lista.filter((ticket) => ticket.areaAprobacion === filtroArea);
-    }
-
-    if (vista === "pendientes") {
-      lista = lista.filter((ticket) => ticket.estadoAprobacion === "pendiente");
-    } else {
-      lista = lista.filter((ticket) =>
-        ["aprobado", "rechazado"].includes(ticket.estadoAprobacion || "")
-      );
-    }
-
-    return [...lista].sort((a, b) => {
-      const fechaA = new Date(
-        a.fechaSolicitudAprobacion || a.ticketTime || a.createdAt || 0
-      ).getTime();
-      const fechaB = new Date(
-        b.fechaSolicitudAprobacion || b.ticketTime || b.createdAt || 0
-      ).getTime();
-      return fechaB - fechaA;
-    });
-  }, [filtroArea, tickets, vista]);
-
-  const totalPaginas = Math.max(1, Math.ceil(ticketsFiltrados.length / PAGE_SIZE));
-  const ticketsPagina = useMemo(() => {
-    const inicio = (paginaActual - 1) * PAGE_SIZE;
-    return ticketsFiltrados.slice(inicio, inicio + PAGE_SIZE);
-  }, [paginaActual, ticketsFiltrados]);
+  const totalPaginas = Math.max(1, Math.ceil(totalTickets / PAGE_SIZE));
 
   useEffect(() => {
     setPaginaActual((pagina) => Math.min(pagina, totalPaginas));
@@ -231,6 +274,8 @@ export default function TicketAprobaciones() {
 
   const resolverTicket = useCallback(
     async (ticket: Ticket, decision: "approve" | "reject") => {
+      if (enProceso.current.has(ticket.ticketId)) return;
+
       const comentario = (comentarios[ticket.ticketId] || "").trim();
       if (decision === "reject" && !comentario) {
         throw new Error("Debes indicar el motivo del rechazo.");
@@ -241,6 +286,7 @@ export default function TicketAprobaciones() {
         );
       }
 
+      enProceso.current.add(ticket.ticketId);
       setGuardando((actual) => ({ ...actual, [ticket.ticketId]: true }));
       setError(null);
 
@@ -256,31 +302,29 @@ export default function TicketAprobaciones() {
           throw new Error(response.error || "No se pudo registrar la decision.");
         }
 
-        const actualizado = (response.data || {}) as Ticket;
         setTickets((actual) =>
-          actual.map((item) =>
-            item.ticketId === ticket.ticketId ? { ...item, ...actualizado } : item
-          )
+          actual.filter((item) => item.ticketId !== ticket.ticketId)
         );
+        setConteoPendientes((n) => Math.max(0, n - 1));
+        if (decision === "approve") setConteoAprobadas((n) => n + 1);
+        else setConteoRechazadas((n) => n + 1);
+
         setComentarios((actual) => {
           const siguiente = { ...actual };
           delete siguiente[ticket.ticketId];
           return siguiente;
         });
         try {
-          await enviarNotificacionDecision(
-            ticket,
-            decision,
-            comentario || undefined
-          );
+          await enviarNotificacionDecision(ticket, decision, comentario || undefined);
         } catch (mailError) {
           console.warn("[aprobacion] no se pudo enviar correo:", mailError);
         }
       } finally {
+        enProceso.current.delete(ticket.ticketId);
         setGuardando((actual) => ({ ...actual, [ticket.ticketId]: false }));
       }
     },
-    [comentarios, enviarNotificacionDecision, nombreActual, usuarioActual]
+    [centroUsuariosLoading, comentarios, enviarNotificacionDecision, nombreActual, usuarioActual]
   );
 
   return (
@@ -312,28 +356,19 @@ export default function TicketAprobaciones() {
               <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-3">
                 <div className="text-xs text-neutral-500">Pendientes</div>
                 <div className="mt-1 text-2xl font-bold text-fuchsia-700">
-                  {
-                    tickets.filter((ticket) => ticket.estadoAprobacion === "pendiente")
-                      .length
-                  }
+                  {conteoPendientes}
                 </div>
               </div>
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                 <div className="text-xs text-neutral-500">Aprobadas</div>
                 <div className="mt-1 text-2xl font-bold text-emerald-700">
-                  {
-                    tickets.filter((ticket) => ticket.estadoAprobacion === "aprobado")
-                      .length
-                  }
+                  {conteoAprobadas}
                 </div>
               </div>
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
                 <div className="text-xs text-neutral-500">Rechazadas</div>
                 <div className="mt-1 text-2xl font-bold text-rose-700">
-                  {
-                    tickets.filter((ticket) => ticket.estadoAprobacion === "rechazado")
-                      .length
-                  }
+                  {conteoRechazadas}
                 </div>
               </div>
             </div>
@@ -404,13 +439,13 @@ export default function TicketAprobaciones() {
           </div>
         )}
 
-        {!loading && !error && ticketsFiltrados.length === 0 && (
+        {!loading && !error && ticketsPagina.length === 0 && (
           <div className="rounded-xl border border-neutral-200 bg-white/90 p-6 text-neutral-600 shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
             No hay solicitudes para la vista seleccionada.
           </div>
         )}
 
-        {!loading && ticketsFiltrados.length > 0 && (
+        {!loading && ticketsPagina.length > 0 && (
           <>
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               {ticketsPagina.map((ticket) => {

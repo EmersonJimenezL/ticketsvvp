@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import RequireAuth from "./routes/RequireAuth";
+import RequireAdminTickets from "./routes/RequireAdminTickets";
 import RouteLoader from "./components/RouteLoader";
 
 import Login from "./pages/Login";
@@ -12,6 +13,7 @@ const MisTickets = lazy(() => import("./pages/MisTickets"));
 const TicketAprobaciones = lazy(() => import("./pages/TicketAprobaciones"));
 const Admin = lazy(() => import("./pages/Admin"));
 const AdminHome = lazy(() => import("./pages/AdminHome"));
+const AdminUsuarios = lazy(() => import("./pages/AdminUsuarios"));
 const GestionActivos = lazy(() => import("./pages/GestionActivos"));
 const Modelos = lazy(() => import("./pages/Modelos"));
 const AdminTicketsHistorico = lazy(() => import("./pages/AdminTicketsHistorico"));
@@ -58,13 +60,16 @@ export default function App() {
 
             {/* admin */}
             <Route element={<RequireAuth />}>
-              <Route path="/admin" element={<AdminHome />} />
-              <Route path="/admin/tickets" element={<Admin />} />
-              <Route
-                path="/admin/tickets/historico"
-                element={<AdminTicketsHistorico />}
-              />
-              <Route path="/admin/modelos" element={<Modelos />} />
+              <Route element={<RequireAdminTickets />}>
+                <Route path="/admin" element={<AdminHome />} />
+                <Route path="/admin/tickets" element={<Admin />} />
+                <Route
+                  path="/admin/tickets/historico"
+                  element={<AdminTicketsHistorico />}
+                />
+                <Route path="/admin/modelos" element={<Modelos />} />
+                <Route path="/admin/usuarios" element={<AdminUsuarios />} />
+              </Route>
             </Route>
 
             {/* compatibilidad ruta anterior */}
@@ -74,10 +79,12 @@ export default function App() {
 
             {/* gestion de activos */}
             <Route element={<RequireAuth />}>
-              <Route
-                path="/admin/gestion-activos"
-                element={<GestionActivos />}
-              />
+              <Route element={<RequireAdminTickets />}>
+                <Route
+                  path="/admin/gestion-activos"
+                  element={<GestionActivos />}
+                />
+              </Route>
             </Route>
           </Routes>
         </Suspense>

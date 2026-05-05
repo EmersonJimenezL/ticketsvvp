@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CENTRO_APLICACIONES_URL } from "../constants";
 import type { CentroUsuario } from "../types";
+import { getStoredAuthToken } from "../../../auth/authStorage";
 
 export function useCentroUsuarios() {
   const [usuarios, setUsuarios] = useState<CentroUsuario[]>([]);
@@ -11,7 +12,14 @@ export function useCentroUsuarios() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(CENTRO_APLICACIONES_URL);
+      const token = getStoredAuthToken();
+      const response = await fetch(CENTRO_APLICACIONES_URL, {
+        headers: token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : undefined,
+      });
       const json = await response.json();
 
       let items: CentroUsuario[] = [];

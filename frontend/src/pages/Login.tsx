@@ -36,7 +36,7 @@ export default function Login() {
         primerApellido: resp.data.papellido,
       };
 
-      login(userData);
+      login(userData, resp.token);
 
       const dest = isTicketAdmin(userData) ? "/admin" : "/menu";
       navigate(dest, { replace: true });

@@ -42,7 +42,7 @@ export default function AdminHome() {
             <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-100 blur-2xl transition group-hover:bg-orange-200" />
             <div className="flex items-center gap-3">
               <div className="grid h-12 w-12 place-items-center rounded-xl border border-orange-200 bg-orange-100 text-xl text-orange-700">
-                🎫
+                TK
               </div>
               <div>
                 <div className="text-xl font-bold">Gestionar Tickets</div>
@@ -66,7 +66,7 @@ export default function AdminHome() {
             <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-100 blur-2xl transition group-hover:bg-orange-200" />
             <div className="flex items-center gap-3">
               <div className="grid h-12 w-12 place-items-center rounded-xl border border-orange-200 bg-orange-100 text-xl text-orange-700">
-                🧰
+                AC
               </div>
               <div>
                 <div className="text-xl font-bold">Gestionar Activos</div>
@@ -90,12 +90,35 @@ export default function AdminHome() {
             <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-100 blur-2xl transition group-hover:bg-orange-200" />
             <div className="flex items-center gap-3">
               <div className="grid h-12 w-12 place-items-center rounded-xl border border-orange-200 bg-orange-100 text-xl text-orange-700">
-                🧩
+                MO
               </div>
               <div>
                 <div className="text-xl font-bold">Gestionar Modelos</div>
                 <div className="text-sm text-neutral-600">
                   Especificaciones técnicas
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 inline-flex items-center gap-2 text-sm text-orange-700">
+              <span>Ir al módulo</span>
+              <span className="transition group-hover:translate-x-0.5">→</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/admin/usuarios")}
+            className="group relative w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white/90 p-8 text-left shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition hover:border-orange-200 hover:bg-white sm:w-[22rem]"
+          >
+            <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-100 blur-2xl transition group-hover:bg-orange-200" />
+            <div className="flex items-center gap-3">
+              <div className="grid h-12 w-12 place-items-center rounded-xl border border-orange-200 bg-orange-100 text-xl font-semibold text-orange-700">
+                U
+              </div>
+              <div>
+                <div className="text-xl font-bold">Gestionar Usuarios</div>
+                <div className="text-sm text-neutral-600">
+                  Centro de Aplicaciones
                 </div>
               </div>
             </div>
@@ -113,8 +136,8 @@ export default function AdminHome() {
             >
               <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-orange-100 blur-2xl transition group-hover:bg-orange-200" />
               <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-xl border border-orange-200 bg-orange-100 text-xl text-orange-700">
-                  👥
+                <div className="grid h-12 w-12 place-items-center rounded-xl border border-orange-200 bg-orange-100 text-xl font-semibold text-orange-700">
+                  EQ
                 </div>
                 <div>
                   <div className="text-xl font-bold">Tickets de mi equipo</div>
@@ -138,8 +161,8 @@ export default function AdminHome() {
             >
               <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-fuchsia-100 blur-2xl transition group-hover:bg-fuchsia-200" />
               <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-xl border border-fuchsia-200 bg-fuchsia-100 text-xl text-fuchsia-700">
-                  ✓
+                <div className="grid h-12 w-12 place-items-center rounded-xl border border-fuchsia-200 bg-fuchsia-100 text-xl font-semibold text-fuchsia-700">
+                  AP
                 </div>
                 <div>
                   <div className="text-xl font-bold">Solicitudes por Aprobar</div>

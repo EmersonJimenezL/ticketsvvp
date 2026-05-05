@@ -7,6 +7,11 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  STORAGE_ISSUED_AT_KEY,
+  STORAGE_TOKEN_KEY,
+  STORAGE_USER_KEY,
+} from "./authStorage";
 
 /** Ajusta aquí tus políticas de sesión */
 export const INACTIVITY_MS = 15 * 60 * 1000; // 15 minutos de inactividad
@@ -79,20 +84,19 @@ function normalizeUserAliases(u: Usuario): Usuario {
 
 type AuthContextType = {
   user: Usuario | null;
+  token: string;
   isAuth: boolean;
   hydrated: boolean; // true cuando ya se restauró/decidió la sesión
-  login: (u: Usuario) => void;
+  login: (u: Usuario, token?: string | null) => void;
   logout: () => void;
   touch: () => void; // marca actividad para reiniciar el timer de inactividad
 };
-
-const STORAGE_KEY = "usuario";
-const STORAGE_ISSUED_AT = "usuario_issued_at";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Usuario | null>(null);
+  const [token, setToken] = useState("");
   const [hydrated, setHydrated] = useState(false);
 
   const inactivityTimerRef = useRef<number | null>(null);
@@ -121,18 +125,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const doLogout = () => {
     clearInactivityTimer();
     setUser(null);
+    setToken("");
     issuedAtRef.current = null;
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(STORAGE_ISSUED_AT);
+    localStorage.removeItem(STORAGE_USER_KEY);
+    localStorage.removeItem(STORAGE_ISSUED_AT_KEY);
+    localStorage.removeItem(STORAGE_TOKEN_KEY);
   };
 
-  const login = (u: Usuario) => {
+  const login = (u: Usuario, authToken?: string | null) => {
     const normalized = normalizeUserAliases(u);
     setUser(normalized);
+    setToken(typeof authToken === "string" ? authToken.trim() : "");
     const now = Date.now();
     issuedAtRef.current = now;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-    localStorage.setItem(STORAGE_ISSUED_AT, String(now));
+    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(normalized));
+    localStorage.setItem(STORAGE_ISSUED_AT_KEY, String(now));
+    if (typeof authToken === "string" && authToken.trim()) {
+      localStorage.setItem(STORAGE_TOKEN_KEY, authToken.trim());
+    } else {
+      localStorage.removeItem(STORAGE_TOKEN_KEY);
+    }
     armInactivityTimer();
   };
 
@@ -154,8 +166,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Restaurar sesión en carga y setear listeners de actividad
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const issued = localStorage.getItem(STORAGE_ISSUED_AT);
+      const raw = localStorage.getItem(STORAGE_USER_KEY);
+      const issued = localStorage.getItem(STORAGE_ISSUED_AT_KEY);
+      const storedToken = localStorage.getItem(STORAGE_TOKEN_KEY);
 
       if (raw && issued) {
         const parsed = normalizeUserAliases(JSON.parse(raw) as Usuario);
@@ -167,8 +180,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           Date.now() - issuedAt <= ABS_MAX_SESSION_MS
         ) {
           setUser(parsed);
+          setToken(
+            typeof storedToken === "string" && storedToken.trim()
+              ? storedToken.trim()
+              : ""
+          );
           // Migra sesiones antiguas sin aliases de usuario.
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+          localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(parsed));
           armInactivityTimer();
         } else {
           // vencida por tiempo absoluto
@@ -177,8 +195,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {
       // si falla el parse, limpia
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(STORAGE_ISSUED_AT);
+      localStorage.removeItem(STORAGE_USER_KEY);
+      localStorage.removeItem(STORAGE_ISSUED_AT_KEY);
+      localStorage.removeItem(STORAGE_TOKEN_KEY);
     } finally {
       setHydrated(true); // importante: no redirigir hasta hidratar
     }
@@ -211,13 +230,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextType>(
     () => ({
       user,
+      token,
       isAuth: !!user,
       hydrated,
       login,
       logout,
       touch,
     }),
-    [user, hydrated]
+    [user, token, hydrated]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

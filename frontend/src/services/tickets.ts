@@ -58,6 +58,70 @@ export type ListResponse = {
   error?: string;
 };
 
+export type ListTicketsParams = {
+  userId?: string;
+  userIds?: string[];
+  state?: Ticket["state"];
+  states?: Ticket["state"][];
+  title?: Ticket["title"];
+  risk?: Ticket["risk"];
+  asignadoA?: string;
+  asignadoAAny?: string[];
+  unassigned?: boolean;
+  excludeState?: Ticket["state"];
+  sortBy?: string;
+  limit?: number;
+  skip?: number;
+  estadoAprobacion?: EstadoAprobacionTicket;
+  estadosAprobacion?: EstadoAprobacionTicket[];
+  aprobacionRequerida?: boolean;
+  rolAprobador?: string;
+  rolAprobadores?: string[];
+  areaAprobacion?: string;
+  soloListosTi?: boolean;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+function appendArrayParam(qs: URLSearchParams, key: string, values?: string[]) {
+  const normalized = (values || []).map((item) => item.trim()).filter(Boolean);
+  if (!normalized.length) return;
+  qs.set(key, normalized.join(","));
+}
+
+function buildTicketSearch(params: ListTicketsParams) {
+  const qs = new URLSearchParams();
+  if (params.userId) qs.set("userId", params.userId);
+  appendArrayParam(qs, "userIds", params.userIds);
+  if (params.state) qs.set("state", params.state);
+  appendArrayParam(qs, "states", params.states);
+  if (params.title) qs.set("title", params.title);
+  if (params.risk) qs.set("risk", params.risk);
+  if (params.asignadoA) qs.set("asignadoA", params.asignadoA);
+  appendArrayParam(qs, "asignadoAAny", params.asignadoAAny);
+  if (params.unassigned != null) qs.set("unassigned", String(params.unassigned));
+  if (params.excludeState) qs.set("excludeState", params.excludeState);
+  if (params.sortBy) qs.set("sortBy", params.sortBy);
+  if (params.limit != null) qs.set("limit", String(params.limit));
+  if (params.skip != null) qs.set("skip", String(params.skip));
+  if (params.estadoAprobacion) qs.set("estadoAprobacion", params.estadoAprobacion);
+  appendArrayParam(qs, "estadosAprobacion", params.estadosAprobacion);
+  if (params.aprobacionRequerida != null) {
+    qs.set("aprobacionRequerida", String(params.aprobacionRequerida));
+  }
+  if (params.rolAprobador) qs.set("rolAprobador", params.rolAprobador);
+  appendArrayParam(qs, "rolAprobadores", params.rolAprobadores);
+  if (params.areaAprobacion) qs.set("areaAprobacion", params.areaAprobacion);
+  if (params.soloListosTi != null) {
+    qs.set("soloListosTi", String(params.soloListosTi));
+  }
+  if (params.search) qs.set("search", params.search);
+  if (params.dateFrom) qs.set("dateFrom", params.dateFrom);
+  if (params.dateTo) qs.set("dateTo", params.dateTo);
+  return qs.toString() ? `?${qs.toString()}` : "";
+}
+
 export type TicketsByUserMetric = {
   userId: string;
   userName: string;
@@ -68,6 +132,9 @@ export type TicketsByUserMetric = {
 
 export type TicketsMetrics = {
   avgResolutionTimeHours: number | null;
+  avgCreatedToAssignedHours?: number | null;
+  avgAssignedToResolvedHours?: number | null;
+  avgClosureRequestToResponseHours?: number | null;
   ticketsByCategory: { category: string; total: number }[];
   ticketsByUser: TicketsByUserMetric[];
   highRiskOpen: number;
@@ -95,81 +162,13 @@ export function createTicket(payload: TicketPayload) {
   });
 }
 
-export function listTickets(params: {
-  userId?: string;
-  state?: Ticket["state"];
-  title?: Ticket["title"];
-  risk?: Ticket["risk"];
-  asignadoA?: string;
-  unassigned?: boolean;
-  excludeState?: Ticket["state"];
-  sortBy?: string;
-  limit?: number;
-  skip?: number;
-  estadoAprobacion?: EstadoAprobacionTicket;
-  aprobacionRequerida?: boolean;
-  rolAprobador?: string;
-  soloListosTi?: boolean;
-}) {
-  const qs = new URLSearchParams();
-  if (params.userId) qs.set("userId", params.userId);
-  if (params.state) qs.set("state", params.state);
-  if (params.title) qs.set("title", params.title);
-  if (params.risk) qs.set("risk", params.risk);
-  if (params.asignadoA) qs.set("asignadoA", params.asignadoA);
-  if (params.unassigned != null) qs.set("unassigned", String(params.unassigned));
-  if (params.excludeState) qs.set("excludeState", params.excludeState);
-  if (params.sortBy) qs.set("sortBy", params.sortBy);
-  if (params.limit != null) qs.set("limit", String(params.limit));
-  if (params.skip != null) qs.set("skip", String(params.skip));
-  if (params.estadoAprobacion) qs.set("estadoAprobacion", params.estadoAprobacion);
-  if (params.aprobacionRequerida != null) {
-    qs.set("aprobacionRequerida", String(params.aprobacionRequerida));
-  }
-  if (params.rolAprobador) qs.set("rolAprobador", params.rolAprobador);
-  if (params.soloListosTi != null) {
-    qs.set("soloListosTi", String(params.soloListosTi));
-  }
-  const search = qs.toString() ? `?${qs.toString()}` : "";
+export function listTickets(params: ListTicketsParams) {
+  const search = buildTicketSearch(params);
   return httpJSON<ListResponse>("tickets", `/api/ticketvvp${search}`);
 }
 
-export async function listTicketsPaginated(params: {
-  userId?: string;
-  state?: Ticket["state"];
-  title?: Ticket["title"];
-  risk?: Ticket["risk"];
-  asignadoA?: string;
-  unassigned?: boolean;
-  excludeState?: Ticket["state"];
-  sortBy?: string;
-  limit?: number;
-  skip?: number;
-  estadoAprobacion?: EstadoAprobacionTicket;
-  aprobacionRequerida?: boolean;
-  rolAprobador?: string;
-  soloListosTi?: boolean;
-}) {
-  const qs = new URLSearchParams();
-  if (params.userId) qs.set("userId", params.userId);
-  if (params.state) qs.set("state", params.state);
-  if (params.title) qs.set("title", params.title);
-  if (params.risk) qs.set("risk", params.risk);
-  if (params.asignadoA) qs.set("asignadoA", params.asignadoA);
-  if (params.unassigned != null) qs.set("unassigned", String(params.unassigned));
-  if (params.excludeState) qs.set("excludeState", params.excludeState);
-  if (params.sortBy) qs.set("sortBy", params.sortBy);
-  if (params.limit != null) qs.set("limit", String(params.limit));
-  if (params.skip != null) qs.set("skip", String(params.skip));
-  if (params.estadoAprobacion) qs.set("estadoAprobacion", params.estadoAprobacion);
-  if (params.aprobacionRequerida != null) {
-    qs.set("aprobacionRequerida", String(params.aprobacionRequerida));
-  }
-  if (params.rolAprobador) qs.set("rolAprobador", params.rolAprobador);
-  if (params.soloListosTi != null) {
-    qs.set("soloListosTi", String(params.soloListosTi));
-  }
-  const search = qs.toString() ? `?${qs.toString()}` : "";
+export async function listTicketsPaginated(params: ListTicketsParams) {
+  const search = buildTicketSearch(params);
   try {
     return await httpJSON<ListResponse>(
       "tickets",

@@ -66,6 +66,13 @@ function mapSortOptionToBackend(sortBy: SortOption) {
   }
 }
 
+function formatFechaHoraCierre(value?: string) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toLocaleString();
+}
+
 export default function MisTickets() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -446,6 +453,9 @@ export default function MisTickets() {
       closureRemainingMs != null && closureRemainingMs <= 0;
     const closureDraftComment = closureCommentDraft[ticket.ticketId] || "";
     const closureActionBusy = Boolean(closureSubmitting[ticket.ticketId]);
+    const fechaEntradaCierre = formatFechaHoraCierre(
+      ticket.closureRequestedAt || ticket.resolucionTime
+    );
     const approvalPending = ticketPendienteAprobacion(ticket);
     const approvalRejected = ticketRechazadoPorAprobacion(ticket);
     const approvalBadgeLabel = obtenerEtiquetaEstadoAprobacion(
@@ -530,33 +540,33 @@ export default function MisTickets() {
           </span>
         )}
         {closurePending && (
-          <span className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-xs text-cyan-200">
+          <span className="rounded-lg border border-cyan-200 bg-cyan-50 px-2 py-1 text-xs text-cyan-800">
             Pendiente de tu confirmacion
           </span>
         )}
         {ticket.closureStatus === "accepted" && (
-          <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-200">
+          <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-800">
             Cierre aceptado
           </span>
         )}
         {ticket.closureStatus === "expired" && (
-          <span className="rounded-lg border border-neutral-500/30 bg-neutral-500/10 px-2 py-1 text-xs text-neutral-200">
+          <span className="rounded-lg border border-neutral-200 bg-neutral-100 px-2 py-1 text-xs text-neutral-700">
             Cerrado automatico
           </span>
         )}
       </div>
 
-      <div className="mt-3 text-neutral-200">
+      <div className="mt-3 text-neutral-700">
         {approvalPending && (
           <div
-            className={`mt-3 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-3 ${
+            className={`mt-3 rounded-xl border border-fuchsia-200 bg-fuchsia-50 px-3 py-3 ${
               isFocusMode ? "mx-auto max-w-4xl" : ""
             }`}
           >
-            <p className="text-sm font-semibold text-fuchsia-100">
+            <p className="text-sm font-semibold text-fuchsia-900">
               Este ticket esta pendiente de aprobacion de jefatura
             </p>
-            <p className="mt-1 text-sm text-fuchsia-100/85">
+            <p className="mt-1 text-sm text-fuchsia-800">
               Aun no ingresa a la cola de TI. La jefatura debe revisar y dar su
               visto bueno antes de que el requerimiento sea gestionado.
             </p>
@@ -564,28 +574,28 @@ export default function MisTickets() {
         )}
         {ticket.estadoAprobacion === "aprobado" && (
           <div
-            className={`mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-3 ${
+            className={`mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 ${
               isFocusMode ? "mx-auto max-w-4xl" : ""
             }`}
           >
-            <p className="text-sm font-semibold text-emerald-100">
+            <p className="text-sm font-semibold text-emerald-900">
               La jefatura aprobo esta solicitud
             </p>
-            <p className="mt-1 text-sm text-emerald-100/85">
+            <p className="mt-1 text-sm text-emerald-800">
               El ticket ya puede ser gestionado por TI.
             </p>
           </div>
         )}
         {approvalRejected && (
           <div
-            className={`mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-3 ${
+            className={`mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 ${
               isFocusMode ? "mx-auto max-w-4xl" : ""
             }`}
           >
-            <p className="text-sm font-semibold text-rose-100">
+            <p className="text-sm font-semibold text-rose-900">
               La jefatura rechazo esta solicitud
             </p>
-            <p className="mt-1 text-sm text-rose-100/85">
+            <p className="mt-1 text-sm text-rose-800">
               {ticket.comentarioAprobacion?.trim()
                 ? ticket.comentarioAprobacion
                 : "No se registro un motivo de rechazo."}
@@ -594,18 +604,25 @@ export default function MisTickets() {
         )}
         {closurePending && (
           <div
-            className={`mt-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-3 ${
+            className={`mt-3 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-3 ${
               isFocusMode ? "mx-auto max-w-4xl" : ""
             }`}
           >
-            <p className="text-sm font-semibold text-cyan-100">
-              El ticket entro en etapa de cierre
-            </p>
-            <p className="mt-1 text-sm text-cyan-100/90">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-cyan-900">
+                El ticket entro en etapa de cierre
+              </p>
+              {fechaEntradaCierre && (
+                <span className="rounded-full border border-cyan-200 bg-white/80 px-2 py-0.5 text-xs font-medium text-cyan-800">
+                  {fechaEntradaCierre}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-cyan-800">
               Confirma si la solucion fue correcta. Si no respondes, el ticket
               se cerrara automaticamente.
             </p>
-            <p className="mt-1 text-xs text-cyan-100/80">
+            <p className="mt-1 text-xs text-cyan-700">
               {closureWindowExpired
                 ? "El plazo de confirmacion ya vencio."
                 : closureRemainingMs != null
@@ -617,7 +634,7 @@ export default function MisTickets() {
 
             <div className="mt-3 space-y-3">
               <label className="block">
-                <span className="mb-1 block text-xs text-cyan-100/80">
+                <span className="mb-1 block text-xs text-cyan-700">
                   Si no se resolvio, indica que falta
                 </span>
                 <textarea
@@ -631,7 +648,7 @@ export default function MisTickets() {
                     }))
                   }
                   placeholder="Explica por que el ticket debe seguir abierto."
-                  className="w-full rounded-xl border border-cyan-500/20 bg-neutral-900/60 px-3 py-2 text-sm text-neutral-100 outline-none focus:ring-2 focus:ring-cyan-400 disabled:opacity-60"
+                  className="w-full rounded-xl border border-cyan-200 bg-white px-3 py-2 text-sm text-neutral-800 outline-none placeholder:text-neutral-400 focus:ring-2 focus:ring-cyan-500 disabled:opacity-60"
                 />
               </label>
 
@@ -648,7 +665,7 @@ export default function MisTickets() {
                       );
                     });
                   }}
-                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-60"
+                  className="rounded-xl bg-emerald-600/75 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500/80 disabled:opacity-60"
                 >
                   {closureActionBusy ? "Guardando..." : "Aceptar cierre"}
                 </button>
@@ -664,7 +681,7 @@ export default function MisTickets() {
                       );
                     });
                   }}
-                  className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-60"
+                  className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100 disabled:opacity-60"
                 >
                   Sigue abierto
                 </button>
@@ -674,16 +691,16 @@ export default function MisTickets() {
         )}
         {/* Mostrar quien est  atendiendo el ticket */}
         <div
-          className={`mt-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 ${
+          className={`mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 ${
             isFocusMode ? "mx-auto max-w-4xl" : ""
           }`}
         >
           {ticket.asignadoA ? (
-            <p className="text-sm text-blue-300">
+            <p className="text-sm text-blue-800">
               <span className="font-semibold">Atendido por:</span> {ticket.asignadoA}
             </p>
           ) : (
-            <p className="text-sm text-neutral-400">
+            <p className="text-sm text-neutral-600">
               Tu ticket esta pendiente de asignacion
             </p>
           )}
@@ -693,11 +710,11 @@ export default function MisTickets() {
             isFocusMode ? "mx-auto max-w-5xl lg:grid-cols-2" : ""
           }`}
         >
-          <section className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-sky-800">
+          <section className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-sky-900">
               Solicitud del usuario
             </p>
-            <p className="mt-2 whitespace-pre-line text-sm text-neutral-200">
+            <p className="mt-2 whitespace-pre-line text-sm text-neutral-700">
               {ticket.description}
             </p>
             {requestImages.length > 0 ? (
@@ -733,22 +750,22 @@ export default function MisTickets() {
                 ))}
               </div>
             ) : (
-              <p className="mt-3 text-xs text-sky-100/80">Sin imagenes adjuntas.</p>
+              <p className="mt-3 text-xs text-sky-700">Sin imagenes adjuntas.</p>
             )}
           </section>
 
-          <section className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-orange-200">
+          <section className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-orange-900">
               Respuesta TI
             </p>
             {hasResponseContent ? (
               <>
                 {ticket.comment?.trim() ? (
-                  <p className="mt-2 whitespace-pre-line text-sm text-neutral-200">
+                  <p className="mt-2 whitespace-pre-line text-sm text-neutral-700">
                     {ticket.comment}
                   </p>
                 ) : (
-                  <p className="mt-2 text-sm text-neutral-400">
+                  <p className="mt-2 text-sm text-neutral-500">
                     Sin comentario de respuesta.
                   </p>
                 )}
@@ -904,7 +921,7 @@ export default function MisTickets() {
           <div className="space-y-6">
             <div ref={ticketsStartRef} className="h-0" />
             {statusTab === "resueltos" && pendingClosureItems.length > 0 && (
-              <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+              <div className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
                 {pendingClosureItems.length === 1
                   ? `Tienes 1 ticket esperando confirmacion de cierre en esta pagina.`
                   : `Tienes ${pendingClosureItems.length} tickets esperando confirmacion de cierre en esta pagina.`}

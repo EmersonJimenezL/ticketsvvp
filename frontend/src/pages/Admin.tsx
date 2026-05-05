@@ -11,7 +11,6 @@ import {
 } from "recharts";
 import {
   fetchTicketsMetrics,
-  listTickets,
   listTicketsPaginated,
   patchTicket,
   assignTicket,
@@ -76,6 +75,14 @@ type CreatorFilterOption = {
   userId: string;
   displayName: string;
 };
+type AssignmentMetric = {
+  name: string;
+  value: string;
+  total: number;
+  pending: number;
+  inProgress: number;
+  resolved: number;
+};
 const SORT_LABEL: Record<SortOption, string> = {
   risk: "Riesgo (alto -> bajo)",
   createdAsc: "Creacion (antiguo -> reciente)",
@@ -84,8 +91,12 @@ const SORT_LABEL: Record<SortOption, string> = {
 };
 const MAX_RESPONSE_IMAGES = 5;
 const PAGE_SIZE = 12;
+const METRICS_COMMENTS_PAGE_SIZE = 6;
 const CREATOR_DATALIST_ID = "ticket-creator-options";
 const CLOSURE_WINDOW_HOURS = DEFAULT_TICKET_CLOSURE_WINDOW_HOURS;
+const ASSIGNMENT_WORKERS = ASSIGN_OPTIONS.filter(
+  (option) => option.value
+) as ReadonlyArray<{ value: string; label: string }>;
 
 function getClosureBadgeClasses(ticket: Ticket) {
   if (ticket.closureStatus === "pending") {
@@ -262,37 +273,6 @@ function isTicketAssignedToCandidates(ticket: Ticket, candidates: string[]) {
   return candidates.some((candidate) => isAssigneeMatch(ticket.asignadoA, candidate));
 }
 
-function toSortableDate(value?: string) {
-  if (!value) return 0;
-  const time = new Date(value).getTime();
-  return Number.isFinite(time) ? time : 0;
-}
-
-function sortTicketsLocal(tickets: Ticket[], sortBy: SortOption) {
-  const riskWeight: Record<Ticket["risk"], number> = {
-    alto: 3,
-    medio: 2,
-    bajo: 1,
-  };
-
-  return [...tickets].sort((a, b) => {
-    const createdA = toSortableDate(a.ticketTime || a.createdAt);
-    const createdB = toSortableDate(b.ticketTime || b.createdAt);
-    if (sortBy === "createdAsc") return createdA - createdB;
-    if (sortBy === "createdDesc") return createdB - createdA;
-    if (sortBy === "resolvedDesc") {
-      const resolvedA = toSortableDate(a.resolucionTime || a.updatedAt);
-      const resolvedB = toSortableDate(b.resolucionTime || b.updatedAt);
-      return resolvedB - resolvedA;
-    }
-
-    const riskDiff =
-      (riskWeight[b.risk] || 0) - (riskWeight[a.risk] || 0);
-    if (riskDiff !== 0) return riskDiff;
-    return createdB - createdA;
-  });
-}
-
 function formatResolutionTime(hours: number | null) {
   if (hours == null) return "Sin datos";
   if (hours < 1) {
@@ -316,6 +296,52 @@ function formatRating(value: number | null | undefined) {
   return value.toFixed(2);
 }
 
+function RatingStars({
+  value,
+  variant = "fractional",
+}: {
+  value: number | null | undefined;
+  variant?: "fractional" | "discrete";
+}) {
+  const normalized =
+    value == null || Number.isNaN(value)
+      ? 0
+      : Math.max(0, Math.min(value, 5));
+
+  if (variant === "discrete") {
+    const filledCount = Math.round(normalized);
+    return (
+      <div className="inline-flex items-center gap-1 text-lg leading-none">
+        {Array.from({ length: 5 }).map((_, index) => {
+          const isFilled = index < filledCount;
+          return (
+            <span
+              key={index}
+              className={isFilled ? "text-amber-500" : "text-white/15"}
+            >
+              ★
+            </span>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const percentage = `${(normalized / 5) * 100}%`;
+
+  return (
+    <div className="relative inline-flex text-lg leading-none tracking-[0.24em]">
+      <span className="text-amber-200">★★★★★</span>
+      <span
+        className="absolute inset-y-0 left-0 overflow-hidden whitespace-nowrap text-amber-500"
+        style={{ width: percentage }}
+      >
+        ★★★★★
+      </span>
+    </div>
+  );
+}
+
 function formatMetricCommentDate(value?: string | null) {
   if (!value) return "";
   const parsed = new Date(value);
@@ -325,6 +351,42 @@ function formatMetricCommentDate(value?: string | null) {
     month: "short",
     year: "numeric",
   });
+}
+
+function getFeedbackToneClasses(score: number | null | undefined) {
+  if (score == null || Number.isNaN(score)) {
+    return {
+      frame: "border-white/10 bg-white/[0.04]",
+      badge: "border-white/10 bg-white/[0.06] text-neutral-200",
+      meta: "text-neutral-200",
+      accent: "from-white/20 to-transparent",
+    };
+  }
+
+  if (score >= 4) {
+    return {
+      frame: "border-emerald-400/20 bg-emerald-500/[0.06]",
+      badge: "border-emerald-300/30 bg-emerald-400/10 text-emerald-200",
+      meta: "text-neutral-100",
+      accent: "from-emerald-300/50 to-transparent",
+    };
+  }
+
+  if (score >= 3) {
+    return {
+      frame: "border-amber-400/20 bg-amber-500/[0.06]",
+      badge: "border-amber-300/30 bg-amber-400/10 text-amber-200",
+      meta: "text-neutral-100",
+      accent: "from-amber-300/50 to-transparent",
+    };
+  }
+
+  return {
+    frame: "border-rose-400/20 bg-rose-500/[0.06]",
+    badge: "border-rose-300/30 bg-rose-400/10 text-rose-200",
+    meta: "text-neutral-100",
+    accent: "from-rose-300/50 to-transparent",
+  };
 }
 
 type TrendChartProps = {
@@ -479,6 +541,24 @@ function MetricsPanel({
   onOpenHistoric,
 }: MetricsPanelProps) {
   const showSkeleton = loading && !metrics;
+  const [commentsPage, setCommentsPage] = useState(1);
+  const ratingComments = metrics?.ratingComments ?? [];
+  const commentsTotalPages = Math.max(
+    1,
+    Math.ceil(ratingComments.length / METRICS_COMMENTS_PAGE_SIZE)
+  );
+  const commentsStartIndex = (commentsPage - 1) * METRICS_COMMENTS_PAGE_SIZE;
+  const commentsEndIndex = commentsStartIndex + METRICS_COMMENTS_PAGE_SIZE;
+  const commentsPageItems = ratingComments.slice(
+    commentsStartIndex,
+    commentsEndIndex
+  );
+  const commentsRangeStart = ratingComments.length
+    ? commentsStartIndex + 1
+    : 0;
+  const commentsRangeEnd = ratingComments.length
+    ? Math.min(commentsEndIndex, ratingComments.length)
+    : 0;
 
   const resolveUserDisplayName = (
     item: TicketsMetrics["ticketsByUser"][number]
@@ -500,6 +580,43 @@ function MetricsPanel({
     return "Sin usuario";
   };
 
+  useEffect(() => {
+    setCommentsPage(1);
+  }, [ratingComments.length]);
+
+  useEffect(() => {
+    setCommentsPage((current) => Math.min(current, commentsTotalPages));
+  }, [commentsTotalPages]);
+
+  const timingMetrics = [
+    {
+      title: "Promedio de resolucion",
+      value: formatResolutionTime(metrics?.avgResolutionTimeHours ?? null),
+      toneValue: "text-neutral-100",
+      description: "Desde apertura hasta cierre de ticket",
+    },
+    {
+      title: "Creado → Asignado",
+      value: formatResolutionTime(metrics?.avgCreatedToAssignedHours ?? null),
+      toneValue: "text-sky-300",
+      description: "Tiempo promedio desde creacion hasta asignacion",
+    },
+    {
+      title: "Asignado → Resuelto",
+      value: formatResolutionTime(metrics?.avgAssignedToResolvedHours ?? null),
+      toneValue: "text-cyan-300",
+      description: "Tiempo promedio desde asignacion hasta resolucion",
+    },
+    {
+      title: "Cierre → Respuesta usuario",
+      value: formatResolutionTime(
+        metrics?.avgClosureRequestToResponseHours ?? null
+      ),
+      toneValue: "text-fuchsia-300",
+      description: "Tiempo promedio desde solicitud de cierre hasta respuesta del usuario",
+    },
+  ] as const;
+
   if (showSkeleton) {
     return (
       <div className="mb-8 space-y-4">
@@ -510,8 +627,8 @@ function MetricsPanel({
           </div>
           <div className="h-10 w-32 rounded-xl border border-white/10 bg-white/10 animate-pulse" />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={index}
               className="h-28 rounded-2xl border border-white/10 bg-white/5 animate-pulse"
@@ -546,16 +663,19 @@ function MetricsPanel({
           {error}
         </div>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
-          <h4 className="text-sm text-neutral-400">Promedio de resolucion</h4>
-          <p className="mt-2 text-3xl font-bold text-neutral-100">
-            {formatResolutionTime(metrics?.avgResolutionTimeHours ?? null)}
-          </p>
-          <p className="mt-1 text-xs text-neutral-500">
-            Desde apertura hasta cierre de ticket
-          </p>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        {timingMetrics.map((item) => (
+          <div
+            key={item.title}
+            className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md"
+          >
+            <h4 className="text-sm text-neutral-400">{item.title}</h4>
+            <p className={`mt-2 text-3xl font-bold ${item.toneValue}`}>
+              {item.value}
+            </p>
+            <p className="mt-1 text-xs text-neutral-500">{item.description}</p>
+          </div>
+        ))}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
           <h4 className="text-sm text-neutral-400">Riesgo alto abierto</h4>
           <p className="mt-2 text-3xl font-bold text-red-300">
@@ -608,83 +728,118 @@ function MetricsPanel({
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
           <h4 className="text-sm text-neutral-400">Calificacion promedio</h4>
-          <p className="mt-2 text-3xl font-bold text-amber-300">
-            {formatRating(metrics?.ratingAvg ?? null)}
-          </p>
-          <p className="mt-1 text-xs text-neutral-500">
-            Promedio general de calificaciones
-          </p>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
-          <h4 className="text-sm text-neutral-400">
-            Calificacion por categoria
-          </h4>
-          <ul className="mt-2 space-y-1 text-sm text-neutral-200">
-            {(metrics?.ratingByCategory ?? []).slice(0, 4).map((item) => (
-              <li
-                key={item.category}
-                className="flex items-center justify-between text-neutral-300"
-              >
-                <span className="truncate pr-2">{item.category}</span>
-                <span className="font-semibold text-amber-200">
-                  {formatRating(item.avg)}
-                </span>
-              </li>
-            ))}
-            {metrics && (metrics.ratingByCategory?.length ?? 0) === 0 && (
-              <li className="text-neutral-500">Sin informacion disponible</li>
-            )}
-          </ul>
+          <div className="mt-3 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-3xl font-bold text-amber-300">
+                {formatRating(metrics?.ratingAvg ?? null)}
+              </p>
+              <p className="mt-1 text-xs text-neutral-500">
+                Promedio general de calificaciones
+              </p>
+            </div>
+            <span className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900">
+              {metrics?.ratingAvg != null && !Number.isNaN(metrics.ratingAvg)
+                ? `${metrics.ratingAvg.toFixed(2)} / 5`
+                : "Sin nota"}
+            </span>
+          </div>
+          <div className="mt-4 rounded-2xl border border-amber-300/50 bg-gradient-to-r from-amber-100 via-orange-50 to-amber-50 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <RatingStars value={metrics?.ratingAvg ?? null} />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-900">
+                Satisfaccion
+              </span>
+            </div>
+          </div>
         </div>
       </div>
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h4 className="text-sm text-neutral-400">
+            <h4 className="text-lg font-semibold tracking-tight text-neutral-100">
               Comentarios anonimos de usuarios
             </h4>
-            <p className="mt-1 text-xs text-neutral-500">
-              Retroalimentacion de tickets cerrados, sin datos personales
+            <p className="mt-1 text-sm leading-6 text-neutral-400">
+              Retroalimentacion de tickets cerrados, sin datos personales.
             </p>
           </div>
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-neutral-400">
-            {(metrics?.ratingComments ?? []).length} comentarios
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {ratingComments.length > 0 && (
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-neutral-400">
+                Mostrando {commentsRangeStart}-{commentsRangeEnd} de{" "}
+                {ratingComments.length}
+              </span>
+            )}
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-neutral-400">
+              {ratingComments.length} comentarios
+            </span>
+          </div>
         </div>
-        <div className="space-y-3">
-          {(metrics?.ratingComments ?? []).slice(0, 6).map((item, index) => {
+        <div className="grid gap-4 xl:grid-cols-2">
+          {commentsPageItems.map((item, index) => {
             const formattedDate = formatMetricCommentDate(item.date);
+            const tone = getFeedbackToneClasses(item.score);
             return (
               <article
-                key={`${item.category}-${item.date || "sin-fecha"}-${index}`}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                key={`${item.category}-${item.date || "sin-fecha"}-${
+                  commentsStartIndex + index
+                }`}
+                className={`group relative overflow-hidden rounded-3xl border p-5 transition ${tone.frame}`}
               >
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-400">
+                <div
+                  className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r ${tone.accent}`}
+                />
+                <div className="absolute right-4 top-3 text-5xl font-serif leading-none text-white/5 transition group-hover:text-white/10">
+                  "
+                </div>
+
+                <div className="relative flex flex-wrap items-start justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-neutral-300">
+                    <span className="rounded-full border border-white/10 bg-black/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-300">
                       Anonimo
                     </span>
-                    <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1 font-medium text-neutral-100">
+                    <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${tone.badge}`}>
                       {item.score != null ? `${item.score}/5` : "Sin nota"}
                     </span>
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-neutral-300">
+                    <span className="rounded-full border border-white/10 bg-black/10 px-2.5 py-1 text-[11px] font-medium text-neutral-300">
                       {item.category || "Sin categoria"}
                     </span>
                   </div>
-                  {formattedDate && <span>{formattedDate}</span>}
+                  {formattedDate && (
+                    <span className="text-xs text-neutral-500">{formattedDate}</span>
+                  )}
                 </div>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-neutral-200">
+
+                <div className="relative mt-4 flex items-center justify-between gap-3">
+                  <RatingStars value={item.score} variant="discrete" />
+                  <span className={`text-[11px] font-medium uppercase tracking-[0.18em] ${tone.meta}`}>
+                    Retroalimentacion
+                  </span>
+                </div>
+
+                <p className="relative mt-4 whitespace-pre-wrap text-[15px] leading-7 text-neutral-100">
                   {item.comment}
                 </p>
               </article>
             );
           })}
-          {metrics && (metrics.ratingComments?.length ?? 0) === 0 && (
-            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-6 text-center text-sm text-neutral-500">
+          {metrics && ratingComments.length === 0 && (
+            <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-10 text-center text-sm text-neutral-500 xl:col-span-2">
               Aun no hay comentarios de calificacion para mostrar.
             </div>
           )}
         </div>
+        {ratingComments.length > METRICS_COMMENTS_PAGE_SIZE && (
+          <div className="mt-4 border-t border-white/10 pt-4">
+            <Pagination
+              currentPage={commentsPage}
+              totalPages={commentsTotalPages}
+              onPageChange={setCommentsPage}
+              hasNextPage={commentsPage < commentsTotalPages}
+              hasPrevPage={commentsPage > 1}
+            />
+          </div>
+        )}
       </div>
       <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -766,6 +921,17 @@ export default function Admin() {
     useState(0);
   const [allPendingCountServer, setAllPendingCountServer] = useState(0);
   const [allResolvedCountServer, setAllResolvedCountServer] = useState(0);
+  const [assignmentMetrics, setAssignmentMetrics] = useState<AssignmentMetric[]>(
+    () =>
+      ASSIGNMENT_WORKERS.map((worker) => ({
+        name: worker.label,
+        value: worker.value,
+        total: 0,
+        pending: 0,
+        inProgress: 0,
+        resolved: 0,
+      }))
+  );
   const [metrics, setMetrics] = useState<TicketsMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [metricsError, setMetricsError] = useState<string | null>(null);
@@ -793,20 +959,23 @@ export default function Admin() {
     ]
   );
   const creatorFilterOptions = useMemo<CreatorFilterOption[]>(() => {
-    const byUserId = new Map<string, string>();
-    for (const ticket of items) {
-      const userId = (ticket.userId || "").trim();
-      if (!userId || byUserId.has(userId)) continue;
-      byUserId.set(userId, resolveOwnerDisplay(ticket));
-    }
-    return Array.from(byUserId.entries())
-      .map(([userId, displayName]) => ({ userId, displayName }))
+    const source = metrics?.ticketsByUser || [];
+    return source
+      .map((item) => ({
+        userId: (item.userId || "").trim(),
+        displayName: (
+          item.userFullName ||
+          [item.userName || "", item.userLastName || ""].filter(Boolean).join(" ") ||
+          item.userId
+        ).trim(),
+      }))
+      .filter((item) => item.userId)
       .sort((a, b) =>
         a.displayName.localeCompare(b.displayName, "es", {
           sensitivity: "base",
         })
       );
-  }, [items]);
+  }, [metrics?.ticketsByUser]);
   const creatorFilterUserId = useMemo(() => {
     const value = creatorFilter.trim();
     if (!value) return "";
@@ -1025,23 +1194,6 @@ export default function Admin() {
     [resolveCorreo]
   );
 
-  const refreshTickets = useCallback(async () => {
-    try {
-      setError(null);
-      setLoading(true);
-      const response = await listTickets({ limit: 500, soloListosTi: true });
-      if (!response.ok) {
-        throw new Error(response.error || "No se pudieron cargar los tickets");
-      }
-      const data = Array.isArray(response.data) ? response.data : [];
-      setItems(filtrarTicketsListosParaTi(data));
-    } catch (err: any) {
-      setError(err?.message || "Error al obtener tickets.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   const fetchPagedCount = useCallback(
     async (params: Parameters<typeof listTicketsPaginated>[0]) => {
       const response = await listTicketsPaginated({
@@ -1079,22 +1231,23 @@ export default function Admin() {
         return;
       }
 
-      const assignedTickets = items.filter((ticket) =>
-        isTicketAssignedToCandidates(ticket, assignedUserCandidates)
-      );
-      const myPending = assignedTickets.filter(
-        (ticket) => ticket.state !== "resuelto"
-      ).length;
-      const myResolved = assignedTickets.filter(
-        (ticket) => ticket.state === "resuelto"
-      ).length;
+      const [myPending, myResolved] = await Promise.all([
+        fetchPagedCount({
+          asignadoAAny: assignedUserCandidates,
+          excludeState: "resuelto",
+        }),
+        fetchPagedCount({
+          asignadoAAny: assignedUserCandidates,
+          state: "resuelto",
+        }),
+      ]);
 
       setMyAssignedPendingCountServer(myPending);
       setMyAssignedResolvedCountServer(myResolved);
     } catch (err: any) {
       setError(err?.message || "No se pudieron obtener conteos de tickets.");
     }
-  }, [assignedUserCandidates, fetchPagedCount, items]);
+  }, [assignedUserCandidates, fetchPagedCount]);
 
   const fetchUnassignedPage = useCallback(async () => {
     try {
@@ -1142,30 +1295,32 @@ export default function Admin() {
 
     try {
       setMyAssignedListLoading(true);
-      let filtered = items.filter((ticket) =>
-        isTicketAssignedToCandidates(ticket, assignedUserCandidates)
-      );
-      filtered = filtrarTicketsListosParaTi(filtered);
+      const params: Parameters<typeof listTicketsPaginated>[0] = {
+        soloListosTi: true,
+        asignadoAAny: assignedUserCandidates,
+        sortBy: mapSortOptionToBackend(sortBy),
+        limit: PAGE_SIZE,
+        skip: (myAssignedPage - 1) * PAGE_SIZE,
+      };
 
       if (creatorFilterUserId) {
-        const normalizedCreator = normalizeString(creatorFilterUserId);
-        filtered = filtered.filter(
-          (ticket) => normalizeString(ticket.userId || "") === normalizedCreator
-        );
+        params.userId = creatorFilterUserId;
       }
 
       if (myAssignedView === "resueltos") {
-        filtered = filtered.filter((ticket) => ticket.state === "resuelto");
+        params.state = "resuelto";
       } else {
-        filtered = filtered.filter((ticket) => ticket.state !== "resuelto");
+        params.excludeState = "resuelto";
       }
 
-      const sorted = sortTicketsLocal(filtered, sortBy);
-      const start = (myAssignedPage - 1) * PAGE_SIZE;
-      const pageItems = sorted.slice(start, start + PAGE_SIZE);
+      const response = await listTicketsPaginated(params);
+      if (!response.ok) {
+        throw new Error(response.error || "No se pudieron cargar tickets.");
+      }
 
-      setMyAssignedPageItems(pageItems);
-      setMyAssignedTotalCount(sorted.length);
+      const data = Array.isArray(response.data) ? response.data : [];
+      setMyAssignedPageItems(filtrarTicketsListosParaTi(data));
+      setMyAssignedTotalCount(response.count ?? 0);
     } catch (err: any) {
       setError(err?.message || "Error al paginar mis tickets asignados.");
     } finally {
@@ -1174,7 +1329,6 @@ export default function Admin() {
   }, [
     assignedUserCandidates,
     creatorFilterUserId,
-    items,
     myAssignedPage,
     myAssignedView,
     sortBy,
@@ -1246,10 +1400,48 @@ export default function Admin() {
     }
   }, []);
 
+  const refreshAssignmentMetrics = useCallback(async () => {
+    try {
+      const resultados = await Promise.all(
+        ASSIGNMENT_WORKERS.map(async (worker) => {
+          const [pending, inProgress, resolved] = await Promise.all([
+            fetchPagedCount({
+              asignadoA: worker.value,
+              state: "recibido",
+            }),
+            fetchPagedCount({
+              asignadoA: worker.value,
+              states: ["enProceso", "conDificultades"],
+            }),
+            fetchPagedCount({
+              asignadoA: worker.value,
+              state: "resuelto",
+            }),
+          ]);
+
+          return {
+            name: worker.label,
+            value: worker.value,
+            pending,
+            inProgress,
+            resolved,
+            total: pending + inProgress + resolved,
+          };
+        })
+      );
+
+      setAssignmentMetrics(resultados);
+    } catch (err: any) {
+      setError(
+        err?.message || "No se pudieron obtener las metricas por trabajador."
+      );
+    }
+  }, [fetchPagedCount]);
+
   useEffect(() => {
-    void refreshTickets();
     void refreshMetrics();
-  }, [refreshTickets, refreshMetrics]);
+    void refreshAssignmentMetrics();
+  }, [refreshAssignmentMetrics, refreshMetrics]);
 
   useEffect(() => {
     void refreshServerCounts();
@@ -1258,43 +1450,13 @@ export default function Admin() {
   // Auto-refresh cada 30 segundos para mantener datos actualizados
   useEffect(() => {
     const interval = setInterval(() => {
-      void refreshTickets();
       void refreshServerCounts();
       void refreshActiveTabPage();
+      void refreshAssignmentMetrics();
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [refreshTickets, refreshServerCounts, refreshActiveTabPage]);
-
-  // Métricas de asignación por trabajador
-  const assignmentMetrics = useMemo(() => {
-    const workers = [
-      { name: "Mauricio Contreras", value: "Mauricio Contreras" },
-      { name: "Emerson Jiménez", value: "Emerson Jiménez" },
-      { name: "Ignacio González", value: "Ignacio González" },
-    ];
-
-    return workers.map((worker) => {
-      const assignedTickets = items.filter((t) => t.asignadoA === worker.value);
-      const pending = assignedTickets.filter(
-        (t) => t.state === "recibido"
-      ).length;
-      const inProgress = assignedTickets.filter(
-        (t) => t.state === "enProceso" || t.state === "conDificultades"
-      ).length;
-      const resolved = assignedTickets.filter(
-        (t) => t.state === "resuelto"
-      ).length;
-
-      return {
-        name: worker.name,
-        total: assignedTickets.length,
-        pending,
-        inProgress,
-        resolved,
-      };
-    });
-  }, [items]);
+  }, [refreshActiveTabPage, refreshAssignmentMetrics, refreshServerCounts]);
 
   const myAssignedTotalCountServer = useMemo(
     () => myAssignedPendingCountServer + myAssignedResolvedCountServer,
@@ -1349,6 +1511,15 @@ export default function Admin() {
   useEffect(() => {
     void fetchAllPage();
   }, [fetchAllPage]);
+
+  useEffect(() => {
+    setLoading(
+      metricsLoading ||
+        unassignedListLoading ||
+        myAssignedListLoading ||
+        allListLoading
+    );
+  }, [allListLoading, metricsLoading, myAssignedListLoading, unassignedListLoading]);
 
   const ticketsPool = useMemo(
     () => [
@@ -1510,6 +1681,7 @@ export default function Admin() {
       await refreshActiveTabPage();
       void refreshServerCounts();
       void refreshMetrics();
+      void refreshAssignmentMetrics();
     } catch (err: any) {
       setItems((list) =>
         list.map((item) =>
@@ -1619,9 +1791,9 @@ export default function Admin() {
         });
       }
 
-      await refreshTickets();
       await refreshActiveTabPage();
       void refreshServerCounts();
+      void refreshAssignmentMetrics();
     } catch (err: any) {
       setItems((list) =>
         list.map((item) =>
@@ -1654,8 +1826,12 @@ export default function Admin() {
     const hasResponseContent =
       Boolean(responseComment.trim()) || responseImages.length > 0;
     const closurePending = isTicketClosurePending(ticket);
+    const closureRejected = ticket.closureStatus === "rejected";
     const closureRemainingMs = getTicketClosureRemainingMs(ticket, nowMs);
     const closureBadgeLabel = getClosureBadgeLabel(ticket, nowMs);
+    const closureRejectionComment = (
+      ticket.closureResponseComment || ""
+    ).trim();
     const approvalBadgeLabel = obtenerEtiquetaEstadoAprobacion(
       ticket.estadoAprobacion
     );
@@ -1767,6 +1943,17 @@ export default function Admin() {
                         closureRemainingMs
                       )}.`
                   : "El plazo de confirmacion ya vencio; el backend debe cerrarlo automaticamente."}
+                </p>
+              </div>
+            )}
+            {closureRejected && (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                <p className="font-semibold">
+                  El usuario rechazo el cierre y el ticket sigue en proceso.
+                </p>
+                <p className="mt-1 text-sm text-amber-800">
+                  {closureRejectionComment ||
+                    "No se registro un motivo para mantener el ticket abierto."}
                 </p>
               </div>
             )}
@@ -2172,7 +2359,16 @@ export default function Admin() {
     );
   };
 
-  if (loading && !items.length) {
+  const hasLoadedVisibleData =
+    unassignedPageItems.length > 0 ||
+    myAssignedPageItems.length > 0 ||
+    allPageItems.length > 0 ||
+    unassignedTotalCount > 0 ||
+    myAssignedTotalCount > 0 ||
+    allTotalCount > 0 ||
+    Boolean(metrics);
+
+  if (loading && !hasLoadedVisibleData) {
     return (
       <div className="min-h-screen bg-white text-neutral-900 relative overflow-hidden px-4 py-10">
         <div className="pointer-events-none absolute inset-0 opacity-40">

@@ -4,7 +4,8 @@ import AppHeader from "../components/AppHeader";
 import { useAuth } from "../auth/AuthContext";
 import { isTicketAdmin } from "../auth/isTicketAdmin";
 import { useCentroUsuarios } from "../features/gestion-activos/hooks/useCentroUsuarios";
-import { listTickets, type Ticket } from "../services/tickets";
+import { Pagination } from "../features/gestion-activos/components/Pagination";
+import { listTicketsPaginated, type Ticket } from "../services/tickets";
 import {
   obtenerAreasEquipoCentroUsuario,
   obtenerClasesEstadoAprobacion,
@@ -12,6 +13,8 @@ import {
   obtenerOpcionesRevisionUsuario,
   normalizarRol,
 } from "../utils/ticketApproval";
+
+const PAGE_SIZE = 12;
 
 type TrabajadorEquipo = {
   userId: string;
@@ -83,13 +86,16 @@ export default function AdminConta() {
   } = useCentroUsuarios();
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]);
+  const [totalTickets, setTotalTickets] = useState(0);
+  const [conteoPendientes, setConteoPendientes] = useState(0);
+  const [conteoResueltos, setConteoResueltos] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [filtroArea, setFiltroArea] = useState("");
+  const [paginaActual, setPaginaActual] = useState(1);
 
   const opcionesRevision = useMemo(
     () => obtenerOpcionesRevisionUsuario(user || undefined),
@@ -138,9 +144,19 @@ export default function AdminConta() {
     [trabajadoresEquipo]
   );
 
+  const trabajadoresFiltradosPorArea = useMemo(() => {
+    if (!filtroArea) return trabajadoresEquipo;
+    return trabajadoresEquipo.filter((item) => item.areas.includes(filtroArea));
+  }, [filtroArea, trabajadoresEquipo]);
+
   const workerSet = useMemo(
-    () => new Set(trabajadoresEquipo.map((item) => item.userId)),
-    [trabajadoresEquipo]
+    () => new Set(trabajadoresFiltradosPorArea.map((item) => item.userId)),
+    [trabajadoresFiltradosPorArea]
+  );
+
+  const workerIds = useMemo(
+    () => Array.from(workerSet),
+    [workerSet]
   );
 
   const areasDisponibles = useMemo(
@@ -165,6 +181,10 @@ export default function AdminConta() {
   }, [opcionesRevision]);
 
   useEffect(() => {
+    setPaginaActual(1);
+  }, [search, fromDate, toDate, filtroArea]);
+
+  useEffect(() => {
     if (!isAuthorized) {
       navigate(destinoVolver, { replace: true });
     }
@@ -173,52 +193,74 @@ export default function AdminConta() {
   useEffect(() => {
     if (!isAuthorized) return;
     if (usersLoading) return;
-    if (workerSet.size === 0) {
+    if (workerIds.length === 0) {
       setTickets([]);
+      setTotalTickets(0);
+      setConteoPendientes(0);
+      setConteoResueltos(0);
       return;
     }
 
     let cancelled = false;
 
-    async function fetchAllTickets() {
+    async function fetchTicketsPage() {
       try {
         setLoading(true);
         setError(null);
+        const skip = (paginaActual - 1) * PAGE_SIZE;
+        const paramsBase = {
+          userIds: workerIds,
+          search: search.trim() || undefined,
+          dateFrom: fromDate || undefined,
+          dateTo: toDate || undefined,
+          sortBy: "createdDesc",
+        } as const;
 
-        const limit = 200;
-        let skip = 0;
-        let total = 0;
-        let all: Ticket[] = [];
+        const [paginaResponse, pendientesResponse, resueltosResponse] =
+          await Promise.all([
+            listTicketsPaginated({
+              ...paramsBase,
+              limit: PAGE_SIZE,
+              skip,
+            }),
+            listTicketsPaginated({
+              ...paramsBase,
+              limit: 1,
+              skip: 0,
+              excludeState: "resuelto",
+            }),
+            listTicketsPaginated({
+              ...paramsBase,
+              limit: 1,
+              skip: 0,
+              state: "resuelto",
+            }),
+          ]);
 
-        while (true) {
-          const resp = await listTickets({ limit, skip, sortBy: "createdDesc" });
-          if (!resp.ok) {
-            throw new Error(resp.error || "Error al cargar tickets");
-          }
-
-          total = resp.count ?? 0;
-          all = all.concat(resp.data || []);
-
-          if ((resp.data || []).length < limit || all.length >= total) {
-            break;
-          }
-
-          skip += limit;
+        if (!paginaResponse.ok) {
+          throw new Error(paginaResponse.error || "Error al cargar tickets");
         }
 
-        const filtered = all.filter((ticket) => {
-          const userId = normalizarRol(ticket.userId || "");
-          return workerSet.has(userId);
-        });
+        const respuestaConteoConError = [pendientesResponse, resueltosResponse].find(
+          (respuesta) => !respuesta.ok
+        );
+        if (respuestaConteoConError) {
+          throw new Error(
+            respuestaConteoConError.error ||
+              "No se pudieron cargar los conteos del equipo"
+          );
+        }
 
-        filtered.sort((a, b) => {
-          const fechaA = new Date(a.ticketTime || a.createdAt || 0).getTime();
-          const fechaB = new Date(b.ticketTime || b.createdAt || 0).getTime();
-          return fechaB - fechaA;
+        const paginaFiltrada = (paginaResponse.data || []).filter((ticket) => {
+          const userId = normalizarRol(ticket.userId || "");
+          return trabajadoresMap.has(userId);
         });
 
         if (!cancelled) {
-          setTickets(filtered);
+          setTickets(paginaFiltrada);
+          setTotalTickets(paginaResponse.count || 0);
+          setConteoPendientes(pendientesResponse.count || 0);
+          setConteoResueltos(resueltosResponse.count || 0);
         }
       } catch (err: any) {
         if (!cancelled) {
@@ -229,70 +271,43 @@ export default function AdminConta() {
       }
     }
 
-    void fetchAllTickets();
+    void fetchTicketsPage();
 
     return () => {
       cancelled = true;
     };
-  }, [isAuthorized, usersLoading, workerSet]);
-
-  useEffect(() => {
-    const normalizedSearch = normalizarRol(search);
-    const from = fromDate ? new Date(`${fromDate}T00:00:00`) : null;
-    const to = toDate ? new Date(`${toDate}T23:59:59`) : null;
-
-    const next = tickets.filter((ticket) => {
-      const userId = normalizarRol(ticket.userId || "");
-      const trabajador = trabajadoresMap.get(userId);
-      if (!trabajador) return false;
-
-      if (filtroArea && !trabajador.areas.includes(filtroArea)) {
-        return false;
-      }
-
-      const searchable = [
-        ticket.ticketId || "",
-        ticket.title || "",
-        ticket.userId || "",
-        ticket.userName || "",
-        ticket.userFullName || "",
-        trabajador.displayName,
-        trabajador.areaLabels.join(" "),
-      ]
-        .map((value) => normalizarRol(value))
-        .join(" ");
-
-      if (normalizedSearch && !searchable.includes(normalizedSearch)) {
-        return false;
-      }
-
-      const dateRaw = ticket.ticketTime || ticket.createdAt;
-      if (!dateRaw) return true;
-      const date = new Date(dateRaw);
-      if (from && date < from) return false;
-      if (to && date > to) return false;
-      return true;
-    });
-
-    setFilteredTickets(next);
-  }, [tickets, search, fromDate, toDate, filtroArea, trabajadoresMap]);
+  }, [
+    filtroArea,
+    isAuthorized,
+    fromDate,
+    paginaActual,
+    search,
+    toDate,
+    trabajadoresMap,
+    usersLoading,
+    workerIds,
+  ]);
 
   const resumen = useMemo(() => {
-    const pendientes = filteredTickets.filter(
-      (ticket) => ticket.state !== "resuelto"
-    ).length;
-    const resueltos = filteredTickets.filter(
-      (ticket) => ticket.state === "resuelto"
-    ).length;
     return {
-      total: filteredTickets.length,
-      pendientes,
-      resueltos,
+      total: totalTickets,
+      pendientes: conteoPendientes,
+      resueltos: conteoResueltos,
     };
-  }, [filteredTickets]);
+  }, [conteoPendientes, conteoResueltos, totalTickets]);
+
+  const totalPaginas = Math.max(1, Math.ceil(totalTickets / PAGE_SIZE));
+  const filtrosGridClassName =
+    areasDisponibles.length > 1
+      ? "md:grid-cols-2 2xl:grid-cols-4"
+      : "md:grid-cols-3";
+
+  useEffect(() => {
+    setPaginaActual((pagina) => Math.min(pagina, totalPaginas));
+  }, [totalPaginas]);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-white px-4 py-10 text-neutral-900">
+    <div className="relative min-h-screen overflow-hidden bg-white px-4 py-8 text-neutral-900 lg:px-6">
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div
           className="absolute -top-24 -left-24 h-80 w-80 rounded-full blur-3xl"
@@ -308,7 +323,7 @@ export default function AdminConta() {
         />
       </div>
 
-      <div className="relative mx-auto w-full max-w-6xl">
+      <div className="relative mx-auto w-full max-w-[1680px]">
         <AppHeader
           title="Tickets de mi equipo"
           subtitle="Seguimiento de tickets creados por trabajadores de tus áreas"
@@ -327,36 +342,38 @@ export default function AdminConta() {
           </div>
         )}
 
-        <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
-              <div className="text-xs uppercase tracking-wide text-neutral-500">
-                Total
+        <div className="mb-6 grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
+          <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white/95 shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
+            <div className="grid grid-cols-3 divide-x divide-neutral-200">
+              <div className="px-4 py-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                  Total
+                </div>
+                <div className="mt-2 text-3xl font-black text-neutral-900">
+                  {resumen.total}
+                </div>
               </div>
-              <div className="mt-2 text-2xl font-bold text-neutral-900">
-                {resumen.total}
+              <div className="bg-amber-50/80 px-4 py-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                  Pendientes
+                </div>
+                <div className="mt-2 text-3xl font-black text-amber-700">
+                  {resumen.pendientes}
+                </div>
               </div>
-            </div>
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
-              <div className="text-xs uppercase tracking-wide text-neutral-500">
-                Pendientes
-              </div>
-              <div className="mt-2 text-2xl font-bold text-amber-700">
-                {resumen.pendientes}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
-              <div className="text-xs uppercase tracking-wide text-neutral-500">
-                Resueltos
-              </div>
-              <div className="mt-2 text-2xl font-bold text-emerald-700">
-                {resumen.resueltos}
+              <div className="bg-emerald-50/80 px-4 py-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                  Resueltos
+                </div>
+                <div className="mt-2 text-3xl font-black text-emerald-700">
+                  {resumen.resueltos}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-neutral-200 bg-white/95 p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
+            <div className={`grid gap-3 ${filtrosGridClassName}`}>
               {areasDisponibles.length > 1 && (
                 <label className="text-sm text-neutral-700">
                   Área
@@ -412,7 +429,7 @@ export default function AdminConta() {
         <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
           <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
             <div className="text-sm font-semibold text-neutral-700">
-              Tickets del equipo ({filteredTickets.length})
+              Tickets del equipo ({totalTickets})
             </div>
           </div>
 
@@ -420,14 +437,14 @@ export default function AdminConta() {
             <div className="px-4 py-8 text-center text-sm text-neutral-500">
               Cargando tickets...
             </div>
-          ) : filteredTickets.length === 0 ? (
+          ) : tickets.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-neutral-500">
               No hay tickets para mostrar.
             </div>
           ) : (
             <>
               <div className="divide-y divide-neutral-200 md:hidden">
-                {filteredTickets.map((ticket) => {
+                {tickets.map((ticket) => {
                   const trabajador = trabajadoresMap.get(
                     normalizarRol(ticket.userId || "")
                   );
@@ -536,7 +553,7 @@ export default function AdminConta() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredTickets.map((ticket) => {
+                    {tickets.map((ticket) => {
                       const trabajador = trabajadoresMap.get(
                         normalizarRol(ticket.userId || "")
                       );
@@ -605,6 +622,16 @@ export default function AdminConta() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="border-t border-neutral-200 px-4 py-4">
+                <Pagination
+                  currentPage={paginaActual}
+                  totalPages={totalPaginas}
+                  onPageChange={setPaginaActual}
+                  hasNextPage={paginaActual < totalPaginas}
+                  hasPrevPage={paginaActual > 1}
+                />
               </div>
             </>
           )}
